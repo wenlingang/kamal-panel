@@ -1,5 +1,7 @@
 # kamal-panel
 
+**English** | [简体中文](README.zh-CN.md)
+
 A read-only(-ish) control panel for [Kamal](https://kamal-deploy.org/) deployments: an
 Application × Host overview that answers "is anything broken?" in a few seconds, without
 you having to SSH into every box and run `kamal app details` by hand.
