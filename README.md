@@ -18,11 +18,11 @@ via `kamal deploy` from CI, exactly as before.
 > Anyone who can reach the panel and read its database can, transitively, act on your
 > infrastructure. Treat it with the same care as an SSH private key.
 
-- **Every page requires a signed-in user.** There are two roles: **viewer** (read-only)
-  and **operator** (can also perform write operations — see "Roles" below).
-  `POST /apps` (the "add an application" endpoint) and every action endpoint require the
-  **operator** role — see "Deployment: the first operator account" below for how to
-  create the first account. Finer-grained RBAC / SSO is out of scope.
+- **Every page requires a signed-in user.** There are three roles — **admin**,
+  **developer** and **ops** — see "Roles" below. `POST /apps` (the "add an application"
+  endpoint), credential management and people management all require **admin**; action
+  endpoints require admin, or developer membership on that application. See "Deployment:
+  the first admin account" below for how to create the first account. SSO is out of scope.
 - **Adding an Application is code execution, not configuration.** Parsing a pasted
   `deploy.yml` requires evaluating ERB and then `YAML.unsafe_load`-ing the result — that's
   how Kamal itself works, and there's no way around it without losing ERB support. This
@@ -35,14 +35,26 @@ via `kamal deploy` from CI, exactly as before.
 
 ## Roles
 
-- **viewer** — can only look. Sees no action buttons at all: the panel hides them rather
-  than showing greyed-out ones, so a viewer never has to guess what they're allowed to do.
-- **operator** — can roll back, restart, stop, start, force-unlock a stale deploy lock,
-  and add applications.
+Every signed-in user can see every application. What differs is what they may *do*.
+
+- **admin** — everything: add and deactivate applications, manage SSH and registry
+  credentials, manage people, assign credentials to an application, and run every action
+  on any application.
+- **developer** — can roll back, restart, stop, start and force-unlock a stale deploy
+  lock, but **only on the applications they are a member of**. Membership is assigned per
+  application by an admin. On an application they don't belong to, a developer sees the
+  same read-only view an `ops` user does.
+- **ops** — read-only everywhere, with one exception: `ops` can run the non-mutating
+  **logs** action on any application. No rollback, restart, stop, start or force-unlock,
+  anywhere.
+
+The panel **hides** what you may not use rather than greying it out — buttons and nav
+entries alike — so nobody has to guess what they're allowed to do. A deactivated
+application accepts no actions from anyone, admin included.
 
 > **Adding an application is equivalent to running code on the panel's own host.** A
-> pasted `deploy.yml` gets ERB-evaluated (see the security section above), so grant
-> `operator` only to people you trust that far.
+> pasted `deploy.yml` gets ERB-evaluated (see the security section above), which is why
+> that endpoint is admin-only.
 
 Destructive actions need more than the role: the affected hosts and roles are shown
 before you commit, and rollback and force-unlock additionally require typing the
@@ -121,7 +133,7 @@ leaves the running version unchanged. Those three only come from the hooks.
 | Git integration | `deploy.yml` is pasted in by hand. The panel holds no git credentials, ever. |
 | `kamal app exec` / arbitrary remote shell | This is the one feature that would turn the panel into a web-based remote shell and invalidate every other security decision in this project. It is a deliberate omission, not a TODO. |
 | Kamal 1.x support | Only **Kamal 2+** is supported. Kamal 1.x used Traefik instead of `kamal-proxy` and has a different container-label model, deploy-lock format, and routing story — supporting both would mean maintaining two parallel collection/execution paths. |
-| Fine-grained RBAC / SSO | There are exactly two roles, viewer and operator — nothing more granular. |
+| SSO | Accounts live in the panel's own database. There are three roles (admin, developer, ops) plus per-application membership for developers — no external identity provider. |
 | Fleets over ~50 hosts | See below. |
 
 ## Scale ceiling
@@ -223,10 +235,10 @@ optional:
 `test/system`); use `bin/rails test:all` (or `bin/rails test:system` in addition to
 `bin/rails test`) if you want the full picture, which is also what CI runs.
 
-## Deployment: the first operator account
+## Deployment: the first admin account
 
 There is no default password, ever — a panel that ships with a known credential is worse
-than one with no auth, because it looks protected. The first `operator` account is instead
+than one with no auth, because it looks protected. The first `admin` account is instead
 created from environment variables at seed time:
 
 ```sh
@@ -237,11 +249,15 @@ bin/rails db:seed
 
 `db/seeds.rb` is idempotent (`find_or_create_by!` on the email), so re-running `db:seed`
 on redeploy is safe and won't reset the password of an already-existing account. If
-`KAMAL_PANEL_ADMIN_EMAIL` is unset, seeding does nothing — no account, `operator` or
-otherwise, is ever created implicitly. Once the first operator exists, further users
-(viewer or operator) are managed the same way any other Rails app manages `User` records
-(console, a future admin UI, etc.) — this codebase does not yet ship a self-serve sign-up
-flow, deliberately.
+`KAMAL_PANEL_ADMIN_EMAIL` is unset, seeding does nothing — no account, `admin` or
+otherwise, is ever created implicitly.
+
+Once the first admin exists, further people are managed in the panel itself, under
+**People** (`/users`, admin-only): create accounts, set roles, assign per-application
+membership, and deactivate. There is deliberately **no delete** — audit rows reference
+`users.id` and the audit log is undeletable, so a departing user is *deactivated*, which
+also destroys their live sessions immediately. There is no self-serve sign-up flow, also
+deliberately.
 
 ## Deploying the panel itself
 
