@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Kamal Panel" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Kamal Panel">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%# 采集完成后 PollManagedAppJob 广播的 refresh 会让浏览器重新请求当前
+        页面。morph 是把新 DOM 合并进旧 DOM，而不是整页换掉：滚动位置和
+        输入框焦点都保住——总览页的搜索框正在打字时被刷新，不会丢字。 %>
+    <meta name="turbo-refresh-method" content="morph">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
+    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <%# 认证页是独立的居中卡片，不要页眉——那时候还没有"当前用户"可言，
+        也没有任何可导航的去处。 %>
+    <% if authenticated? %>
+      <header class="chrome">
+        <nav class="chrome-nav">
+          <%= link_to root_path, class: "chrome-brand" do %>
+            <%= render "shared/mark", size: "20px" %>Kamal Panel
+          <% end %>
+          <%= nav_link_to t(".overview"), root_path, controllers: "overviews" %>
+          <%# 「应用」这一栏里还有 actions（某次动作的输出页），它们都是
+              /apps/... 下的页面，高亮应该留在「应用」上。 %>
+          <%= nav_link_to t(".apps"), managed_apps_path, controllers: %w[managed_apps actions] %>
+          <%= nav_link_to t(".audit"), audit_logs_path, controllers: "audit_logs" %>
+          <%# 只有 admin 看得到人员入口——判断用的是与控制器同一个 UserPolicy。 %>
+          <%= allowed_to(:manage, User) do %>
+            <%= nav_link_to t(".people"), users_path, controllers: "users" %>
+          <% end %>
+          <%= allowed_to(:manage, Credential) do %>
+            <%= nav_link_to t(".credentials"), credentials_path,
+                            controllers: %w[credentials registry_credentials] %>
+          <% end %>
+        </nav>
+        <div class="chrome-user">
+          <%# 只有一种可选语言时整个不渲染：给一个只有一个选项的下拉，等于
+              让人以为还有别的可选。 %>
+          <% if User::SELECTABLE_LOCALES.many? %>
+            <span class="chrome-locale">
+              <%# 提交按钮是【没有 JS 时的退路】——select 自己不会提交表单。
+                  有 JS 时 auto-submit 控制器把它藏起来，变成"选了就走"。
+                  藏它的动作必须由 JS 做而不是写死在 CSS 里：CSS 没法知道 JS
+                  到底加载上没有。 %>
+              <%= form_with url: locale_path, method: :patch, class: "locale-form",
+                            data: { controller: "auto-submit",
+                                    action: "change->auto-submit#submit" } do |form| %>
+                <%= form.label :locale, t(".language"), class: "visually-hidden" %>
+                <%= form.select :locale,
+                                options_for_select(
+                                  User::SELECTABLE_LOCALES.map { |l| [ locale_label(l), l ] },
+                                  I18n.locale.to_s
+                                ),
+                                {}, { name: "locale" } %>
+                <%= form.submit t(".switch_language"),
+                                class: "btn-quiet",
+                                data: { auto_submit_target: "fallback" } %>
+              <% end %>
+            </span>
+          <% end %>
+          <span><%= Current.user&.display_name %></span>
+          <%= button_to t(".sign_out"), session_path, method: :delete, class: "btn-quiet" %>
+        </div>
+      </header>
+    <% end %>
+
+    <main class="page">
+      <%# flash 跟着页眉走，条件和上面那个 header 完全一致——这个布局其实有
+          两种外壳：登录后是「页眉 + 宽容器」，登录前是认证页自己的居中卡片。
+          .flash 这套样式是给宽容器准备的，贴在居中卡片上方会通栏、左对齐，
+          和卡片对不上。三个未登录页（登录、忘记密码、设置新密码）各自在卡片
+          【里面】渲染 flash，所以这里不能再渲染一遍——此前两边都渲染，登录
+          失败时同一句话会出现两次。 %>
+      <% if authenticated? %>
+        <% flash.each do |type, message| %>
+          <p class="flash flash-<%= type %>"><%= message %></p>
+        <% end %>
+      <% end %>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>

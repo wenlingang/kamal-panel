@@ -1,0 +1,22 @@
+<div class="auth">
+  <p class="auth-brand">
+    <%= render "shared/mark", size: "28px" %>
+    Kamal Panel
+  </p>
+
+  <div class="auth-card">
+    <h1><%= t(".title") %></h1>
+
+    <%= tag.div(flash[:alert], class: "flash-alert") if flash[:alert] %>
+
+    <%= form_with url: passwords_path do |form| %>
+      <div>
+        <%= label_tag :email_address, t(".email") %>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %>
+      </div>
+      <%= form.submit t(".submit"), class: "btn-primary" %>
+    <% end %>
+  </div>
+
+  <p class="auth-aside"><%= link_to t(".back"), new_session_path %></p>
+</div>

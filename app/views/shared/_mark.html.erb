@@ -1,0 +1,33 @@
+<%# 站标：卡玛尔（كمال）——阿拉伯航海家用的测星仪，一块方牌加一根穿过中心、
+    打着结的绳，用来量星高、定纬度。这个面板做的是同一件事：不掌舵，只持续
+    读数，好让你知道自己在哪。绳与结是全站唯一一处品牌金。
+
+    必须内联进页面而不是写成 <img src>：颜色走 --mark-* 这组自定义属性，
+    深色模式靠重新赋值这几个变量实现，而 <img> 里的 SVG 吃不到页面的变量。
+
+    favicon 是另一份：public/icon.svg。它在标签栏里，同样拿不到页面变量，
+    所以那一份自带字面值与自己的 prefers-color-scheme 媒体查询。
+    改了这里的形状，记得同步改那一份。
+
+    locals：
+      size     任意 CSS 长度
+      reading  可选，true 时让结沿着绳上下滑动——采集中用（见 .mark--reading）。
+               动画只作用在金色那两件上，方牌不动：读数的是绳结，牌是参照物。 %>
+<% reading = local_assigns.fetch(:reading, false) %>
+<svg class="mark<%= " mark--reading" if reading %>"
+     style="width: <%= size %>; height: <%= size %>"
+     viewBox="0 0 24 24" role="img" aria-label="Kamal Panel" focusable="false"
+     xmlns="http://www.w3.org/2000/svg">
+  <rect width="24" height="24" rx="6" fill="var(--mark-tile)"/>
+  <%# 方牌 %>
+  <rect x="3.4" y="5.2" width="17.2" height="7.2" rx="2.2" fill="var(--mark-on)"/>
+  <%# 绳穿过方牌中心的那个孔。16px 下它会消失，这是可以接受的——它是放大之后
+      才需要成立的细节，不是识别所依赖的部分。 %>
+  <circle cx="12" cy="8.8" r="1.25" fill="var(--mark-tile)"/>
+  <%# 绳与结 %>
+  <rect x="10.75" y="12.4" width="2.5" height="7.6" rx="1.25" fill="var(--mark-gold)"/>
+  <g class="mark-knot">
+    <circle cx="12" cy="16.6" r="2.7" fill="var(--mark-gold)"/>
+    <circle cx="12" cy="16.6" r="1.05" fill="var(--mark-tile)"/>
+  </g>
+</svg>

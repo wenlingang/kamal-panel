@@ -1,0 +1,59 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <%= allowed_to(:create_app, ManagedApp) do %>
+    <%= link_to t(".add"), new_managed_app_path, class: "btn-primary" %>
+  <% end %>
+</div>
+
+<%# 采集完成后 PollManagedAppJob 广播的是一条 refresh：每个浏览器带着自己
+    当前的 URL（也就是各自的筛选条件）回来重新请求这一页。服务端不知道谁在
+    筛什么，所以它不能替某个人渲染网格。 %>
+<%= turbo_stream_from "overview" %>
+
+<% if !@any_managed_apps %>
+  <section class="section">
+    <div class="panel">
+      <%# 水印只给"一个都还没接入"这种长期空状态。筛选筛空的那条不放——
+          那是临时状态，摆上一枚放大的标会显得像"出事了"。 %>
+      <div class="empty-state">
+        <%= render "shared/mark", size: "40px" %>
+        <p class="empty-hint"><%= t(".empty") %></p>
+      </div>
+    </div>
+  </section>
+<% else %>
+  <section class="section">
+    <%= form_with url: overview_path, method: :get, class: "filter-bar" do |form| %>
+      <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
+      <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
+                            autocomplete: "off", class: "filter-search" %>
+
+      <%= form.label :status, t(".filter_status"), class: "visually-hidden" %>
+      <%= form.select :status,
+                      options_for_select(OverviewFilter.options, @filter.status),
+                      { include_blank: t(".filter_all_statuses") },
+                      class: "filter-status" %>
+
+      <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
+
+      <% if @filter.active? %>
+        <%= link_to t(".filter_clear"), overview_path, class: "filter-clear" %>
+      <% end %>
+    <% end %>
+
+    <div class="panel">
+      <% if @managed_apps.empty? %>
+        <%# 与"一个应用都还没接入"是两回事：那时候该讲怎么接入，这时候该
+            讲怎么退回去看全部。 %>
+        <p class="empty-hint">
+          <%= t(".no_matches_html", link: link_to(t(".filter_clear"), overview_path)).html_safe %>
+        </p>
+      <% else %>
+        <%= render "grid", managed_apps: @managed_apps, statuses: @statuses %>
+      <% end %>
+    </div>
+  </section>
+<% end %>

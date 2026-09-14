@@ -1,0 +1,1241 @@
+/* ── 调色板 ──────────────────────────────────────────────────────────
+   暖蛋壳纸底 + 纯白卡片 + 暖黑墨。品牌金全站只出现在站名下的粗线与
+   当前导航的下划线上；状态色（drift/unhealthy/ok/…）各守其义，绝不
+   被借去做装饰——这个面板上的颜色是信息，不是情绪。
+
+   两套调色板各自验过 WCAG AA，验证钉在 test/assets/color_contrast_test.rb。
+   改任何一个值之前先跑那个测试。 */
+:root {
+  --surface: #f6f4ef;
+  --ink: #2a2724;
+  --ink-muted: #6b645b;
+  --rule: #e4dfd4;
+  --flash-bg: #eeeae1;
+
+  --brand: #f0a500;
+
+  /* 站标的三个用途。墨底上一块白牌，加一根金绳——绳与结是全站唯一一处品牌金
+     出现在图形里。这三个值受的是 WCAG 1.4.11（非文本对比 ≥ 3:1）的约束，
+     跟正文那档 4.5:1 不是同一条线，验证见 test/assets/color_contrast_test.rb
+     的 GRAPHIC_PAIRS。 */
+  --mark-tile: #2a2724;
+  --mark-on: #ffffff;
+  --mark-gold: #f0a500;
+
+  --output-bg: #221f1c;
+  --output-ink: #e8e6e1;
+  --output-rule: #221f1c;
+
+  --action: #1462b8;
+  --action-fill: #1462b8;
+  --action-ink: #ffffff;
+  --action-rule: #0f4f96;
+
+  --field-bg: #ffffff;
+  --field-ink: #2a2724;
+  --field-rule: #c6bfb2;
+  --field-focus: #1462b8;
+
+  --card-bg: #ffffff;
+  --card-hover: #faf8f4;
+
+  --btn-bg: #ffffff;
+  --btn-ink: #2a2724;
+  --btn-rule: #d5cec1;
+
+  --danger-ink: #a3231b;
+  --danger-rule: #d8a19d;
+
+  --drift-bg: #fff3e0;
+  --drift-ink: #8a4b00;
+  --drift-rule: #f0c080;
+  --drift-edge: #d98a2b;
+
+  --unhealthy-bg: #fdeceb;
+  --unhealthy-ink: #991c14;
+  --unhealthy-rule: #f2b0ab;
+  --unhealthy-edge: #c0392b;
+
+  --unreachable-bg: #eae6dd;
+  --unreachable-ink: #4a453e;
+  --unreachable-rule: #cfc8ba;
+  --unreachable-edge: #8d857a;
+
+  --ok-bg: #e6f2e8;
+  --ok-ink: #1d5c34;
+  --ok-rule: #a9d3b3;
+  --ok-edge: #2f8a4e;
+
+  --unknown-bg: #f0eee9;
+  --unknown-ink: #67615a;
+  --unknown-rule: #d8d5cf;
+  --unknown-edge: #b3aca2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1c1a18;
+    --ink: #e9e5dd;
+    --ink-muted: #a39b90;
+    --rule: #38342f;
+    --flash-bg: #2b2825;
+
+    --brand: #f5b942;
+
+    /* 底板取 --rule 那一档暖灰而不是纯墨：纯墨落在 #1c1a18 的深色底上，
+       方块的边几乎看不见，标记会散成三个漂浮的形状。 */
+    --mark-tile: #38342f;
+    --mark-on: #f6f4ef;
+    --mark-gold: #f5b942;
+
+    --output-bg: #131211;
+    --output-ink: #e8e6e1;
+    --output-rule: #38342f;
+
+    --action: #8ab4f8;
+    --action-fill: #2f6fd0;
+    --action-ink: #ffffff;
+    --action-rule: #1f57a8;
+
+    --field-bg: #26231f;
+    --field-ink: #e9e5dd;
+    --field-rule: #55504a;
+    --field-focus: #8ab4f8;
+
+    --card-bg: #26231f;
+    --card-hover: #2e2a26;
+
+    --btn-bg: #2b2825;
+    --btn-ink: #e9e5dd;
+    --btn-rule: #4b463f;
+
+    --danger-ink: #f4a5a0;
+    --danger-rule: #6e2e2a;
+
+    --drift-bg: #3a2a10;
+    --drift-ink: #f0b970;
+    --drift-rule: #6b4d1c;
+    --drift-edge: #d98a2b;
+
+    --unhealthy-bg: #3a1a18;
+    --unhealthy-ink: #f4a5a0;
+    --unhealthy-rule: #6e2e2a;
+    --unhealthy-edge: #c0392b;
+
+    --unreachable-bg: #302c28;
+    --unreachable-ink: #bdb7ac;
+    --unreachable-rule: #4a453e;
+    --unreachable-edge: #8d857a;
+
+    --ok-bg: #16301f;
+    --ok-ink: #8fd4a6;
+    --ok-rule: #2c5a3a;
+    --ok-edge: #2f8a4e;
+
+    --unknown-bg: #2a2622;
+    --unknown-ink: #aeaaa2;
+    --unknown-rule: #403b35;
+    --unknown-edge: #b3aca2;
+  }
+}
+
+/* 排版尺度与形状。中文字面必须显式列出：缺了它，PingFang 之外的机器会
+   回落到一个和拉丁字面对不上的字体，行高与字重全都走样。 */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+             "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  --lift: 0 1px 2px rgba(42, 39, 36, 0.06);
+}
+
+/* ── 基础 ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--field-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ── 顶栏 ─────────────────────────────────────────────────────────── */
+.chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 2rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--rule);
+}
+
+.chrome-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* 站名下的金线与标记里那根金绳是同一条线索，别再往别处加金色。 */
+.chrome-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  padding-bottom: 3px;
+  border-bottom: 3px solid var(--brand);
+}
+
+/* 标记是图形不是文字，不能跟着字面一起坐在基线上——那样看着会往下沉。
+   flex 的居中对齐让它对齐字面的视觉中线。 */
+.mark {
+  display: block;
+  flex: none;
+}
+
+/* 采集中：结沿着绳上下滑，就是这件仪器被使用时的样子——把牌举稳，
+   让结在绳上找到对的位置。整枚标不旋转：旋转的 logo 是另一个年代的语气。
+   动画只动金色那两件，方牌是参照物，参照物不该晃。 */
+.mark--reading .mark-knot {
+  animation: mark-reading 1.6s ease-in-out infinite;
+  transform-origin: 12px 16.6px;
+}
+
+@keyframes mark-reading {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3.4px); }
+}
+
+/* 页面切换时 Turbo 自带的进度条。染成品牌金，粗细跟站名下那条线对齐——
+   它在视觉上就是那条线滑过页面顶端，不是另起一个加载指示。 */
+.turbo-progress-bar {
+  height: 3px;
+  background: var(--brand);
+}
+
+/* 长期空状态：一枚压低的标压在文案上方。透明度让它退成水印——它是氛围，
+   不是要人去读的信息。 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1.5rem 0 1rem;
+  text-align: center;
+}
+
+.empty-state .mark {
+  opacity: 0.25;
+}
+
+.empty-state .empty-hint {
+  margin: 0;
+}
+
+/* 采集中那一行：标记与文字同一行、垂直居中。 */
+.data-age--reading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chrome-brand:hover {
+  text-decoration: none;
+}
+
+.chrome-nav a:not(.chrome-brand) {
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  padding-bottom: 3px;
+  border-bottom: 3px solid transparent;
+}
+
+.chrome-nav a:not(.chrome-brand):hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.chrome-nav a.is-current {
+  color: var(--ink);
+  border-bottom-color: var(--brand);
+}
+
+.chrome-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+.chrome-user form,
+.chrome-user form div {
+  margin: 0;
+}
+
+.chrome-locale .locale-form {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.chrome-locale select {
+  width: auto;
+  margin: 0;
+  padding: 0.15rem 1.4rem 0.15rem 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
+/* ── 页面骨架 ─────────────────────────────────────────────────────── */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2.25rem 2rem 5rem;
+}
+
+.page:has(.auth) {
+  max-width: none;
+  padding-top: 0;
+}
+
+.breadcrumb {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* 报头是这套界面唯一张扬的地方：大标题 + 一句大白话副标题，说清这一页
+   到底回答什么问题。别的地方一律安静。 */
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.page-head h1 {
+  margin: 0;
+}
+
+.page-title {
+  min-width: 0;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0 0 1.25rem;
+}
+
+.page-sub {
+  max-width: 44rem;
+  margin: 0.35rem 0 0;
+  color: var(--ink-muted);
+  font-size: 1rem;
+}
+
+h2 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.75rem;
+}
+
+h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.section {
+  margin-bottom: 2.25rem;
+}
+
+.section > h2 {
+  margin: 0 0 0.625rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.625rem;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-head form,
+.section-head form div {
+  margin: 0;
+}
+
+.panel {
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--lift);
+  padding: 1.375rem 1.5rem;
+}
+
+.panel > :first-child {
+  margin-top: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.panel table {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+p,
+.hint,
+.empty-hint,
+.page-sub {
+  max-width: 46rem;
+}
+
+.warning,
+.hint {
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+}
+
+.hint,
+.empty-hint {
+  margin-top: 0.25rem;
+}
+
+.empty-hint {
+  color: var(--ink-muted);
+}
+
+/* ── 链接与按钮 ───────────────────────────────────────────────────── */
+a {
+  color: var(--action);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 底边比其他三边厚一档——按钮看起来有厚度、可以按下去。Basecamp 这一手
+   在浅色深色下都成立，因为它靠的是边框而不是阴影。 */
+/* 浏览器给 [hidden] 的 display: none 来自 UA 样式表，任何作者样式里的
+   display 都会盖掉它——比如下面那条给 input[type="submit"] 的
+   display: inline-block。于是 el.hidden = true 会静默失效：属性在、元素照显。
+   这条规则把 [hidden] 的语义拿回来。 */
+[hidden] {
+  display: none !important;
+}
+
+input[type="submit"],
+button,
+a.btn,
+a.btn-primary {
+  display: inline-block;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--btn-ink);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-rule);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-control);
+  padding: 9px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+input[type="submit"]:hover,
+button:hover,
+a.btn:hover,
+a.btn-primary:hover {
+  text-decoration: none;
+  background: var(--card-hover);
+  border-color: var(--field-rule);
+}
+
+.btn-primary input[type="submit"],
+input[type="submit"].btn-primary,
+button.btn-primary,
+a.btn-primary {
+  color: var(--action-ink);
+  background: var(--action-fill);
+  border-color: var(--action-rule);
+}
+
+input[type="submit"].btn-primary:hover,
+button.btn-primary:hover,
+a.btn-primary:hover {
+  background: var(--action-rule);
+  border-color: var(--action-rule);
+}
+
+.btn-danger input[type="submit"],
+input[type="submit"].btn-danger,
+button.btn-danger {
+  color: var(--danger-ink);
+  border-color: var(--danger-rule);
+}
+
+.btn-quiet,
+input[type="submit"].btn-quiet {
+  background: transparent;
+  border-color: var(--rule);
+  border-bottom-width: 1px;
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 5px 10px;
+}
+
+/* 顶栏里的「退出」不该长得像个待办的操作——那里它只是个出口，
+   所以只在这一处退回无边框的链接感。 */
+.chrome-user .btn-quiet,
+.chrome-user input[type="submit"].btn-quiet {
+  border-color: transparent;
+}
+
+.btn-quiet:hover,
+input[type="submit"].btn-quiet:hover {
+  background: var(--card-hover);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.action-buttons form,
+.action-buttons form div {
+  display: inline-block;
+  margin: 0;
+}
+
+/* ── 表单 ─────────────────────────────────────────────────────────── */
+label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  margin-bottom: 0.3rem;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  font: inherit;
+  font-size: 16px;
+  color: var(--field-ink);
+  background: var(--field-bg);
+  border: 1px solid var(--field-rule);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  width: 24rem;
+  max-width: 100%;
+}
+
+textarea {
+  width: 100%;
+  min-height: 8rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--field-focus);
+  outline-offset: 1px;
+  border-color: var(--field-focus);
+}
+
+/* ── 总览页筛选 ───────────────────────────────────────────────────────
+   一行控件，窄屏折行。控件的 label 只给读屏软件——占位符和"全部状态"
+   这个默认项已经说清了各自是什么，再摆两个可见的标签只会把这一行撑散，
+   但看不见不等于可以没有。 */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+}
+
+/* 表单控件默认 24rem 宽，那是给独占一行的输入框定的；这一行里它们得
+   按自己的内容排。 */
+.filter-bar input[type="search"] {
+  width: auto;
+  flex: 1 1 14rem;
+  min-width: 10rem;
+}
+
+.filter-bar select {
+  width: auto;
+}
+
+.filter-clear {
+  font-size: 0.875rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+form div {
+  margin-bottom: 1rem;
+}
+
+/* ── 表格 ─────────────────────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.55rem 0.9rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+/* 表头只是列名，不是内容——它靠的是尺寸和颜色的降级，不是字母间距和
+   全大写；后者在中文列名上根本不起作用，只会把字挤开。 */
+th {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  padding-bottom: 0.4rem;
+}
+
+.panel table tr:last-child th,
+.panel table tr:last-child td {
+  border-bottom: none;
+}
+
+.panel table tr:last-child td {
+  padding-bottom: 0;
+}
+
+/* 总览表是这个面板存在的理由：行更高、应用名更重、整行可 hover。 */
+table.overview-grid {
+  width: 100%;
+  font-size: 0.9375rem;
+}
+
+.overview-grid th,
+.overview-grid td {
+  padding: 0.7rem 0.9rem;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule);
+}
+
+.overview-grid tbody tr:hover {
+  background: var(--card-hover);
+}
+
+.overview-grid td:first-child {
+  font-weight: 700;
+  border-left: 4px solid transparent;
+}
+
+.overview-grid tr.status-drift td:first-child {
+  border-left-color: var(--drift-edge);
+}
+
+.overview-grid tr.status-unhealthy td:first-child {
+  border-left-color: var(--unhealthy-edge);
+}
+
+.overview-grid tr.status-unreachable td:first-child {
+  border-left-color: var(--unreachable-edge);
+}
+
+.overview-grid tr.status-ok td:first-child {
+  border-left-color: var(--ok-edge);
+}
+
+.overview-grid tr.status-unknown td:first-child {
+  border-left-color: var(--unknown-edge);
+}
+
+.host-table,
+.deploy-history {
+  width: 100%;
+  font-size: 0.9375rem;
+}
+
+.host-table th,
+.host-table td,
+.deploy-history th,
+.deploy-history td {
+  padding: 0.6rem 0.9rem 0.6rem 0;
+}
+
+.host-table tr.row-unreachable td {
+  color: var(--unreachable-ink);
+}
+
+.host-table tr.row-decommissioned td {
+  color: var(--ink-muted);
+  border-bottom: none;
+  padding-top: 0;
+}
+
+/* 机器名、版本号、指纹是要一行行纵向比对的机器数据，等宽在这里是信息
+   编码，不是装饰。 */
+.host-table td:first-child,
+.overview-grid td:nth-child(3),
+.deploy-history td:first-child {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+}
+
+dt {
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+pre {
+  overflow-x: auto;
+}
+
+pre code {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* ── 状态徽章 ─────────────────────────────────────────────────────── */
+/* 圆点是颜色的冗余强化，不是信息本身——文字永远在（spec 8.6）。 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.status-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.status-badge.status-drift {
+  background: var(--drift-bg);
+  color: var(--drift-ink);
+  border-color: var(--drift-rule);
+}
+
+.status-badge.status-unhealthy {
+  background: var(--unhealthy-bg);
+  color: var(--unhealthy-ink);
+  border-color: var(--unhealthy-rule);
+}
+
+.status-badge.status-unreachable {
+  background: var(--unreachable-bg);
+  color: var(--unreachable-ink);
+  border-color: var(--unreachable-rule);
+}
+
+.status-badge.status-ok {
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+  border-color: var(--ok-rule);
+}
+
+.status-badge.status-unknown {
+  background: var(--unknown-bg);
+  color: var(--unknown-ink);
+  border-color: var(--unknown-rule);
+}
+
+.badge,
+.badge-unverified {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--drift-bg);
+  color: var(--drift-ink);
+  border: 1px solid var(--drift-rule);
+}
+
+.config-broken {
+  color: var(--unhealthy-ink);
+  font-weight: 700;
+}
+
+/* ── 消息条 ───────────────────────────────────────────────────────── */
+.flash,
+.flash-alert,
+.flash-notice,
+.callout,
+.errors,
+.deploy-alerts,
+.config-parse-error-banner,
+.hook-token-reveal,
+.hook-rejection,
+.lock-held,
+.lock-unknown {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  padding: 0.875rem 1.125rem;
+  margin-bottom: 1.5rem;
+  background: var(--flash-bg);
+  max-width: 46rem;
+}
+
+.flash-alert,
+.errors,
+.config-parse-error-banner,
+.hook-rejection {
+  color: var(--unhealthy-ink);
+  background: var(--unhealthy-bg);
+  border-color: var(--unhealthy-rule);
+}
+
+.flash-notice {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+  border-color: var(--ok-rule);
+}
+
+.callout-warn,
+.lock-held,
+.deploy-alerts,
+.hook-token-reveal {
+  color: var(--drift-ink);
+  background: var(--drift-bg);
+  border-color: var(--drift-rule);
+}
+
+.lock-unknown {
+  color: var(--unreachable-ink);
+  background: var(--unreachable-bg);
+  border-color: var(--unreachable-rule);
+}
+
+.errors {
+  list-style: none;
+  padding-left: 1.125rem;
+}
+
+.deploy-alerts,
+.config-parse-error-banner,
+.hook-token-reveal {
+  max-width: none;
+}
+
+.deploy-alert {
+  margin: 0 0 0.5rem;
+  max-width: none;
+}
+
+.deploy-alert:last-child {
+  margin-bottom: 0;
+}
+
+.config-parse-error-banner > :first-child,
+.hook-token-reveal > :first-child,
+.errors > :first-child {
+  margin-top: 0;
+}
+
+.config-parse-error-banner > :last-child,
+.hook-token-reveal > :last-child {
+  margin-bottom: 0;
+}
+
+.config-parse-error-banner pre,
+.hook-token-reveal pre {
+  background: var(--output-bg);
+  color: var(--output-ink);
+  border-radius: var(--radius-control);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.hook-token-reveal h3 {
+  margin-top: 1.25rem;
+}
+
+/* ── 执行输出 ─────────────────────────────────────────────────────── */
+.action-output {
+  min-height: 6rem;
+  max-height: 28rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 1rem 1.125rem;
+  background: var(--output-bg);
+  color: var(--output-ink);
+  border: 1px solid var(--output-rule);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.action-result {
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.data-age {
+  margin: 0 0 0.875rem;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.deploy-history-hint,
+.actions-hint,
+.affected-scope,
+.action-unavailable {
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+}
+
+.affected-scope {
+  color: var(--ink);
+}
+
+/* ── 列表 ─────────────────────────────────────────────────────────── */
+/* 卡片内的整行链接：留白吃满卡片的内边距，整行都可点。 */
+.record-list {
+  list-style: none;
+  margin: -0.5rem -1.5rem;
+  padding: 0;
+}
+
+.record-list li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.record-list a.record-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.5rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.record-list a.record-row:hover {
+  text-decoration: none;
+  background: var(--card-hover);
+  color: var(--action);
+}
+
+.record-list .record-meta {
+  color: var(--ink-muted);
+  font-weight: 400;
+  font-size: 0.9375rem;
+}
+
+/* ── 折叠的危险操作 ───────────────────────────────────────────────── */
+details.force-unlock,
+details.stop-app {
+  margin-top: 1rem;
+}
+
+details.force-unlock summary,
+details.stop-app summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--danger-ink);
+  width: fit-content;
+}
+
+details.force-unlock[open] summary,
+details.stop-app[open] summary {
+  margin-bottom: 0.5rem;
+}
+
+.rollback-steps {
+  margin: 0 0 1.25rem;
+  padding-left: 1.25rem;
+}
+
+.rollback-steps > li {
+  margin-bottom: 1rem;
+}
+
+.rollback-steps label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+}
+
+.rollback-steps label.unavailable {
+  color: var(--ink-muted);
+}
+
+.rollback-steps label small {
+  font-family: var(--font-ui);
+}
+
+/* ── 认证页 ───────────────────────────────────────────────────────── */
+/* 全站唯一的居中版式：这里没有数据要扫，只有一件事要做。 */
+.auth {
+  max-width: 420px;
+  margin: 12vh auto 0;
+}
+
+/* 登录页是全站唯一一处标记该被放大的地方：这一页是空的，它撑得住。 */
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin-bottom: 1.5rem;
+}
+
+.auth-brand::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 3px;
+  background: var(--brand);
+  margin: 0.5rem auto 0;
+}
+
+.auth-card {
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--lift);
+  padding: 1.75rem;
+}
+
+.auth-card h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.25rem;
+}
+
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"],
+.auth-card input[type="submit"] {
+  width: 100%;
+}
+
+.auth-card input[type="submit"] {
+  font-size: 1rem;
+  padding: 11px 16px;
+  margin-top: 0.25rem;
+}
+
+.auth-card > :first-child {
+  margin-top: 0;
+}
+
+.auth-card form div:last-of-type {
+  margin-bottom: 0.75rem;
+}
+
+.auth-aside {
+  max-width: none;
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+/* ── 表格行内的操作 ───────────────────────────────────────────────── */
+/* button_to 生成的是 <form>，块级元素：和 <a> 并排放在一个单元格里，它会
+   自己掉到下一行。这里把这一格的操作排成一行。flex 放在内层 div 上而不是
+   td 上——给 td 换掉 display: table-cell 会连带影响整张表的列对齐。 */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* 站点级的 `form div { margin-bottom: 1rem }` 会把这里撑开半行。 */
+.row-actions form,
+.row-actions form div {
+  margin: 0;
+}
+
+/* ── 添加成员：密码设置方式 ────────────────────────────────────────── */
+.password-setup {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.password-setup legend {
+  padding: 0 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.password-setup > label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+  font-weight: 400;
+}
+
+.password-setup > label input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+/* 选中「我直接设置密码」才展开两个密码框。:has() 不被支持时它们保持可见，
+   那是安全的降级——真正决定行为的是提交上来的 password_setup。 */
+.password-setup-manual {
+  margin-top: 0.75rem;
+}
+
+@supports selector(:has(*)) {
+  .password-setup-manual {
+    display: none;
+  }
+
+  .password-setup:has(input[value="manual"]:checked) .password-setup-manual {
+    display: block;
+  }
+}
+
+/* ── 窄屏 ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .chrome {
+    padding: 0.75rem 1rem;
+  }
+
+  .page {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .panel {
+    padding: 1.125rem;
+  }
+
+  .record-list {
+    margin: -0.5rem -1.125rem;
+  }
+
+  .record-list a.record-row {
+    padding: 0.875rem 1.125rem;
+  }
+
+  /* 宽表在窄屏上自己横向滚动，页面本身绝不横向滚。 */
+  .panel {
+    overflow-x: auto;
+  }
+}

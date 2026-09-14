@@ -1,0 +1,523 @@
+# Files in the config/locales directory are used for internationalization and
+# are automatically loaded by Rails. If you want to use locales other than
+# English, add the necessary files in this directory.
+#
+# To use the locales, use `I18n.t`:
+#
+#     I18n.t "hello"
+#
+# In views, this is aliased to just `t`:
+#
+#     <%= t("hello") %>
+#
+# To use a different locale, set it with `I18n.locale`:
+#
+#     I18n.locale = :es
+#
+# This would use the information in config/locales/es.yml.
+#
+# To learn more about the API, please read the Rails Internationalization guide
+# at https://guides.rubyonrails.org/i18n.html.
+#
+# Be aware that YAML interprets the following case-insensitive strings as
+# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
+# must be quoted to be interpreted as strings. For example:
+#
+#     en:
+#       "yes": yup
+#       enabled: "ON"
+
+en:
+  hello: "Hello world"
+
+  # 界面主语言是中文；这份英文是 i18n.fallbacks 的落点，也是将来做双语切换
+  # 时的起点。属性名在这里给全，否则 app.update 的字段名会退化成 Rails
+  # 自动 humanize 出来的 "Ssh credential id"。
+  activerecord:
+    errors:
+      models:
+        credential:
+          attributes:
+            value:
+              too_long: is too large to parse and was rejected
+              encrypted: 'must be an SSH private key without a passphrase: the panel opens SSH connections unattended, with nobody present to type one'
+              not_a_private_key: is not a usable SSH private key
+        registry_credential:
+          attributes:
+            value:
+              no_quotes_or_newlines: 'cannot contain a single quote or a newline: the password is written into a single-quoted value in .kamal/secrets-common, and that form has no way to escape either character'
+        managed_app:
+          attributes:
+            destination:
+              invalid_format: must be a short identifier (letters, digits, underscores, hyphens, at most 63 characters) with no path separators or dots — a destination is not a path
+            config_yaml:
+              unparseable: 'cannot be parsed: %{reason}'
+            ssh_credential:
+              invalid_key: 'SSH key: %{reason}'
+            kamal_hooks:
+              unknown_hooks: 'contains hook names Kamal does not know: %{names}'
+              hook_not_a_string: the value of each hook must be the text of the script
+              not_a_json_object: 'must be a JSON object, like {"pre-connect": "#!/bin/sh\n..."}'
+            kamal_secrets:
+              registry_secret_collision: already defines %{env}, which also comes from the selected registry credential. Remove one of them — with both in place the deploy quietly uses the wrong password.
+    attributes:
+      managed_app:
+        name: Name
+        destination: Destination
+        config_yaml: deploy.yml
+        destination_config_yaml: deploy.<destination>.yml
+        ssh_credential: SSH key
+        registry_credential: Registry password
+        kamal_secrets: .kamal/secrets
+        kamal_hooks: .kamal/hooks
+
+  # 角色的英文显示名。代码里的角色值仍是 admin/developer/ops，这里只是
+  # 给界面看的——zh-CN 那边早就有，en 这边一直缺，是 LocaleSmokeTest 头一次
+  # 跑就抓出来的。
+  roles:
+    admin: Admin
+    developer: Developer
+    ops: Ops
+
+  common:
+    save: Save
+    replace: Replace
+    error_separator: "; "
+    list_separator: ", "
+
+  users:
+    index:
+      title: People
+      subtitle: Who can sign in to this panel, what role each of them has, and which apps they can act on.
+      add: Add member
+      nickname: Nickname
+      email: Email
+      role: Role
+      apps: Assigned apps
+      status: Status
+      no_apps: (none yet)
+      site_wide: Site-wide
+      deactivated: Deactivated
+      active: Active
+      reactivate: Reactivate
+      deactivate: Deactivate
+    new:
+      back: ← People
+      title: Add member
+      subtitle: By default they set their own password through a link in an email — you don't need to know anyone else's password. When email can't get through, you can set one directly.
+      email: Email address
+      nickname: Nickname
+      nickname_hint: Optional. If set, it is used to refer to this person in the audit log and the header; the email address is still shown.
+      role: Role
+      role_hint: admin runs the whole site; developer can only act on assigned apps; ops is site-wide read-only, plus logs.
+      password_setup: How the password gets set
+      by_mail: Send a password setup email
+      by_admin: I'll set the password myself
+      password: Password
+      password_hint: At least 8 characters. Hand it over through a secure channel — not in a group chat.
+      password_confirmation: Confirm password
+      submit: Create member
+    edit:
+      back: ← People
+      subtitle: Change the role, or assign which apps they can act on.
+      nickname: Nickname
+      nickname_hint: Leave it empty to go back to referring to them by email.
+      role: Role
+      apps: Assigned apps
+      apps_hint: Only applies to developer. admin and ops get their permissions from the site-wide role, so checking boxes does nothing for them.
+
+  credentials:
+    index:
+      title: Credentials
+      subtitle: The SSH keys and registry passwords this panel holds. Pick from here when onboarding an app — do not create them anywhere else.
+      ssh_keys: SSH keys
+      add_ssh_key: Add SSH key
+      no_ssh_keys: No SSH keys yet. The panel needs one to reach the managed machines and collect status.
+      registry_passwords: Registry passwords
+      add_registry_password: Add registry password
+      no_registry_passwords: No registry passwords yet. Without one, apps cannot pull images at startup.
+      name: Name
+      fingerprint: Fingerprint
+      registry: Registry
+      used_by: Used by
+      unused: (none)
+      delete: Delete
+    new:
+      title: Add SSH key
+      subtitle: The panel uses it to reach the managed machines and collect status. It is never shown again after saving, only replaced wholesale.
+      name: Name
+      name_hint: This is the name you will recognise it by when onboarding an app. Pick one that says which key it is.
+      value: Private key
+    edit:
+      subtitle: Can only be replaced wholesale, never viewed. The name is not changed here — that is how others refer to this credential.
+      effective: Takes effect for %{apps} the moment you replace it.
+      no_apps: (no app is using it right now)
+      value: New private key
+
+  registry_credentials:
+    new:
+      title: Add registry password
+      subtitle: Without it, apps cannot pull images at startup. It is never shown again after saving, only replaced wholesale.
+      name: Name
+      value: Password
+      server: Registry address (optional)
+      server_hint: If set, it is compared against the registry in the app's deploy.yml and flagged on the app page when they differ. It is only a hint — deploy.yml can change at any time, and the panel will not block you over it.
+    edit:
+      subtitle: Can only be replaced wholesale, never viewed. The name and registry address are not changed here.
+      effective: Takes effect for %{apps} the moment you replace it.
+      no_apps: (no app is using it right now)
+      value: New password
+
+  managed_apps:
+    index:
+      title: Apps
+      subtitle: Every app this panel is watching. Open one to see the state of each machine and what you can do to it.
+      add: Onboard an app
+      empty: Nothing here yet. Onboard your first app and the panel will start collecting the state of each of its machines.
+      host_count:
+        one: '%{count} host'
+        other: '%{count} hosts'
+      config_broken: Config cannot be parsed
+      deactivated_section: Deactivated
+      deactivated_hint: Deactivating released the credential bindings. After reactivating you have to pick credentials again before collection resumes.
+      deactivated_badge: Deactivated
+    new:
+      back: ← Apps
+      title: Onboard an app
+      subtitle: Paste the deploy.yml and an SSH key that can reach these machines. The panel only reads state; deploys still go through your own kamal deploy.
+      erb_warning_html: The deploy.yml you paste is handed to Kamal, and Kamal runs ERB over it — <strong>which means pasting a config is equivalent to running code on the machine this panel lives on</strong>. Only paste configs you trust.
+      submit: Parse and onboard
+    edit:
+      title: Edit %{name}
+      subtitle: Takes effect on the next collection round and on every operation after that.
+      erb_warning_html: The deploy.yml is handed to Kamal, and Kamal runs ERB over it — <strong>editing this field is equivalent to running code on the machine this panel lives on</strong>.
+    form:
+      basics: Basics
+      name: Name
+      destination_optional: Destination (optional)
+      destination: Destination
+      destination_none: (none)
+      destination_locked_hint: Cannot be changed after onboarding. Existing observations and deploy events are all recorded against this destination; changing it would turn the history into something misleading. To switch environments, onboard a separate app.
+      config_section: Config files
+      config_yaml: deploy.yml
+      destination_config_yaml: deploy.<destination>.yml (optional)
+      destination_config_hint: Only needed if you use a destination. Leaving it empty loses that destination's overrides for servers and the like (for example staging and production running on different machines).
+      credentials_section: Credentials and files written alongside the config
+      ssh_credential: SSH key
+      none_selected: (none)
+      ssh_credential_hint: The panel uses it to reach these machines and collect state.
+      go_to_credentials: Add one on the credentials page
+      registry_credential: Registry password
+      registry_credential_hint_html: 'Once selected, the panel writes the password into .kamal/secrets-common under the variable name this app''s deploy.yml references in <code>registry.password</code>. Leave it empty and the panel injects no registry password — the .kamal/secrets below has to supply it. Providing the same variable in both places is rejected on save.'
+      kamal_secrets: .kamal/secrets contents (optional)
+      kamal_secrets_hint: The contents of your project's .kamal/secrets file, for per-app things like RAILS_MASTER_KEY. Use the dropdown above for the registry password instead of repeating it here.
+      kamal_secrets_blank_warning: 'If you leave it empty: any variable referenced in deploy.yml that the registry credential above does not supply will make kamal fail with "Secret not found" during app boot / rollback.'
+      kamal_hooks: .kamal/hooks scripts (optional, JSON)
+      kamal_hooks_hint_html: 'The scripts in your project''s .kamal/hooks/ directory, as a JSON object: keys are hook names (pre-deploy, post-deploy, pre-connect and so on), values are the full text of each script, for example <code>{"pre-deploy": "#!/bin/sh\necho hi"}</code>.'
+      kamal_hooks_blank_warning: 'If you leave it empty: your pre-deploy / post-deploy hooks will never fire. The panel will run the deploy normally and will not tell you the hooks were skipped.'
+      write_only_hint: Never shown again after saving, only replaced wholesale.
+    show:
+      back: ← Overview
+      subtitle: What is running on each machine of this app, and what you can do to it.
+      edit: Edit
+      reactivate: Reactivate
+      deactivate: Deactivate
+      deactivated_html: 'This app is deactivated: the panel no longer collects from it and accepts no operations. Deactivating released the credentials it held, so after reactivating you need to %{link}.'
+      deactivated_link: pick credentials again
+      parse_error_title: This app's deploy.yml cannot be parsed right now, and collection has stopped.
+      parse_error_body: Every polling round has failed at the config parsing step since %{since} ago, so what you see below is still the last successfully collected data. Please check and fix the config.
+      last_good_observations: Last successfully collected observations
+      last_good_hint: Config parsing has stopped; the data below is no longer updated.
+      host: Host
+      version: Version
+      docker_status: Container status
+      reachable: Reachable
+      observed_at: Collected at
+      "yes": Yes
+      "no": No
+      ago: '%{time} ago'
+      basics: Basics
+      service: Service
+      destination: Destination
+      destination_none: (none)
+      registry: Registry
+      ssh_credential: SSH key
+      ssh_credential_none: (not configured)
+      members: Who can act on this app
+      members_none: (admins only)
+      registry_mismatch: The selected registry credential "%{credential}" is for %{credential_server}, but this app's registry is %{app_server}. Double-check you picked the right one — the cost of picking wrong is images failing to pull at deploy time.
+      roles: Parsed roles
+      role: Role
+      role_hosts: Hosts
+      container_prefix: Container name prefix
+      host_status: Host status
+      refresh_now: Refresh now
+      view_logs: View logs
+      lock_unknown: Lock state unknown
+      lock_unknown_detail: cannot reach the primary host, operations are disabled
+      lock_held: Deploy in progress
+      force_unlock: Force unlock
+      force_unlock_warning: Only do this once you are sure the lock is a dead lock left behind by a crashed CI run. A deploy that is actually in progress will be interrupted.
+      confirm_name_placeholder: Type the app name to confirm
+      actions: Operations
+      actions_hint: These operations change production state and are all recorded in the audit log.
+      affected_scope: Will act on %{roles} on %{hosts}.
+      restart: Restart
+      restart_unavailable: 'Cannot restart right now: the observations do not show exactly one running version.'
+      start: Start
+      stop: Stop
+      stop_warning: The service really does go offline, until someone clicks Start again.
+      stop_confirm: Confirm stop
+      rollback: Roll back
+      rollback_none: No previous version is available to roll back to.
+      rollback_step_version: Pick a version
+      rollback_step_scope: Confirm the blast radius
+      rollback_step_confirm: Type the app name to confirm
+      rollback_submit: Roll back
+    refreshing:
+      collecting: Collecting from each machine…
+    deploy_alerts:
+      unobserved: Report not verified
+      unfinished: Deploy never finished
+    host_status:
+      oldest_from: Oldest data is from %{time} ago
+      stale_suffix: (stale)
+      never_collected: Not collected yet
+      partially_collected: Some hosts have not been collected yet
+    host_table:
+      host: Host
+      role: Role
+      version: Version
+      docker_status: Container status
+      routed: Serving traffic
+      collection: Collection
+      unknown: Unknown
+      "yes": Yes
+      "no": No
+      health_suffix: (%{health})
+      ok: OK
+      collected_ago: collected %{time} ago
+      never_collected: Not collected yet
+      unparseable: Output could not be parsed
+      unparseable_detail: The host is reachable, but what it returned could not be understood
+      unreachable: Unreachable
+      stale_since: showing the state from %{time} ago
+      no_history: no previous state available
+      decommissioned: '%{host} is no longer in the current deploy.yml — the above is its last state before it was removed from the config'
+    deploy_history:
+      title: Deploy history
+      empty: 'No deploy records yet. There are two sources: every polling round the panel compares the version running on each machine and records an "inferred by panel" entry when it changes; once deploy reporting is set up you also get the person, the command, and failed deploys.'
+      empty_hook_enabled_html: 'If you have already put the hook in place: check the script has the executable bit (<code>chmod +x .kamal/hooks/post-deploy</code>), that the token was pasted correctly, and run that command once by hand on the deploy machine with <code>curl -v</code> to see the status code.'
+      empty_hook_disabled: Generate a token in the "Deploy reporting" section below and every deploy will show up here.
+      truncated: Showing the 50 most recent deploys only.
+      version: Version
+      source: Source
+      performer: Performed by
+      command: Command
+      started: Started
+      finished: Finished
+      observation: Observation
+      not_received: (not received)
+      unverified: Not verified
+    deploy_reporting:
+      title: Deploy reporting
+      intro_html: 'Optional: put two curl calls in your own project''s <code>.kamal/hooks/</code> and the panel can show who deployed which version and when, and warn you when the report and the actual observations disagree. Skipping it does not affect anything else. A panel that is down or slow will not hold up your deploys either — the scripts carry a 5-second timeout and fail open.'
+      once_only_html: <strong>The two scripts below are shown this once.</strong> Once you leave this page they can only be regenerated, which invalidates the old token on the spot.
+      executable_bit_html: 'Both files need the executable bit: <code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>'
+      rejected: A report was rejected
+      rejected_ago: '%{time} ago'
+      regenerate: Regenerate token (the old one stops working immediately)
+      generate: Generate reporting token
+
+  actions:
+    result:
+      succeeded: Done — the panel is collecting again to confirm
+      failed: Failed
+    show:
+      back: ← %{name}
+      title: '%{action} — %{app}'
+      subtitle: The run is shown line by line below. This page does not navigate away on its own — read the output before you leave.
+      output: Output
+      running: Running…
+      succeeded: Done
+      succeeded_detail: The panel is collecting again to confirm the result with fresh observations.
+      failed: Failed
+      back_to_app: Back to the app
+
+  layouts:
+    application:
+      overview: Overview
+      apps: Apps
+      audit: Audit
+      people: People
+      credentials: Credentials
+      sign_out: Sign out
+      language: Interface language
+      switch_language: Switch
+
+  sessions:
+    new:
+      title: Sign in
+      email: Email address
+      password: Password
+      submit: Sign in
+      forgot: Forgot your password?
+
+  passwords:
+    new:
+      title: Forgot your password?
+      email: Email address
+      submit: Send reset instructions
+      back: Back to sign in
+    edit:
+      title: Set a new password
+      password: New password
+      password_confirmation: Repeat new password
+
+  overviews:
+    show:
+      title: Overview
+      subtitle: Which version each app is running, how many machines are running it, and how old that data is. Anything wrong sorts to the top by colour.
+      add: Onboard an app
+      empty: Nothing here yet. Onboarding an app takes a deploy.yml and an SSH key — nothing has to be installed on the managed servers.
+      filter_name: App name
+      filter_name_placeholder: Search app names
+      filter_status: Status
+      filter_all_statuses: All statuses
+      filter_submit: Filter
+      filter_clear: Clear filter
+      no_matches_html: No apps match. %{link} to see them all.
+    grid:
+      app: App
+      status: Status
+      running_version: Running version
+      hosts: Hosts
+      data_age: Data age
+      config_broken: Config cannot be parsed
+      config_broken_detail: deploy.yml has been unparseable since %{since} ago, and collection has stopped
+      see_app_page: See the app page
+      version_drift: (%{count} versions side by side)
+      ago: '%{time} ago'
+      stale: (stale)
+      never_collected: Never collected
+      partially_collected: Some hosts not collected yet
+
+  audit_logs:
+    index:
+      title: Audit
+      subtitle: Every operation started from this panel is recorded here, written before it runs, and nobody can delete it.
+      time: Time
+      actor: Performed by
+      app: App
+      action: Action
+      object: Object
+      result: Result
+      duration: Duration
+      site_wide: Site-wide
+      pending: In progress or interrupted
+      success: Succeeded
+      failure: Failed
+
+  passwords_mailer:
+    reset:
+      subject: Reset your Kamal Panel password
+      lead: "You can reset your password here:"
+      link: Open the reset page
+      expiry: This link stops working in %{duration}.
+
+  statuses:
+    drift: Version mismatch
+    unhealthy: Container unhealthy
+    unreachable: Host unreachable
+    ok: OK
+    unknown: Not collected yet
+    parse_error: Config cannot be parsed
+
+  deploy_alerts:
+    unobserved: Report not verified
+    unfinished: Deploy never finished
+    mixed: Reporting problems
+    unobserved_message: '%{version} reported a successful deploy (%{ago}) but has not been observed on any machine'
+    unfinished_message: '%{version} started deploying at %{started_at} and no completion report has arrived since'
+    ago: '%{time} ago'
+
+  deploy_events:
+    observed_by_panel: Observed by the panel
+    unverified: Not verified
+    observed_before_report: Observed before the report
+    delayed_seconds: '%{seconds}s late'
+    inferred: Inferred by panel
+    hook_reported: Reported by hook
+
+  rollback_candidates:
+    cleaned_up: cleaned up on %{hosts}
+
+  credentials_shared:
+    fingerprint_unreadable: (fingerprint unreadable)
+
+  flash:
+    no_permission: You do not have permission to do that
+    confirm_name_failed: 'Confirmation failed: type the app name'
+    unknown_action: Unknown action
+    rate_limited: Please try again later.
+    bad_credentials: That email address or password is not correct.
+    password:
+      reset_sent: If that email address exists, reset instructions have been sent.
+      reset_done: Your password has been reset.
+      mismatch: The two passwords do not match.
+      bad_token: That reset link is invalid or has expired.
+    credential:
+      added: Added %{name}
+      replaced: Replaced %{name}
+      deleted: Deleted %{name}
+      blocked: '%{name} is in use by %{apps} and cannot be deleted — the panel has no way to change the credential of an app that is already onboarded. What you can do is replace its contents (%{edit_path}): replacing takes effect for those apps immediately.'
+    app:
+      onboarded: Onboarded %{name}
+      updated: Updated %{name}
+      deactivated: Deactivated %{name}. The credentials it held have been released.
+      reactivated: Reactivated %{name}. Deactivating released its credentials, so pick them again.
+    user:
+      created_with_password: Created %{email} with a password. Hand it over through a secure channel and have them change it to something only they know via "Forgot your password?" as soon as possible.
+      created_with_mail: Created %{email}; the password setup email has been sent. The link expires in 15 minutes; after that they can resend it themselves from "Forgot your password?" on the sign-in page.
+      updated: Updated %{email}
+      deactivated: Deactivated %{email}
+      reactivated: Reactivated %{email}
+      last_admin_demote: Cannot demote the last admin
+      last_admin_deactivate: Cannot deactivate the last admin
+
+  audit:
+    actions:
+      restart: Restart
+      stop: Stop
+      start: Start
+      rollback: Roll back
+      force_unlock: Force unlock
+      logs: View logs
+      user:
+        create: Create member
+        update_role: Change role
+        deactivate: Deactivate member
+        reactivate: Reactivate member
+      app:
+        add_member: Add app member
+        remove_member: Remove app member
+        update: Update app config
+        deactivate: Deactivate app
+        reactivate: Reactivate app
+      credential:
+        create: Add SSH key
+        rotate: Replace SSH key
+        delete: Delete SSH key
+      registry_credential:
+        create: Add registry password
+        rotate: Replace registry password
+        delete: Delete registry password
+
+    details:
+      app:
+        update_fields: changed %{fields}
+      user:
+        password_by_admin: password set directly by an admin
+        password_by_mail: password setup email sent
+
+    note_wrapper: " (%{note})"

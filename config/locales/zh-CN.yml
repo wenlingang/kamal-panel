@@ -1,0 +1,523 @@
+# 这里只放本仓库自己需要的译文。time_ago_in_words、"不能为空"这类
+# Rails 自带文案由 rails-i18n 提供，不要在这里重抄一遍——抄一份就多一份
+# 会悄悄和上游漂移的东西。
+zh-CN:
+  # rails-i18n 的 blank 译作"不能为空字符"，在中文界面里读起来别扭；
+  # 只覆盖这一条，其余仍用上游译文。
+  errors:
+    messages:
+      blank: 不能为空
+
+  # 校验失败时 full_messages 会把属性名拼在最前面。不给译名的话，
+  # 中文的报错正文前面会挂一个英文列名（"Config yaml 无法解析：…"）。
+  activerecord:
+    errors:
+      models:
+        credential:
+          attributes:
+            value:
+              too_long: 私钥内容过长，已拒绝解析
+              encrypted: "必须是不带密码的 SSH 私钥：面板需要无人值守地建立 SSH 连接，没有人能在场输入密码"
+              not_a_private_key: 不是可用的 SSH 私钥
+        registry_credential:
+          attributes:
+            value:
+              no_quotes_or_newlines: "不能包含单引号或换行：密码要写进 .kamal/secrets-common 的单引号值里，而那种写法对这两个字符没有转义办法"
+        managed_app:
+          attributes:
+            destination:
+              invalid_format: 只能是简短的标识符（字母、数字、下划线、连字符，最多 63 个字符），不能包含路径分隔符或点——destination 不是路径
+            config_yaml:
+              unparseable: "无法解析：%{reason}"
+            ssh_credential:
+              invalid_key: "SSH 私钥：%{reason}"
+            kamal_hooks:
+              unknown_hooks: "包含 Kamal 不认识的 hook 名：%{names}"
+              hook_not_a_string: 每个 hook 的内容必须是脚本文本
+              not_a_json_object: '必须是 JSON 对象，形如 {"pre-connect": "#!/bin/sh\n..."}'
+            kamal_secrets:
+              registry_secret_collision: 里已经定义了 %{env}，而它同时来自选中的 registry 凭据。删掉其中一处——两处都在时，部署会安静地用错一个密码。
+    models:
+      managed_app: 应用
+      user: 用户
+      credential: 凭据
+    attributes:
+      managed_app:
+        name: 名称
+        destination: Destination
+        config_yaml: deploy.yml 原文
+        destination_config_yaml: deploy.<destination>.yml 原文
+        ssh_credential: SSH 私钥
+        registry_credential: registry 密码
+        kamal_secrets: .kamal/secrets 内容
+        kamal_hooks: .kamal/hooks 内容
+      user:
+        email_address: 邮箱地址
+        nickname: 昵称
+        password: 密码
+        password_confirmation: 重复密码
+        role: 角色
+      credential:
+        value: 内容
+        kind: 类型
+
+  # 角色的中文显示名。人员页与新建/编辑表单都用它，代码里的角色值仍是
+  # admin/developer/ops。
+  roles:
+    admin: 超管
+    developer: 开发者
+    ops: 运维
+
+  # 审计页的动作与对象。动作名和 detail_key 都只是【键】，中文只活在这里
+  # ——审计行是只增不删的，往里写中文就等于把语言永久焊死在数据里。
+  common:
+    save: 保存
+    replace: 替换
+    error_separator: "；"
+    list_separator: "、"
+    # 枚举的连接符。中文用顿号、英文用逗号加空格，所以它也得是译文。
+    # 审计页也用它——原先在 audit.list_separator 下另有一份，两份同值的译文
+    # 迟早会漂开，合并到这里。
+
+  users:
+    index:
+      title: 人员
+      subtitle: 谁能登录这个面板、各自是什么角色、能动哪几个应用。
+      add: 添加成员
+      nickname: 昵称
+      email: 邮箱
+      role: 角色
+      apps: 名下应用
+      status: 状态
+      no_apps: （还没有）
+      site_wide: 全站
+      deactivated: 已停用
+      active: 正常
+      reactivate: 启用
+      deactivate: 停用
+    new:
+      back: ← 人员
+      title: 添加成员
+      subtitle: 默认让对方通过邮件里的链接自己设密码——你不必知道别人的密码。邮件送不到时，也可以由你直接设一个。
+      email: 邮箱地址
+      nickname: 昵称
+      nickname_hint: 可以不填。填了就在审计和页头上用它称呼这个人，邮箱仍然照常显示。
+      role: 角色
+      role_hint: admin 管全站；developer 只能动名下的应用；ops 全站只读，外加看日志。
+      password_setup: 密码设置方式
+      by_mail: 发送设置密码邮件
+      by_admin: 我直接设置密码
+      password: 密码
+      password_hint: 至少 8 位。设好后请通过安全渠道转交，别发在聊天群里。
+      password_confirmation: 确认密码
+      submit: 创建成员
+    edit:
+      back: ← 人员
+      subtitle: 改角色，或者指派他能动哪几个应用。
+      nickname: 昵称
+      nickname_hint: 留空就回到用邮箱称呼他。
+      role: 角色
+      apps: 名下应用
+      apps_hint: 只对 developer 生效。admin 与 ops 的权限来自全站角色，勾选对他们没有任何作用。
+
+  credentials:
+    index:
+      title: 凭据
+      subtitle: 面板持有的 SSH 私钥与 registry 密码。接入应用时从这里选，不在别处新建。
+      ssh_keys: SSH 私钥
+      add_ssh_key: 添加私钥
+      no_ssh_keys: 还没有私钥。面板要靠它登上被管的机器采集状态。
+      registry_passwords: Registry 密码
+      add_registry_password: 添加 registry 密码
+      no_registry_passwords: 还没有 registry 密码。没有它，应用启动时拉不动镜像。
+      name: 名字
+      fingerprint: 指纹
+      registry: Registry
+      used_by: 正被哪些应用用着
+      unused: （没有）
+      delete: 删除
+    new:
+      title: 添加私钥
+      subtitle: 面板靠它登上被管的机器采集状态。保存后不再显示，只能整体替换。
+      name: 名字
+      name_hint: 接入应用时你要靠这个名字认出它，起个说得清是哪把钥匙的名字。
+      value: 私钥内容
+    edit:
+      subtitle: 只能整体替换，不能查看。名字不在这里改——别人是靠名字引用这条凭据的。
+      effective: 替换之后立刻对 %{apps} 生效。
+      no_apps: （当前没有应用用它）
+      value: 新的私钥内容
+
+  registry_credentials:
+    new:
+      title: 添加 registry 密码
+      subtitle: 没有它，应用启动时拉不动镜像。保存后不再显示，只能整体替换。
+      name: 名字
+      value: 密码
+      server: Registry 地址（可留空）
+      server_hint: 填了就会和应用 deploy.yml 里的 registry 比对，不一致时在应用页上提示。它只是提示：deploy.yml 随时可能改，面板不会因此拦住你。
+    edit:
+      subtitle: 只能整体替换，不能查看。名字与 registry 地址不在这里改。
+      effective: 替换之后立刻对 %{apps} 生效。
+      no_apps: （当前没有应用用它）
+      value: 新的密码
+
+  managed_apps:
+    index:
+      title: 应用
+      subtitle: 面板正在盯着的所有应用。点进去看每台机器的状态，以及能对它做的操作。
+      add: 接入一个应用
+      empty: 这里还是空的。接入第一个应用，面板就会开始采集它每台机器的状态。
+      host_count:
+        one: "%{count} 台机器"
+        other: "%{count} 台机器"
+      config_broken: 配置无法解析
+      deactivated_section: 已停用
+      deactivated_hint: 停用时释放了凭据绑定。启用之后需要重新选一次凭据才能恢复采集。
+      deactivated_badge: 已停用
+    new:
+      back: ← 应用
+      title: 接入一个应用
+      subtitle: 粘贴 deploy.yml 与一把能登上这些机器的 SSH 私钥。面板只读取状态，部署仍然走你原来的 kamal deploy。
+      erb_warning_html: 粘贴的 deploy.yml 会交给 Kamal 解析，而 Kamal 会对它做 ERB 求值——<strong>也就是说，粘贴配置等同于在面板所在的机器上执行代码</strong>。只粘贴你信任的配置文件。
+      submit: 解析并接入
+    edit:
+      title: 编辑 %{name}
+      subtitle: 改完立刻对下一轮采集与此后的每一次操作生效。
+      erb_warning_html: deploy.yml 会交给 Kamal 解析，而 Kamal 会对它做 ERB 求值——<strong>改这个输入框等同于在面板所在的机器上执行代码</strong>。
+    form:
+      basics: 基本信息
+      name: 名称
+      destination_optional: Destination（可留空）
+      destination: Destination
+      destination_none: （无）
+      destination_locked_hint: 接入之后不能改。已有的观测与部署事件都是按这个 destination 记的，改了它，历史会变成误导。要换环境请另外接入一个应用。
+      config_section: 配置文件
+      config_yaml: deploy.yml 原文
+      destination_config_yaml: deploy.<destination>.yml 原文（可选）
+      destination_config_hint: 仅在你使用 destination 时需要填写；留空会丢失该 destination 对 servers 等配置的覆盖（例如 staging/production 使用不同机器）。
+      credentials_section: 凭据与随配置一起写入的文件
+      ssh_credential: SSH 私钥
+      none_selected: （不选）
+      ssh_credential_hint: 面板靠它登上这些机器采集状态。
+      go_to_credentials: 去凭据页添加
+      registry_credential: Registry 密码
+      registry_credential_hint_html: 选中之后，面板会按这个应用 deploy.yml 里 <code>registry.password</code> 引用的变量名，把密码写进 .kamal/secrets-common。留空则面板不注入任何 registry 密码，得由下面的 .kamal/secrets 自己提供——两处都提供同一个变量时保存会被拒绝。
+      kamal_secrets: .kamal/secrets 文件内容（可选）
+      kamal_secrets_hint: 对应你项目里 .kamal/secrets 文件的原文，用来放 RAILS_MASTER_KEY 这类一个应用一份的东西。registry 密码请用上面那个下拉，不必在这里重写一遍。
+      kamal_secrets_blank_warning: 留空的后果：deploy.yml 里引用到、而上面的 registry 凭据又没提供的变量，kamal 在 app boot / rollback 时会直接报 "Secret not found" 而失败。
+      kamal_hooks: .kamal/hooks 脚本内容（可选，JSON）
+      kamal_hooks_hint_html: '对应你项目里 .kamal/hooks/ 目录下的脚本，格式是一个 JSON 对象：键是 hook 名（pre-deploy、post-deploy、pre-connect 等），值是该脚本的完整文本，例如 <code>{"pre-deploy": "#!/bin/sh\necho hi"}</code>。'
+      kamal_hooks_blank_warning: 留空的后果：你的 pre-deploy / post-deploy 等 hook 永远不会被触发——面板会正常执行部署，但不会告诉你 hook 被跳过了。
+      write_only_hint: 保存后不再显示，只能整体替换。
+    show:
+      back: ← 总览
+      subtitle: 这个应用每台机器上现在跑的是什么，以及能对它做哪些操作。
+      edit: 编辑
+      reactivate: 启用
+      deactivate: 停用
+      deactivated_html: 这个应用已停用：面板不再采集它，也不接受任何操作。停用时释放了它占着的凭据，启用之后需要%{link}。
+      deactivated_link: 重新选一次凭据
+      parse_error_title: 这个应用的 deploy.yml 现在无法解析，采集已停止。
+      parse_error_body: 自 %{since}前起，每一轮轮询都在解析配置这一步失败，因此下面显示的仍是上一次成功采集的旧数据。请检查并修正配置。
+      last_good_observations: 最后一次成功采集的观测
+      last_good_hint: 配置解析已停止，以下数据不再更新。
+      host: 机器
+      version: 版本
+      docker_status: 容器状态
+      reachable: 可达
+      observed_at: 采集时间
+      "yes": 是
+      "no": 否
+      ago: "%{time}前"
+      basics: 基本信息
+      service: 服务名
+      destination: Destination
+      destination_none: （无）
+      registry: Registry
+      ssh_credential: SSH 私钥
+      ssh_credential_none: （未配置）
+      members: 能动这个应用的人
+      members_none: （只有 admin）
+      registry_mismatch: 选中的 registry 凭据「%{credential}」是给 %{credential_server} 用的，而这个应用的 registry 是 %{app_server}。确认一下是不是选错了——选错的后果是部署时拉不动镜像。
+      roles: 解析出的角色
+      role: 角色
+      role_hosts: 主机
+      container_prefix: 容器名前缀
+      host_status: 各机器状态
+      refresh_now: 立即刷新
+      view_logs: 查看日志
+      lock_unknown: 锁状态未知
+      lock_unknown_detail: 无法连接 primary host，操作已禁用
+      lock_held: 部署进行中
+      force_unlock: 强制解锁
+      force_unlock_warning: 只有在确认锁是 CI 崩溃遗留的死锁时才这样做。正在进行的部署会被打断。
+      confirm_name_placeholder: 手输应用名确认
+      actions: 操作
+      actions_hint: 这些操作会改变线上状态，全部记入审计。
+      affected_scope: 将操作 %{hosts} 上的 %{roles}。
+      restart: 重启
+      restart_unavailable: 暂时无法重启：观测里没有唯一一个正在运行的版本。
+      start: 启动
+      stop: 停止
+      stop_warning: 服务会真的下线，直到有人再点「启动」。
+      stop_confirm: 确认停止
+      rollback: 回滚
+      rollback_none: 没有可回滚的历史版本。
+      rollback_step_version: 选版本
+      rollback_step_scope: 确认影响面
+      rollback_step_confirm: 手输应用名确认
+      rollback_submit: 执行回滚
+    refreshing:
+      collecting: 正在向各机器采集……
+    deploy_alerts:
+      unobserved: 上报未验证
+      unfinished: 部署未收尾
+    host_status:
+      oldest_from: 最旧的数据来自 %{time}前
+      stale_suffix: （已过期）
+      never_collected: 尚未采集
+      partially_collected: 部分主机尚未采集
+    host_table:
+      host: 机器
+      role: 角色
+      version: 版本
+      docker_status: 容器状态
+      routed: 接流量
+      collection: 采集
+      unknown: 未知
+      "yes": 是
+      "no": 否
+      health_suffix: （%{health}）
+      ok: 正常
+      collected_ago: "%{time}前采集"
+      never_collected: 尚未采集
+      unparseable: 输出无法解析
+      unparseable_detail: 主机可达，但返回的内容读不懂
+      unreachable: 失联
+      stale_since: 以下为 %{time}前的状态
+      no_history: 无可用的历史状态
+      decommissioned: "%{host} 已不在当前 deploy.yml 配置中——以上是它被移出配置前的最后状态"
+    deploy_history:
+      title: 部署历史
+      empty: 还没有部署记录。这里有两个来源：面板每轮轮询都会比对各机器上正在跑的版本，版本变了就记一条「面板推断」；配上部署上报之后，还能拿到发起人、命令，以及失败的部署。
+      empty_hook_enabled_html: 若你已经放好了 hook：确认脚本有可执行位（<code>chmod +x .kamal/hooks/post-deploy</code>）、token 没粘错，并在部署机上用 <code>curl -v</code> 手跑一次那段命令看看返回码。
+      empty_hook_disabled: 在下面的「部署上报」区块生成 token，就能在这里看到每次部署。
+      truncated: 仅显示最近 50 次部署。
+      version: 版本
+      source: 来源
+      performer: 发起人
+      command: 命令
+      started: 开始
+      finished: 完成
+      observation: 观测
+      not_received: （未收到）
+      unverified: 未验证
+    deploy_reporting:
+      title: 部署上报
+      intro_html: 可选增强：在你自己项目的 <code>.kamal/hooks/</code> 里放两段 curl，面板就能显示"谁在什么时候部署了哪一版"，并在上报与实际观测矛盾时告警。不配也不影响面板的其他功能。面板挂掉或变慢也不会拖累你的部署——脚本自带 5 秒超时和失败兜底。
+      once_only_html: <strong>下面两段脚本只显示这一次。</strong>离开这个页面后就只能重新生成（旧 token 当场失效）。
+      executable_bit_html: 两个文件都要有可执行位：<code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>
+      rejected: 有上报被拒收
+      rejected_ago: "%{time}前"
+      regenerate: 重新生成 token（旧的立即失效）
+      generate: 生成上报 token
+
+  actions:
+    # 动作结束时由后台任务广播到 #action-result。文案和 actions.show 里那两句
+    # 是同一件事的两种渲染路径：页面加载时由视图按 result 渲染，执行过程中由
+    # RunActionJob 广播替换。两边都要有，不能只改一边。
+    result:
+      succeeded: 已完成 —— 面板正在重新采集确认
+      failed: 失败
+    show:
+      back: ← %{name}
+      title: "%{action} —— %{app}"
+      subtitle: 执行过程逐行显示在下方。这一页不会自动跳转，请看完输出再离开。
+      output: 执行输出
+      running: 执行中……
+      succeeded: 已完成
+      succeeded_detail: 面板正在重新采集，用新的观测确认结果。
+      failed: 失败
+      back_to_app: 返回应用
+
+  layouts:
+    application:
+      overview: 总览
+      apps: 应用
+      audit: 审计
+      people: 人员
+      credentials: 凭据
+      sign_out: 退出
+      language: 界面语言
+      switch_language: 切换
+
+  sessions:
+    new:
+      title: 登录
+      email: 邮箱地址
+      password: 密码
+      submit: 登录
+      forgot: 忘记密码？
+
+  passwords:
+    new:
+      title: 忘记密码？
+      email: 邮箱地址
+      submit: 发送重置说明
+      back: 回到登录
+    edit:
+      title: 设置新密码
+      password: 新密码
+      password_confirmation: 重复新密码
+
+  overviews:
+    show:
+      title: 总览
+      subtitle: 每个应用当前跑的是哪一版、几台机器在跑、这些数据有多旧。有问题的排在颜色上。
+      add: 接入一个应用
+      empty: 这里还是空的。接入一个应用只需要一份 deploy.yml 和一把 SSH 私钥——被管的服务器上什么都不用装。
+      filter_name: 应用名
+      filter_name_placeholder: 搜索应用名
+      filter_status: 状态
+      filter_all_statuses: 全部状态
+      filter_submit: 筛选
+      filter_clear: 清除筛选
+      no_matches_html: 没有符合条件的应用。%{link}看全部。
+    grid:
+      app: 应用
+      status: 状态
+      running_version: 运行中的版本
+      hosts: 机器
+      data_age: 数据年龄
+      config_broken: 配置无法解析
+      config_broken_detail: 自 %{since}前起 deploy.yml 无法解析，采集已停止
+      see_app_page: 详情见应用页
+      version_drift: （%{count} 个版本并存）
+      ago: "%{time}前"
+      stale: （已过期）
+      never_collected: 从未采集
+      partially_collected: 部分主机尚未采集
+
+  audit_logs:
+    index:
+      title: 审计
+      subtitle: 面板上发起的每一次操作都记在这里，执行之前就已落库，任何人都删不掉。
+      time: 时间
+      actor: 操作人
+      app: 应用
+      action: 动作
+      object: 对象
+      result: 结果
+      duration: 耗时
+      site_wide: 全站
+      pending: 进行中或已中断
+      success: 成功
+      failure: 失败
+
+  statuses:
+    drift: 版本不一致
+    unhealthy: 容器异常
+    unreachable: 机器失联
+    ok: 正常
+    unknown: 尚未采集
+    parse_error: 配置无法解析
+
+  deploy_alerts:
+    unobserved: 上报未验证
+    unfinished: 部署未收尾
+    mixed: 上报异常
+    unobserved_message: "%{version} 已上报部署成功（%{ago}），但未在任何机器上观测到"
+    unfinished_message: "%{version} 于 %{started_at} 开始部署，至今未收到完成上报"
+    ago: "%{time}前"
+
+  deploy_events:
+    observed_by_panel: 面板观测到
+    unverified: 未验证
+    observed_before_report: 上报前已观测到
+    delayed_seconds: 延迟 %{seconds} 秒
+    inferred: 面板推断
+    hook_reported: hook 上报
+
+  rollback_candidates:
+    cleaned_up: "%{hosts} 上已被清理"
+
+  credentials_shared:
+    fingerprint_unreadable: （无法读取指纹）
+
+  flash:
+    no_permission: 没有权限执行该操作
+    confirm_name_failed: "确认失败：请手输应用名"
+    unknown_action: 未知操作
+    rate_limited: 请稍后再试。
+    bad_credentials: 邮箱地址或密码不正确。
+    password:
+      reset_sent: 如果该邮箱地址存在，重置说明已发送。
+      reset_done: 密码已重置。
+      mismatch: 两次输入的密码不一致。
+      bad_token: 重置链接无效或已过期。
+    credential:
+      added: 已添加 %{name}
+      replaced: 已替换 %{name}
+      deleted: 已删除 %{name}
+      blocked: "%{name} 正被 %{apps} 用着，删不掉——面板目前没有给已接入的应用改凭据的入口。你能做的是替换它的内容（%{edit_path}）：替换会立刻对上面这些应用生效。"
+    app:
+      onboarded: 已接入 %{name}
+      updated: 已更新 %{name}
+      deactivated: 已停用 %{name}，它占着的凭据已释放。
+      reactivated: 已启用 %{name}。停用时释放了凭据，请重新选一次。
+    user:
+      created_with_password: 已创建 %{email}，密码已设置。请通过安全渠道转交，并让对方尽快在「忘记密码」里换成只有他知道的密码。
+      created_with_mail: 已创建 %{email}，设置密码的邮件已发出。链接 15 分钟后失效，过期可让对方在登录页点「忘记密码」自助重发。
+      updated: 已更新 %{email}
+      deactivated: 已停用 %{email}
+      reactivated: 已启用 %{email}
+      last_admin_demote: 不能降级最后一个 admin
+      last_admin_deactivate: 不能停用最后一个 admin
+
+  audit:
+    actions:
+      # 部署动作（Actions::Base.registry）
+      restart: 重启
+      stop: 停止
+      start: 启动
+      rollback: 回滚
+      force_unlock: 强制解锁
+      logs: 查看日志
+      # 权限动作（AuditLog::ACCESS_ACTIONS）。动作名里的点在 i18n 里就是
+      # 层级分隔符，所以这里按层级写，查询串仍是 audit.actions.user.create。
+      user:
+        create: 创建成员
+        update_role: 修改角色
+        deactivate: 停用成员
+        reactivate: 启用成员
+      app:
+        add_member: 添加应用成员
+        remove_member: 移除应用成员
+        update: 修改应用配置
+        deactivate: 停用应用
+        reactivate: 启用应用
+      credential:
+        create: 添加私钥
+        rotate: 替换私钥
+        delete: 删除私钥
+      registry_credential:
+        create: 添加 registry 密码
+        rotate: 替换 registry 密码
+        delete: 删除 registry 密码
+
+    details:
+      app:
+        update_fields: 改了 %{fields}
+      user:
+        password_by_admin: 密码由管理员直接设置
+        password_by_mail: 已发送设置密码邮件
+
+    note_wrapper: "（%{note}）"
+
+  passwords_mailer:
+    reset:
+      subject: 重置你的 Kamal Panel 密码
+      lead: 你可以在这里重置密码：
+      link: 打开重置页面
+      expiry: 这个链接将在 %{duration}后失效。

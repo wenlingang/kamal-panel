@@ -1,0 +1,20 @@
+<%# 这一块会被 PollManagedAppJob 每轮采集后整块替换（目标 id: host-status），
+    所以它必须是自包含的：需要的东西全部由 locals 传进来，不读 @ 变量。 %>
+<div id="host-status">
+  <p class="data-age">
+    <% if status.observed_at %>
+      <%# 取的是"配置里每一台机器各自最旧的一次"，不是"最新一次成功采集"——
+          诚实的说法只能是"这里没有一条数据比这更旧"（见 Task 11 review）。 %>
+      <%= t(".oldest_from", time: time_ago_in_words(status.observed_at)) %>
+      <%= t(".stale_suffix") if status.stale? %>
+    <% elsif status.level == :unknown %>
+      <%= t(".never_collected") %>
+    <% else %>
+      <%# 配置里有机器一条观测都没有——这时候不给一个看起来精确、实则
+          不成立的数字（见 Task 11 review 第三轮）。 %>
+      <%= t(".partially_collected") %>
+    <% end %>
+  </p>
+
+  <%= render "managed_apps/host_table", status: status %>
+</div>

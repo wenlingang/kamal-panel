@@ -1,0 +1,36 @@
+<section class="section">
+<h2><%= t(".title") %></h2>
+<div class="panel">
+
+<p class="hint"><%= t(".intro_html").html_safe %></p>
+
+<% if (token = flash[:hook_token]) %>
+  <%# 明文只在这一次出现。这句话必须说在展示旁边，而不是等人吃了亏才知道。 %>
+  <div class="hook-token-reveal">
+    <p><%= t(".once_only_html").html_safe %></p>
+
+    <% script = HookScript.new(managed_app, base_url: request.base_url, token: token) %>
+    <h3>.kamal/hooks/pre-deploy</h3>
+    <pre><code><%= script.pre_deploy %></code></pre>
+    <h3>.kamal/hooks/post-deploy</h3>
+    <pre><code><%= script.post_deploy %></code></pre>
+
+    <p><%= t(".executable_bit_html").html_safe %></p>
+  </div>
+<% end %>
+
+<% if managed_app.last_hook_rejection.present? %>
+  <p class="hook-rejection" role="alert">
+    <strong><%= t(".rejected") %></strong>
+    （<%= t(".rejected_ago", time: time_ago_in_words(managed_app.last_hook_rejection_at)) %>）
+    —— <%= managed_app.last_hook_rejection %>
+  </p>
+<% end %>
+
+<%= allowed_to(:regenerate_hook_token, managed_app) do %>
+  <%= button_to managed_app.hook_reporting_enabled? ? t(".regenerate") : t(".generate"),
+                managed_app_hook_token_path(managed_app), method: :post,
+                class: "btn-primary" %>
+<% end %>
+</div>
+</section>

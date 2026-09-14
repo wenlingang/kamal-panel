@@ -1,0 +1,291 @@
+<p class="breadcrumb"><%= link_to t(".back"), root_path %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= @managed_app.name %></h1>
+    <%# 副标题不碰 parsed_config：配置解析失败时这一页仍要能渲染出来
+        （见下面 last_poll_error 分支的注释）。 %>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <%= allowed_to(:act, @managed_app) do %>
+    <%= link_to t(".edit"), edit_managed_app_path(@managed_app), class: "btn-quiet" %>
+  <% end %>
+  <%= allowed_to(:deactivate, @managed_app) do %>
+    <% if @managed_app.deactivated? %>
+      <%= button_to t(".reactivate"), reactivate_managed_app_path(@managed_app),
+                    method: :post, class: "btn-quiet" %>
+    <% else %>
+      <%= button_to t(".deactivate"), deactivate_managed_app_path(@managed_app),
+                    method: :post, class: "btn-quiet" %>
+    <% end %>
+  <% end %>
+</div>
+
+<% if @managed_app.deactivated? %>
+  <%# 停用之后这一页仍然打得开——看不见就没法启用它——但要说清它现在是什么状态。 %>
+  <p class="callout callout-warn">
+    <%= t(".deactivated_html",
+          link: link_to(t(".deactivated_link"), edit_managed_app_path(@managed_app))).html_safe %>
+  </p>
+<% end %>
+
+<%# 采集完成后由 PollManagedAppJob 广播替换 #host-status %>
+<%= turbo_stream_from "managed_app_#{@managed_app.id}" %>
+
+<%= render "managed_apps/deploy_alerts", managed_app: @managed_app %>
+
+<% if @managed_app.last_poll_error.present? %>
+  <%# 配置解析失败必须在 UI 上大声说话，不能只有一行日志——否则轮询会
+      永久静默停摆，操作者只会看到数据越来越旧，却不知道为什么
+      （见 final review I4）。 %>
+  <div class="config-parse-error-banner" role="alert">
+    <strong><%= t(".parse_error_title") %></strong>
+    <p><%= t(".parse_error_body", since: time_ago_in_words(@managed_app.first_poll_error_at)) %></p>
+    <pre><code><%= @managed_app.last_poll_error %></code></pre>
+  </div>
+
+  <%# 配置解析不了时，下面几乎所有原本的展示都依赖重新解析配置
+      （服务名、Registry、角色列表、按配置算出的"数据年龄"/"部分主机
+      尚未采集"）——继续调用它们会在这个模板里再炸一次 ParseError，
+      而这次是在渲染阶段，不会被 job 的 rescue 接住（这正是本项修复
+      过程中发现并需要一并堵上的口子）。所以这里退化成只读原始观测，
+      不再触碰 parsed_config。 %>
+  <section class="section">
+    <h2><%= t(".basics") %></h2>
+    <div class="panel">
+      <dl>
+        <dt><%= t(".destination") %></dt>
+        <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section">
+  <h2><%= t(".last_good_observations") %></h2>
+  <div class="panel">
+  <p class="hint"><%= t(".last_good_hint") %></p>
+  <table class="host-table">
+    <thead>
+      <tr>
+        <th><%= t(".host") %></th>
+        <th><%= t(".version") %></th>
+        <th><%= t(".docker_status") %></th>
+        <th><%= t(".reachable") %></th>
+        <th><%= t(".observed_at") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% Observation.latest_for(@managed_app).sort_by(&:host).each do |o| %>
+        <tr>
+          <td><%= o.host %></td>
+          <td><%= o.version || "—" %></td>
+          <td><%= o.docker_status || "—" %></td>
+          <td><%= o.reachable ? t(".yes") : t(".no") %></td>
+          <td><%= t(".ago", time: time_ago_in_words(o.observed_at)) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+  </section>
+<% else %>
+<section class="section">
+  <h2><%= t(".basics") %></h2>
+  <div class="panel">
+    <dl>
+      <dt><%= t(".service") %></dt>     <dd><%= @managed_app.service %></dd>
+      <dt><%= t(".destination") %></dt> <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+      <dt><%= t(".registry") %></dt>    <dd><%= @managed_app.parsed_config.registry_server %></dd>
+      <dt><%= t(".ssh_credential") %></dt>
+      <dd><%= @managed_app.ssh_credential&.fingerprint || t(".ssh_credential_none") %></dd>
+      <dt><%= t(".members") %></dt>
+      <dd>
+        <%# 只读。成员关系的写入口只有人员页一处（设计 11 第 5.2 节）。 %>
+        <%= joined_list(@managed_app.members.map(&:display_name), empty: t(".members_none")) %>
+      </dd>
+    </dl>
+
+    <%# 软提示不是校验：deploy.yml 里的 server 随时可能改，硬拦会拦错人。
+        凭据没填 server 时无从比对，也就不提示。 %>
+    <% if (cred = @managed_app.registry_credential) && cred.server.present? &&
+          cred.server != @managed_app.parsed_config.registry_server %>
+      <p class="warning">
+        <%= t(".registry_mismatch", credential: cred.name, credential_server: cred.server,
+                                    app_server: @managed_app.parsed_config.registry_server) %>
+      </p>
+    <% end %>
+  </div>
+</section>
+
+  <section class="section">
+  <h2><%= t(".roles") %></h2>
+  <div class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th><%= t(".role") %></th>
+        <th><%= t(".role_hosts") %></th>
+        <th><%= t(".container_prefix") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @managed_app.parsed_config.roles.each do |role| %>
+        <tr>
+          <td><%= role[:name] %></td>
+          <td><%= role[:hosts].join(", ") %></td>
+          <td><code><%= role[:container_prefix] %></code></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+  <section class="section">
+  <div class="section-head">
+    <h2><%= t(".host_status") %></h2>
+    <%# 面板本来就在轮询（有人看这一页时是 10 秒一轮）。这个按钮是给"现在就要
+        知道"的场合用的：把节奏顶到 burst 档并立刻入队一次采集，结果由
+        PollManagedAppJob 的广播替换回来，不刷整页。 %>
+    <%= button_to t(".refresh_now"), managed_app_refreshes_path(@managed_app),
+                  method: :post, class: "btn-quiet" %>
+    <%= allowed_to(:view_logs, @managed_app) do %>
+      <%= button_to t(".view_logs"), managed_app_actions_path(@managed_app),
+                    method: :post, params: { name: "logs" }, class: "btn-quiet" %>
+    <% end %>
+  </div>
+  <div class="panel">
+
+  <% status = ManagedAppStatus.new(@managed_app) %>
+
+  <%= render "managed_apps/host_status", managed_app: @managed_app, status: status %>
+  </div>
+</section>
+<% end %>
+
+<%# 配置解析不了的应用没有 service/destination/primary_host 可用——
+    KamalLock 会在这个分支里直接抛 Kamal::ConfigParser::ParseError（见
+    上面 last_poll_error 分支自己的注释）。这个 unless 把"锁状态+操作
+    按钮"整体跳过，代价是解析失败后到下一次轮询之间那一小段时间窗口里
+    操作按钮会连带消失，不只是数据变旧——这个窗口的宽度取决于
+    PollCadence 里最快的那档轮询间隔（当前是 BURST = 2 秒），不是一个
+    永远成立的常量：以后如果调宽轮询间隔，这个窗口会跟着悄悄变宽，
+    到时候需要重新评估这里是否还够用（task-5 review 的 minor）。 %>
+<% unless @managed_app.last_poll_error.present? %>
+  <% lock = KamalLock.new(@managed_app).status %>
+  <% if lock[:error] %>
+    <p class="lock-unknown">
+      <strong><%= t(".lock_unknown") %></strong> —— <%= t(".lock_unknown_detail") %>
+    </p>
+  <% elsif lock[:locked] %>
+    <p class="lock-held">
+      <strong><%= t(".lock_held") %></strong><br><small><%= lock[:details] %></small>
+    </p>
+
+    <%# spec 7.4：不提供强制解锁，用户遇到 CI 崩溃留下的死锁就只能去 SSH。
+        代价是它能打断一次正在进行的真实部署，所以入口只在确实有锁时出现，
+        默认折叠，且要有该应用的动作权限 + 手输应用名。 %>
+    <%= allowed_to(:act, @managed_app) do %>
+      <details class="force-unlock">
+        <summary><%= t(".force_unlock") %></summary>
+        <p><%= t(".force_unlock_warning") %></p>
+        <%= form_with url: managed_app_actions_path(@managed_app), method: :post do |form| %>
+          <%= form.hidden_field :name, value: "force_unlock" %>
+          <%= form.text_field :confirm_name, id: "force_unlock_confirm_name",
+                                             placeholder: t(".confirm_name_placeholder") %>
+          <%= form.submit t(".force_unlock"), class: "btn-danger" %>
+        <% end %>
+      </details>
+    <% end %>
+  <% end %>
+
+  <%= allowed_to(:act, @managed_app) do %>
+    <% if lock[:error].nil? && !lock[:locked] %>
+<section class="section actions">
+        <h2><%= t(".actions") %></h2>
+        <div class="panel">
+        <p class="actions-hint"><%= t(".actions_hint") %></p>
+        <%# 影响面在点下去之前就摆在眼前（spec 7.7）：这三个动作不要求手输
+            应用名，那么至少要让人看清它会动到哪些机器上的哪些角色。 %>
+        <p class="affected-scope">
+          <%= t(".affected_scope", hosts: joined_list(@managed_app.cached_app_hosts),
+                                   roles: joined_list(@managed_app.role_names)) %>
+        </p>
+        <%# 这三个此前是 type="button" 的死按钮：没有表单、没有处理器，
+            点下去什么都不会发生（Task 12 的验收才把它暴露出来）。
+            接上时三者的约束并不相同，所以不是一排一样的按钮。 %>
+        <% rollback_candidates = RollbackCandidates.new(@managed_app) %>
+        <div class="action-buttons">
+          <% if (running = rollback_candidates.running_version) %>
+            <%= button_to t(".restart"), managed_app_actions_path(@managed_app),
+                          method: :post, params: { name: "restart", version: running } %>
+          <% else %>
+            <%# `app boot` 必须带 --version，观测里说不清跑的是哪一版时，
+                与其让它在执行页上报一个 ArgumentError，不如在这里说清楚。 %>
+            <p class="action-unavailable"><%= t(".restart_unavailable") %></p>
+          <% end %>
+
+          <%= button_to t(".start"), managed_app_actions_path(@managed_app),
+                        method: :post, params: { name: "start" } %>
+        </div>
+
+        <%# 停止会让服务真的下线，因此和回滚一样要手输应用名。 %>
+        <details class="stop-app">
+          <summary><%= t(".stop") %></summary>
+          <p><%= t(".stop_warning") %></p>
+          <%= form_with url: managed_app_actions_path(@managed_app), method: :post do |form| %>
+            <%= form.hidden_field :name, value: "stop" %>
+            <%= form.text_field :confirm_name, id: "stop_confirm_name",
+                                               placeholder: t(".confirm_name_placeholder") %>
+            <%= form.submit t(".stop_confirm"), class: "btn-danger" %>
+          <% end %>
+        </details>
+
+        <h3><%= t(".rollback") %></h3>
+        <%# 只列真正可回滚的版本（spec 7.1）：kamal rollback 要求该版本的容器
+            在每台 host 上都还在，缺一台就直接拒绝。面板手里已有全量
+            docker ps --all，所以能提前把不可回滚的置灰并注明缺在哪台。 %>
+        <% candidates = rollback_candidates.list %>
+        <% if candidates.empty? %>
+          <p><%= t(".rollback_none") %></p>
+        <% else %>
+          <%= form_with url: managed_app_actions_path(@managed_app), method: :post do |form| %>
+            <%= form.hidden_field :name, value: "rollback" %>
+
+            <ol class="rollback-steps">
+              <li>
+                <strong><%= t(".rollback_step_version") %></strong>
+                <% candidates.each do |c| %>
+                  <label class="<%= "unavailable" unless c[:available] %>">
+                    <%= form.radio_button :version, c[:version], disabled: !c[:available] %>
+                    <%= c[:version] %>
+                    <% unless c[:available] %>
+                      <small>—— <%= c[:reason] %></small>
+                    <% end %>
+                  </label>
+                <% end %>
+              </li>
+              <li>
+                <strong><%= t(".rollback_step_scope") %></strong>
+                <p><%= t(".affected_scope", hosts: joined_list(@managed_app.cached_app_hosts),
+                                            roles: joined_list(@managed_app.role_names)) %></p>
+              </li>
+              <li>
+                <strong><%= t(".rollback_step_confirm") %></strong>
+                <%= form.text_field :confirm_name, id: "rollback_confirm_name",
+                                                   placeholder: @managed_app.name %>
+              </li>
+            </ol>
+
+            <%= form.submit t(".rollback_submit"), class: "btn-danger" %>
+          <% end %>
+        <% end %>
+        </div>
+      </section>
+    <% end %>
+  <% end %>
+<% end %>
+
+<%= render "managed_apps/deploy_history", managed_app: @managed_app %>
+
+<%= render "managed_apps/deploy_reporting", managed_app: @managed_app %>

@@ -1,0 +1,65 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <%= allowed_to(:create_app, ManagedApp) do %>
+    <%= link_to t(".add"), new_managed_app_path, class: "btn-primary" %>
+  <% end %>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <% if @managed_apps.empty? %>
+      <div class="empty-state">
+        <%= render "shared/mark", size: "40px" %>
+        <p class="empty-hint"><%= t(".empty") %></p>
+      </div>
+    <% else %>
+      <ul class="record-list">
+        <% @managed_apps.each do |app| %>
+          <li>
+            <%= link_to app, class: "record-row" do %>
+              <span><%= app.name %></span>
+              <%
+                hosts_count = begin
+                  app.cached_app_hosts.size
+                rescue Kamal::ConfigParser::ParseError
+                  nil
+                end
+              %>
+              <span class="record-meta">
+                <% if hosts_count %>
+                  <%= t(".host_count", count: hosts_count) %>
+                <% else %>
+                  <span class="config-broken"><%= t(".config_broken") %></span>
+                <% end %>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</section>
+
+<%# 停用的应用不在总览网格里（那一页回答"现在线上什么样"），但必须在这里
+    找得到——看不见就没法把它启用回来。 %>
+<% if @deactivated_apps.any? %>
+  <section class="section">
+    <h2><%= t(".deactivated_section") %></h2>
+    <div class="panel">
+      <p class="hint"><%= t(".deactivated_hint") %></p>
+      <ul class="record-list">
+        <% @deactivated_apps.each do |app| %>
+          <li>
+            <%= link_to app, class: "record-row" do %>
+              <span><%= app.name %></span>
+              <span class="status-badge status-unknown"><%= t(".deactivated_badge") %></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
+<% end %>
