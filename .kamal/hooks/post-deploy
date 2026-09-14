@@ -1,0 +1,23 @@
+#!/bin/sh
+# .kamal/hooks/post-deploy
+#
+# 向 kamal-panel 上报「这一版部署完成了」。这段脚本与面板在应用详情页
+# 「部署上报」区块里生成给你的那一段是同一套东西——那一段把 URL 与 token
+# 直接嵌好，这一份从环境变量取，便于放进仓库。
+#
+# 用法：在部署机上导出这两个变量（token 在面板页面上生成，只显示一次）：
+#   export PANEL_URL=https://panel.example.com
+#   export PANEL_TOKEN=<面板生成的 token>
+#
+# 没配就安静跳过——一个还没接上面板的仓库，不该在每次部署时朝
+# example.com 发请求。
+[ -n "$PANEL_URL" ] && [ -n "$PANEL_TOKEN" ] || exit 0
+
+# --max-time 5 与结尾的 || true 都是硬性的：面板挂掉或变慢，绝不能让你的
+# 部署失败或卡住。改这两样之前请想清楚代价。
+curl -sf --max-time 5 -X POST "$PANEL_URL/api/deploys" \
+  -H "Authorization: Bearer $PANEL_TOKEN" \
+  -d phase=succeeded \
+  -d service="$KAMAL_SERVICE" -d destination="$KAMAL_DESTINATION" \
+  -d version="$KAMAL_VERSION" -d performer="$KAMAL_PERFORMER" \
+  -d recorded_at="$KAMAL_RECORDED_AT" -d command="$KAMAL_COMMAND" || true

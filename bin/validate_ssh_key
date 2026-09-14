@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+# 从 stdin 读 JSON: {"value": "<候选 SSH 私钥原文>"}
+# 向 stdout 写 JSON: {"ok": true, "fingerprint": "SHA256:..."}
+#                 或 {"ok": false, "encrypted": true|false, "error_class": "..."}
+#
+# 本脚本在独立子进程中运行，父进程（SshKeyValidator）持有硬超时，超时直接
+# SIGKILL 本进程。
+#
+# 为什么不在调用 net-ssh 之前自己先读一遍私钥判断"是不是带密码"从而跳过
+# 解析：真的这么做过一版，结果是制造了一个"两个解析器必须对同一段字节
+# 达成一致"的双重解析器问题——自制的 OpenSSH header reader 按换行切分再
+# 忽略以 "-----" 开头的行，net-ssh 内部按固定偏移切片、再用宽松的
+# `unpack1("m")`（忽略非 base64 字符，包括 "-"）解码，两者对同一份"每行都
+# 加 -----前缀"的畸形输入得出了不同答案：自制 reader 判定"不是 OpenSSH 私钥
+# header，放行"，net-ssh 却仍然照常解出 cipher=aes256-ctr、kdf=bcrypt，
+# 并且真的会去跑攻击者指定 rounds 的 bcrypt。同理，PEM/PKCS#8 路径的
+# iteration count 也是同一形状的漏洞。
+#
+# 结论：不试图预判/复刻第三方解析器会做什么。跟本仓库
+# app/models/kamal/config_parser.rb 解析 deploy.yml 用的是同一个边界——
+# 把不可信输入交给真正的解析器，在独立子进程里跑，父进程持有硬超时，
+# 无论子进程做了什么、花了多久，超时了就直接 kill。子进程内部只用
+# `rescue StandardError`（跟 bin/parse_deploy_config 一致）——不需要
+# 枚举 net-ssh 可能抛出的每一种异常类：能被 rescue 的就干净地输出
+# {"ok": false, ...}，没被 rescue 的会让子进程直接崩溃、stdout 为空，
+# 父进程本来就把"子进程无输出"当成失败处理，两种情况都不会变成父进程里
+# 的一次未捕获异常。
+#
+# 不使用临时文件：Kamal::ConfigParser 需要临时文件是因为
+# Kamal::Configuration.create_from 要求的是文件路径（还要满足 destination
+# 伴随文件的约定）；net-ssh 的 Net::SSH::KeyFactory.load_data_private_key
+# 直接接受字符串。私钥是格外敏感的材料，能不落盘就不落盘，所以这里改用
+# stdin/stdout 直接传字节，父子进程全程不创建任何临时文件。
+
+require "json"
+
+def emit(hash)
+  $stdout.write(JSON.generate(hash))
+  $stdout.flush
+end
+
+begin
+  input = JSON.parse($stdin.read)
+  data = input.fetch("value")
+
+  require "net/ssh"
+  require "digest"
+  require "base64"
+
+  begin
+    key = Net::SSH::KeyFactory.load_data_private_key(data, nil, false)
+    emit(
+      ok: true,
+      fingerprint: "SHA256:#{Base64.strict_encode64(Digest::SHA256.digest(key.to_blob)).delete("=")}"
+    )
+  rescue StandardError, ScriptError => e
+    # 跟父进程（SshKeyValidator）同样的理由：net-ssh 对畸形/不支持的输入
+    # 不保证只抛 StandardError 的子类——NotImplementedError 继承自
+    # ScriptError。这里多 rescue 一层不是"防止 500"（子进程崩溃、stdout
+    # 为空，父进程本来就把这种情况当成失败处理，不会变成父进程里的一次
+    # 未捕获异常），而是为了让这类失败也能干净地走 emit(ok: false, ...)，
+    # 而不是让子进程带着未捕获异常的 backtrace 崩溃退出。
+    #
+    # net-ssh 自己就要判断"这次解析失败是不是因为私钥带密码"（用来决定要不要
+    # 提示用户输密码）；我们复用它自己的判断（KeyFactory 的私有方法
+    # classify_key + 对应 KeyType 类的 encrypted_key?），而不是自己另外猜测——
+    # 这同样是为了不引入第二个"必须和 net-ssh 一致"的判断源。
+    encrypted =
+      begin
+        key_type = Net::SSH::KeyFactory.send(:classify_key, data, "")
+        !!key_type.encrypted_key?(data, e)
+      rescue StandardError, ScriptError
+        false
+      end
+
+    emit(ok: false, encrypted: encrypted, error_class: e.class.name)
+  end
+rescue StandardError, ScriptError => e
+  emit(ok: false, encrypted: false, error_class: e.class.name)
+end

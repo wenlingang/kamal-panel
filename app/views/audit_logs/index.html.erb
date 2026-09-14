@@ -1,0 +1,46 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <table>
+  <thead>
+    <tr>
+      <th><%= t(".time") %></th>
+      <th><%= t(".actor") %></th>
+      <th><%= t(".app") %></th>
+      <th><%= t(".action") %></th>
+      <th><%= t(".object") %></th>
+      <th><%= t(".result") %></th>
+      <th><%= t(".duration") %></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @audit_logs.each do |log| %>
+      <tr>
+        <td><%= log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+        <td><%= user_identity(log.user) %></td>
+        <td><%= log.managed_app&.name || t(".site_wide") %></td>
+        <td><%= audit_action_label(log) %></td>
+        <td><%= audit_object(log) %></td>
+        <td>
+          <% case log.result %>
+          <% when "pending" %>
+            <strong><%= t(".pending") %></strong>
+          <% when "success" %>
+            <%= t(".success") %>
+          <% else %>
+            <strong><%= t(".failure") %></strong>
+          <% end %>
+        </td>
+        <td><%= log.duration_ms ? "#{log.duration_ms} ms" : "—" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+  </div>
+</section>

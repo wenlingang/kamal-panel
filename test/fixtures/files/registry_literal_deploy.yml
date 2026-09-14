@@ -1,0 +1,17 @@
+service: blog
+image: example/blog
+
+servers:
+  web:
+    - 127.0.0.1
+
+registry:
+  server: registry.example.com
+  username: someone
+  password: hunter2
+
+builder:
+  arch: amd64
+
+ssh:
+  user: deploy

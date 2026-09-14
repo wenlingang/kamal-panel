@@ -1,0 +1,41 @@
+<p class="breadcrumb"><%= link_to t(".back", name: @managed_app.name), @managed_app %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <%# 动作名走 audit_action_label：此前这里直接印 action_name，页面标题上
+        显示的是 "restart" 这种原始键，而同一个动作在审计页上早已是中文。 %>
+    <h1><%= t(".title", action: audit_action_label(@audit_log), app: @managed_app.name) %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<%# 之前这里写的是 data-turbo-stream-source="..."，那只是一个普通 data
+    属性，并不订阅任何东西（真正的订阅靠 turbo_stream_from 渲染出的
+    <turbo-cable-stream-source> 自定义元素）——也就是说流式输出此前
+    从未真正接上。 %>
+<%= turbo_stream_from "action_#{@audit_log.id}" %>
+
+<section class="section">
+  <h2><%= t(".output") %></h2>
+  <div class="panel">
+    <%# 已经落库的输出要先渲染出来：刷新页面、或执行结束后才打开这一页的人，
+        否则会看到一个空白框，误以为"什么都没发生"。后续新行由上面的订阅追加。
+
+        #action-output 与 #action-result 这两个 id 是 RunActionJob 广播的
+        目标，改名字会让流式输出与终态静默失效。 %>
+    <pre id="action-output" class="action-output"><% @audit_log.output_digest.to_s.each_line do |line| %><div class="output-line"><%= line.chomp %></div><% end %></pre>
+
+    <p id="action-result" class="action-result">
+      <% case @audit_log.result %>
+      <% when "pending" %>
+        <%= t(".running") %>
+      <% when "success" %>
+        <strong><%= t(".succeeded") %></strong> —— <%= t(".succeeded_detail") %>
+      <% else %>
+        <strong><%= t(".failed") %></strong>
+      <% end %>
+    </p>
+  </div>
+</section>
+
+<p><%= link_to t(".back_to_app"), @managed_app %></p>

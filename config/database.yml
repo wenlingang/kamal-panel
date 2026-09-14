@@ -1,0 +1,47 @@
+# SQLite. Versions 3.8.0 and up are supported.
+#   gem install sqlite3
+#
+#   Ensure the SQLite 3 gem is defined in your Gemfile
+#   gem "sqlite3"
+#
+default: &default
+  adapter: sqlite3
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+development:
+  <<: *default
+  database: storage/development.sqlite3
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  <<: *default
+  database: storage/test.sqlite3
+  # 比默认 5000ms 更宽——这个套件里的测试会真的 fork+exec 一串子进程
+  # （ssh-agent、ssh-add、kamal、kamal 自己再 fork 的 hook/docker），每次
+  # fork 都会短暂复制一份持有 sqlite3 连接的文件描述符，直到 exec() 替换掉
+  # 进程映像为止；这个窗口偶尔会让另一个线程/连接看见 SQLITE_BUSY。这里的
+  # timeout 就是 sqlite3 自带的忙等重试时间，调大它只是把"重试到成功"的
+  # 上限放宽，不改变任何隔离语义。
+  timeout: 15000
+
+# Store production database in the storage/ directory, which by default
+# is mounted as a persistent Docker volume in config/deploy.yml.
+production:
+  primary:
+    <<: *default
+    database: storage/production.sqlite3
+  cache:
+    <<: *default
+    database: storage/production_cache.sqlite3
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *default
+    database: storage/production_queue.sqlite3
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *default
+    database: storage/production_cable.sqlite3
+    migrations_paths: db/cable_migrate

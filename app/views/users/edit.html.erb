@@ -1,0 +1,46 @@
+<p class="breadcrumb"><%= link_to t(".back"), users_path %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= @user.display_name %></h1>
+    <%# 标题显示昵称时，邮箱才是这一页在改的那个账号的唯一标识，不能没有。 %>
+    <% if @user.nickname.present? %>
+      <p class="page-sub mono"><%= @user.email_address %></p>
+    <% end %>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= form_with model: @user, method: :patch do |form| %>
+      <div>
+        <%= form.label :nickname, t(".nickname") %>
+        <%= form.text_field :nickname, autocomplete: "off" %>
+        <p class="hint"><%= t(".nickname_hint") %></p>
+      </div>
+
+      <div>
+        <%= form.label :role, t(".role") %>
+        <%= form.select :role, User::ROLES.map { |r| [ t("roles.#{r}"), r ] } %>
+      </div>
+
+      <fieldset>
+        <legend><%= t(".apps") %></legend>
+        <p class="hint"><%= t(".apps_hint") %></p>
+        <% @managed_apps.each do |app| %>
+          <label>
+            <%= check_box_tag "managed_app_ids[]", app.id,
+                              @user.managed_app_ids.include?(app.id), id: "app_#{app.id}" %>
+            <%= app.name %>
+          </label>
+        <% end %>
+        <%# 全不勾时浏览器不会提交任何 managed_app_ids，控制器就看不出「清空」
+            与「没动过」的区别。这个隐藏字段保证参数一定存在。 %>
+        <%= hidden_field_tag "managed_app_ids[]", "" %>
+      </fieldset>
+
+      <%= form.submit t("common.save"), class: "btn-primary" %>
+    <% end %>
+  </div>
+</section>

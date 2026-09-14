@@ -1,0 +1,72 @@
+<p class="breadcrumb"><%= link_to t(".back"), users_path %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= form_with model: @user do |form| %>
+      <%# 错误展示照搬 managed_apps/new.html.erb 的写法：这个仓库里没有
+          shared/_errors，为这一处新造一个站点级 partial 属于本任务之外的重构。 %>
+      <% if @user.errors.any? %>
+        <ul class="errors">
+          <% @user.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      <% end %>
+
+      <div>
+        <%= form.label :email_address, t(".email") %>
+        <%= form.email_field :email_address, autocomplete: "off" %>
+      </div>
+
+      <div>
+        <%= form.label :nickname, t(".nickname") %>
+        <%= form.text_field :nickname, autocomplete: "off" %>
+        <p class="hint"><%= t(".nickname_hint") %></p>
+      </div>
+
+      <div>
+        <%= form.label :role, t(".role") %>
+        <%= form.select :role, User::ROLES.map { |r| [ t("roles.#{r}"), r ] } %>
+        <p class="hint"><%= t(".role_hint") %></p>
+      </div>
+
+      <%# 展开/收起纯靠 CSS :has()，不引 JS。样式没加载上时两个密码框会
+          直接显示出来，那是安全的降级：password_setup 仍是单选的真值，
+          控制器只认 "manual" 那一档。 %>
+      <fieldset class="password-setup">
+        <legend><%= t(".password_setup") %></legend>
+
+        <label>
+          <%= radio_button_tag :password_setup, "mail", @password_setup != "manual" %>
+          <%= t(".by_mail") %>
+        </label>
+        <label>
+          <%= radio_button_tag :password_setup, "manual", @password_setup == "manual" %>
+          <%= t(".by_admin") %>
+        </label>
+
+        <div class="password-setup-manual">
+          <div>
+            <%= form.label :password, t(".password") %>
+            <%= form.password_field :password, autocomplete: "new-password" %>
+            <p class="hint"><%= t(".password_hint") %></p>
+          </div>
+
+          <div>
+            <%= form.label :password_confirmation, t(".password_confirmation") %>
+            <%= form.password_field :password_confirmation, autocomplete: "new-password" %>
+          </div>
+        </div>
+      </fieldset>
+
+      <%= form.submit t(".submit"), class: "btn-primary" %>
+    <% end %>
+  </div>
+</section>

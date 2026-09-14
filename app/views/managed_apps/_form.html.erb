@@ -1,0 +1,106 @@
+<%# 接入页与编辑页共用这一份。两份各写一遍必然漂移——这个仓库已经因为
+    "同一条规则活在两个地方"吃过亏。
+
+    locals：
+      managed_app  记录本身
+      submit_label 提交按钮文案
+      new_record   true 时渲染 destination 输入框与"留空的后果"那类接入期提示；
+                   false 时 destination 只读（已有的观测与部署事件都是按旧
+                   destination 记的，改了历史会变成误导）。 %>
+<%= form_with model: managed_app do |form| %>
+  <% if managed_app.errors.any? %>
+    <ul class="errors">
+      <% managed_app.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <section class="section">
+    <h2><%= t(".basics") %></h2>
+    <div class="panel">
+      <div>
+        <%= form.label :name, t(".name") %>
+        <%= form.text_field :name %>
+      </div>
+
+      <div>
+        <% if new_record %>
+          <%= form.label :destination, t(".destination_optional") %>
+          <%= form.text_field :destination %>
+        <% else %>
+          <%= form.label :destination, t(".destination") %>
+          <p><%= managed_app.destination.presence || t(".destination_none") %></p>
+          <p class="hint"><%= t(".destination_locked_hint") %></p>
+        <% end %>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2><%= t(".config_section") %></h2>
+    <div class="panel">
+      <div>
+        <%= form.label :config_yaml, t(".config_yaml") %>
+        <%= form.text_area :config_yaml, rows: 20 %>
+      </div>
+
+      <div>
+        <%= form.label :destination_config_yaml, t(".destination_config_yaml") %>
+        <p class="hint"><%= t(".destination_config_hint") %></p>
+        <%= form.text_area :destination_config_yaml, rows: 10 %>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2><%= t(".credentials_section") %></h2>
+    <div class="panel">
+      <%# 凭据是 admin 独占管理的，所以"这个应用用哪一条"也只能由 admin 决定。
+          这里藏起来只是少一次注定失败的点击——真正的防线在控制器的参数层。 %>
+      <%= allowed_to(:assign_credentials, managed_app) do %>
+        <div>
+          <%= form.label :ssh_credential_id, t(".ssh_credential") %>
+          <%= form.collection_select :ssh_credential_id, Credential.order(:name), :id, :name,
+                                     { include_blank: t(".none_selected") } %>
+          <p class="hint">
+            <%= t(".ssh_credential_hint") %>
+            <%= link_to t(".go_to_credentials"), credentials_path %>。
+          </p>
+        </div>
+
+        <div>
+          <%= form.label :registry_credential_id, t(".registry_credential") %>
+          <%= form.collection_select :registry_credential_id, RegistryCredential.order(:name), :id, :name,
+                                     { include_blank: t(".none_selected") } %>
+          <p class="hint">
+            <%= t(".registry_credential_hint_html").html_safe %>
+            <%= link_to t(".go_to_credentials"), credentials_path %>。
+          </p>
+        </div>
+      <% end %>
+
+      <div>
+        <%= label_tag "managed_app_kamal_secrets", t(".kamal_secrets") %>
+        <p class="hint">
+          <%= t(".kamal_secrets_hint") %>
+          <%= t(".kamal_secrets_blank_warning") if new_record %>
+          <%= t(".write_only_hint") %>
+        </p>
+        <%= text_area_tag "managed_app[kamal_secrets]", nil, rows: 6, autocomplete: "off" %>
+      </div>
+
+      <div>
+        <%= label_tag "managed_app_kamal_hooks", t(".kamal_hooks") %>
+        <p class="hint">
+          <%= t(".kamal_hooks_hint_html").html_safe %>
+          <%= t(".kamal_hooks_blank_warning") if new_record %>
+          <%= t(".write_only_hint") %>
+        </p>
+        <%= text_area_tag "managed_app[kamal_hooks]", nil, rows: 6, autocomplete: "off" %>
+      </div>
+    </div>
+  </section>
+
+  <%= form.submit submit_label, class: "btn-primary" %>
+<% end %>

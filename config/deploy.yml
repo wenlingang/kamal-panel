@@ -1,0 +1,61 @@
+# 面板部署自己用的配置。仓库里这一份是【范例】：主机名、域名、镜像归属都是
+# 占位符，填掉它们就能直接用（见 README「Deploying the panel itself」）。
+#
+# ⚠️ 不要把面板接进它自己的管理列表。用面板重启面板，会在命令执行到一半时把
+#    自己杀掉：审计永远停在 pending、流式输出断在半截、部署锁还留在 primary
+#    host 上要手动强制解锁。面板自己走下面这套 kamal CLI 从开发机部署。
+service: kamal-panel
+
+# ghcr.io 上的镜像归属。换成你自己的 GitHub 用户名或组织名。
+image: your-org/kamal-panel
+
+# 面板是【单机形态】：数据在 SQLite，Solid Queue 跑在 Puma 进程里（见下面的
+# env 与 volumes）。所以这里只能有一台 web，加第二台不会得到一个更能扛的面板，
+# 只会得到两个各自持有半份数据、互相不知道对方存在的面板。
+servers:
+  web:
+    - your-server.example.com
+
+# Let's Encrypt 自动签证书。用了它就必须在 config/environments/production.rb 里
+# 打开 config.assume_ssl 与 config.force_ssl（那两行现在是注释掉的）——否则
+# Rails 以为自己在裸 HTTP 上，会生成 http:// 的链接并放行不安全 cookie。
+proxy:
+  ssl: true
+  host: panel.example.com
+
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    # 这三个是面板【必需】的，不是可选项：SSH 私钥用 Active Record encryption
+    # 加密存储，缺了它们面板照样能启动，但一保存私钥就报错——也就是说你能登录、
+    # 能看见界面，却完不成接入任何一个应用（README「Active Record encryption
+    # credentials」一节说的就是这件事）。
+    - AR_ENCRYPTION_PRIMARY_KEY
+    - AR_ENCRYPTION_DETERMINISTIC_KEY
+    - AR_ENCRYPTION_KEY_DERIVATION_SALT
+  clear:
+    # 轮询与动作执行都是 Solid Queue 的作业，跑在 Puma 进程内。
+    SOLID_QUEUE_IN_PUMA: true
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
+
+# SQLite 数据库与 Active Storage 文件都在这个卷里。**这里面有加密后的 SSH 私钥**
+# ——它的备份等同于你全部服务器的访问凭证的备份，请按这个级别对待。
+volumes:
+  - "kamal_panel_storage:/rails/storage"
+
+asset_path: /rails/public/assets
+
+builder:
+  arch: amd64

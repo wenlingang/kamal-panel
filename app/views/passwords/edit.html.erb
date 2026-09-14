@@ -1,0 +1,24 @@
+<div class="auth">
+  <p class="auth-brand">
+    <%= render "shared/mark", size: "28px" %>
+    Kamal Panel
+  </p>
+
+  <div class="auth-card">
+    <h1><%= t(".title") %></h1>
+
+    <%= tag.div(flash[:alert], class: "flash-alert") if flash[:alert] %>
+
+    <%= form_with url: password_path(params[:token]), method: :put do |form| %>
+      <div>
+        <%= label_tag :password, t(".password") %>
+        <%= form.password_field :password, required: true, autocomplete: "new-password", maxlength: 72 %>
+      </div>
+      <div>
+        <%= label_tag :password_confirmation, t(".password_confirmation") %>
+        <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72 %>
+      </div>
+      <%= form.submit t("common.save"), class: "btn-primary" %>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,84 @@
+<div id="overview-grid">
+<table class="overview-grid">
+  <thead>
+    <tr>
+      <th><%= t(".app") %></th>
+      <th><%= t(".status") %></th>
+      <th><%= t(".running_version") %></th>
+      <th><%= t(".hosts") %></th>
+      <th><%= t(".data_age") %></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% managed_apps.each do |app| %>
+      <% if app.last_poll_error.present? %>
+        <%# 配置解析不了时，status.observed_at / status.stale? /
+            app.cached_app_hosts 都会重新触发解析而在这里再炸一次
+            ParseError——而这次是在渲染阶段，任何调用方（包括别的应用
+            轮询完成后的整页广播）都接不住（见 final review I4，本项
+            修复过程中发现并需要一并堵上的口子）。所以这一行完全不碰
+            parsed_config，只显示"配置解析失败"本身。 %>
+        <tr class="status-unreachable">
+          <td>
+            <%= link_to app.name, app %>
+            <% if (badge_text = DeployAlerts.new(app).badge_text) %>
+              <span class="badge badge-unverified"><%= badge_text %></span>
+            <% end %>
+          </td>
+          <td>
+            <span class="status-badge status-unreachable"><%= t(".config_broken") %></span>
+          </td>
+          <td colspan="2">
+            <%= t(".config_broken_detail", since: time_ago_in_words(app.first_poll_error_at)) %>
+          </td>
+          <td><%= t(".see_app_page") %></td>
+        </tr>
+      <% else %>
+        <% status = statuses[app] %>
+        <tr class="status-<%= status.level %>">
+          <td>
+            <%= link_to app.name, app %>
+            <% if (badge_text = DeployAlerts.new(app).badge_text) %>
+              <span class="badge badge-unverified"><%= badge_text %></span>
+            <% end %>
+          </td>
+          <td>
+            <%# 状态绝不只靠颜色：这里同时给出文字（spec 8.6） %>
+            <span class="status-badge status-<%= status.level %>">
+              <%= status.label %>
+            </span>
+          </td>
+          <td>
+            <% if status.versions.empty? %>
+              —
+            <% else %>
+              <%= status.versions.join(" / ") %>
+              <% if status.drift? %>
+                <strong><%= t(".version_drift", count: status.versions.size) %></strong>
+              <% end %>
+            <% end %>
+          </td>
+          <td><%= app.cached_app_hosts.size %></td>
+          <td>
+            <% if status.observed_at %>
+              <%= t(".ago", time: time_ago_in_words(status.observed_at)) %>
+              <% if status.stale? %>
+                <strong><%= t(".stale") %></strong>
+              <% end %>
+            <% elsif status.level == :unknown %>
+              <%= t(".never_collected") %>
+            <% else %>
+              <%# 配置里有机器一条观测都没有——不给一个看起来精确、实则
+                  不成立的数字（见 Task 11 review 第三轮）。这是信息，不是
+                  告警，所以不用 <strong>——<strong> 留给真正的告警
+                  （上面的"已过期"），跟 managed_apps/show.html.erb 的
+                  写法保持一致，避免把信息样式成告警（Task 12 review）。 %>
+              <%= t(".partially_collected") %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    <% end %>
+  </tbody>
+</table>
+</div>

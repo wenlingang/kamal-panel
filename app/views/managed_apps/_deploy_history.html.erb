@@ -1,0 +1,53 @@
+<section class="section">
+<h2><%= t(".title") %></h2>
+<div class="panel">
+
+<% events = managed_app.deploy_events.recent_first.limit(50) %>
+<% if events.empty? %>
+  <%# 空表格看不出所以然。401（token 不认）与 429（限流）拿不到应用上下文，
+      面板上看不见——所以这里直接给排查路径，这是那个盲点唯一的出口
+      （spec 03 第 8 节）。 %>
+  <p class="empty-hint">
+    <%= t(".empty") %>
+    <% if managed_app.hook_reporting_enabled? %>
+      <%= t(".empty_hook_enabled_html").html_safe %>
+    <% else %>
+      <%= t(".empty_hook_disabled") %>
+    <% end %>
+  </p>
+<% else %>
+  <%# 只取最近 50 次，不做分页——但静默截断会让人以为这就是全部历史，
+      所以必须明说这是个截断，不是全量。 %>
+  <p class="deploy-history-hint"><%= t(".truncated") %></p>
+  <table class="deploy-history">
+    <thead>
+      <tr>
+        <th><%= t(".version") %></th>
+        <th><%= t(".source") %></th>
+        <th><%= t(".performer") %></th>
+        <th><%= t(".command") %></th>
+        <th><%= t(".started") %></th>
+        <th><%= t(".finished") %></th>
+        <th><%= t(".observation") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% events.each do |event| %>
+        <tr>
+          <td><code><%= event.version %></code></td>
+          <td><%= event.source_text %></td>
+          <td><%= event.performer.presence || "—" %></td>
+          <td><%= event.command.presence || "—" %></td>
+          <td><%= event.started_at ? event.started_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
+          <td><%= event.succeeded_at ? event.succeeded_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
+          <%# 留痕：告警消解之后，"那次到底是延迟了还是提前观测到的"仍然
+              查得出来。判断逻辑在 DeployEvent#observation_delay_text
+              （常态是 hook 上报晚于容器被轮询看到，delay 是负数）。 %>
+          <td><%= event.observation_delay_text || t(".unverified") %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+</div>
+</section>

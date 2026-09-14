@@ -1,0 +1,14 @@
+<p class="breadcrumb"><%= link_to "← #{@managed_app.name}", @managed_app %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title", name: @managed_app.name) %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<%# 接入页那句警告在这里同样成立：改 deploy.yml 也是在面板所在的机器上执行代码。 %>
+<p class="callout callout-warn"><%= t(".erb_warning_html").html_safe %></p>
+
+<%= render "form", managed_app: @managed_app,
+                   submit_label: t("common.save"), new_record: false %>

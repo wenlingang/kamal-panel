@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  scan_ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: Scan for common Rails security vulnerabilities using static analysis
+        run: bin/brakeman --no-pager
+
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      RUBOCOP_CACHE_ROOT: tmp/rubocop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: Prepare RuboCop cache
+        uses: actions/cache@v4
+        env:
+          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }}
+        with:
+          path: ${{ env.RUBOCOP_CACHE_ROOT }}
+          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
+          restore-keys: |
+            rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
+      - name: Lint code for consistent style
+        run: bin/rubocop -f github
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # 测试环境的 Active Record encryption 密钥，通过环境变量注入而不是写入
+      # config/environments/test.rb 之外的任何落盘文件（生产环境走同一条路径，
+      # 见 config/application.rb）。这里用的是与 test.rb 兜底值不同的测试密钥，
+      # 用来确认 CI 实际走的是环境变量这条路，而不是碰巧命中了 test.rb 的默认值。
+      AR_ENCRYPTION_PRIMARY_KEY: fg3Sakd53Ge6haQD8cKen2y164HeL5Kb
+      AR_ENCRYPTION_DETERMINISTIC_KEY: jNRHBmNhsjiebbByWNI7oWfubnXilpfe
+      AR_ENCRYPTION_KEY_DERIVATION_SALT: n8pz8pGz2OlSJQWZyBmL7IoqDTLjkqtk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: 修复测试密钥权限
+        # git 只保留可执行位，不保留权限位：新检出的 id_ed25519 是 644，
+        # OpenSSH 客户端会拒绝以 644 加载私钥（"UNPROTECTED PRIVATE KEY
+        # FILE"）。必须在任何 ssh 调用之前把它改回 600。
+        run: chmod 600 test/fake_host/id_ed25519
+      - name: 启动 fake host
+        run: docker compose -f docker-compose.test.yml up -d --build
+      - name: 等待 fake host 就绪
+        # 同时等 2201（node-1）与 2202（node-2）两个节点：只探测 2201 会在
+        # node-2 起得慢时让第一条碰它的测试以一条误导性的
+        # "FakeHost::NotReady：请先启动 docker compose" 报错失败
+        # （见 final review 分诊 4）。
+        run: |
+          for port in 2201 2202; do
+            for i in $(seq 1 60); do
+              if ssh -i test/fake_host/id_ed25519 -o StrictHostKeyChecking=no \
+                     -o UserKnownHostsFile=/dev/null -p "$port" deploy@127.0.0.1 \
+                     'docker info' >/dev/null 2>&1; then
+                echo "port $port ready"; break
+              fi
+              if [ "$i" -eq 60 ]; then
+                echo "fake host（端口 $port）启动超时"; exit 1
+              fi
+              sleep 2
+            done
+          done
+      # 仓库里那份 config/deploy.yml 是给人照抄的范例。用面板自己的解析器解一遍：
+      # 与面板处理用户粘贴的 deploy.yml 走同一条代码路径，写坏了或 Kamal 升级后
+      # 不再接受它，我们比读者先知道。不连任何主机。
+      - name: 校验仓库内的 deploy.yml
+        run: bin/rails deploy_config:verify
+
+      - name: 单元测试 + 浏览器测试
+        # bin/rails test 按 Rails 约定不包含 test/system——这曾经让本产品
+        # 唯一一条浏览器层面的诚实断言（失联主机仍显示上次已知状态）从未
+        # 在 CI 里跑过一次（见 final review I5）。test:all 同时跑两者。
+        run: bin/rails test:all
+
+  # Kamal 版本兼容矩阵（主设计 9.4）。
+  #
+  # 面板直接引 kamal gem，并从四个地方依赖它的内部行为：配置解析、容器标签、
+  # 锁目录格式、CLI 参数。这是那个方案的必付成本，必须在 CI 里自动暴露，
+  # 而不是等用户报"升级 Kamal 之后面板全炸"。
+  #
+  # 当前锁定版本（2.12）由上面的 test 作业覆盖，这里只跑上一个 minor。
+  compat_matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        kamal: [ "2.11.0" ]
+    env:
+      KAMAL_VERSION: "~> ${{ matrix.kamal }}"
+      AR_ENCRYPTION_PRIMARY_KEY: fg3Sakd53Ge6haQD8cKen2y164HeL5Kb
+      AR_ENCRYPTION_DETERMINISTIC_KEY: jNRHBmNhsjiebbByWNI7oWfubnXilpfe
+      AR_ENCRYPTION_KEY_DERIVATION_SALT: n8pz8pGz2OlSJQWZyBmL7IoqDTLjkqtk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          # 不用 bundler-cache：Gemfile.lock 锁的是 2.12，这个作业刻意让
+          # bundler 重新解析到别的版本，缓存只会帮倒忙。
+          bundler-cache: false
+      - name: 安装被测版本的依赖
+        run: bundle install --jobs 4
+
+      # 这一步【不】允许失败，而且必须在跑测试之前。
+      #
+      # 如果 KAMAL_VERSION 哪天失效（改名、拼错、bundler 行为变化），矩阵会
+      # 静默地又跑一遍 2.12 并永远显示绿色——一个什么都没测却永远通过的作业，
+      # 比没有这个作业更糟。所以先钉住"我现在跑的确实是那个版本"。
+      - name: 确认真的装上了被测版本
+        run: |
+          actual=$(bundle exec ruby -e 'require "kamal/version"; print Kamal::VERSION')
+          echo "期望 ${{ matrix.kamal }}，实际 $actual"
+          if [ "$actual" != "${{ matrix.kamal }}" ]; then
+            echo "::error::矩阵没有生效：期望 kamal ${{ matrix.kamal }}，实际装的是 $actual"
+            exit 1
+          fi
+
+      - name: 修复测试密钥权限
+        run: chmod 600 test/fake_host/id_ed25519
+      - name: 启动 fake host
+        run: docker compose -f docker-compose.test.yml up -d --build
+      - name: 等待 fake host 就绪
+        run: |
+          for port in 2201 2202; do
+            for i in $(seq 1 60); do
+              if ssh -i test/fake_host/id_ed25519 -o StrictHostKeyChecking=no \
+                     -o UserKnownHostsFile=/dev/null -p "$port" deploy@127.0.0.1 \
+                     'docker info' >/dev/null 2>&1; then
+                echo "port $port ready"; break
+              fi
+              if [ "$i" -eq 60 ]; then
+                echo "fake host（端口 $port）启动超时"; exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      # 这一步【允许】失败：旧版本上的不兼容是要看见的信息，不是合并的闸门。
+      # 与上面那个断言步骤的区别是刻意的——矩阵坏了必须吵，被测版本不兼容只需被看见。
+      - name: 跑全套（旧版本不兼容不阻塞合并）
+        id: compat_tests
+        continue-on-error: true
+        run: bin/rails test:all
+
+      - name: 把结果写进作业摘要
+        if: always()
+        run: |
+          if [ "${{ steps.compat_tests.outcome }}" = "success" ]; then
+            echo "✅ kamal ${{ matrix.kamal }}：全套通过" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ kamal ${{ matrix.kamal }}：测试未通过（不阻塞合并，但需要有人看一眼）" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "面板依赖 Kamal 的内部行为，这条红意味着升级/降级到该版本会出问题。" >> "$GITHUB_STEP_SUMMARY"
+            echo "详情见本作业的「跑全套」步骤日志。" >> "$GITHUB_STEP_SUMMARY"
+          fi
