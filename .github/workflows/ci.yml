@@ -9,7 +9,7 @@ jobs:
   scan_ruby:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
@@ -21,7 +21,7 @@ jobs:
     env:
       RUBOCOP_CACHE_ROOT: tmp/rubocop
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
@@ -48,7 +48,7 @@ jobs:
       AR_ENCRYPTION_DETERMINISTIC_KEY: jNRHBmNhsjiebbByWNI7oWfubnXilpfe
       AR_ENCRYPTION_KEY_DERIVATION_SALT: n8pz8pGz2OlSJQWZyBmL7IoqDTLjkqtk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
@@ -109,7 +109,7 @@ jobs:
       AR_ENCRYPTION_DETERMINISTIC_KEY: jNRHBmNhsjiebbByWNI7oWfubnXilpfe
       AR_ENCRYPTION_KEY_DERIVATION_SALT: n8pz8pGz2OlSJQWZyBmL7IoqDTLjkqtk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           # 不用 bundler-cache：Gemfile.lock 锁的是 2.12，这个作业刻意让
