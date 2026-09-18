@@ -74,6 +74,17 @@ class ColorContrastTest < ActiveSupport::TestCase
     refute_equal light, dark
   end
 
+  # 上一条靠 palette() 的 keys 比对，但 palette() 只认六位 hex，
+  # rgba()/hsl()/三位 hex 写的 token（比如 --lift-raised）完全落在它的
+  # 正则之外，两边漏写一个都不会红。这条不看值、不限格式，只比【变量名】
+  # 的集合——分工是：上一条管「颜色值都验过对比度」，这条管「深色副本
+  # 没漏写」。
+  test "两套调色板的变量名集合必须相等" do
+    assert_equal palette_names(:light), palette_names(:dark),
+                 "浅色块和深色块必须定义同一组变量名，否则深色下会有 token 静默" \
+                 "沿用浅色值（例如 rgba()/hsl() 写的阴影，不受上一条 palette() 断言保护）"
+  end
+
   test "与主题无关的 token 不会被深色块重定义" do
     # 文件里三个 :root 块按出现顺序是：浅色调色板、深色 @media、与主题无关的
     # token（排版/形状）。第三块【排在深色块之后】，所以同名 token 一旦两边都
@@ -105,6 +116,18 @@ class ColorContrastTest < ActiveSupport::TestCase
 
       assert block.present?, "样式表里找不到#{theme}主题的 :root 块"
       block.scan(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/).to_h
+    end
+
+    # => ["--action", "--brand", ...]（不限值的格式，rgba()/hsl() 也算）
+    def palette_names(theme)
+      css = STYLESHEET.read
+      block = case theme
+      when :light then css[/\A.*?:root\s*\{(.*?)\}/m, 1]
+      when :dark  then css[/@media\s*\(prefers-color-scheme:\s*dark\).*?:root\s*\{(.*?)\}/m, 1]
+      end
+
+      assert block.present?, "样式表里找不到#{theme}主题的 :root 块"
+      block.scan(/(--[\w-]+):/).flatten.sort
     end
 
     def assert_all_pairs_pass(colors, theme_name)

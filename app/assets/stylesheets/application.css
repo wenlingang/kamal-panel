@@ -146,6 +146,9 @@
     --unknown-rule: #403b35;
     --unknown-edge: #b3aca2;
 
+    /* spec §9 说深色下阴影几乎不可见，层级改靠背景提亮（见下面 --card-raised）。
+       这里仍给深色一组更黑的阴影，是偏离 spec 的刻意选择，不是漏改：深色下
+       阴影确实还能帮忙分离层次，但它是辅助，--card-raised 的亮度差才是主力。 */
     --lift-raised: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.45);
 
     /* 刻意避开 --card-hover(#2e2a26)：两者若取同一个值，鼠标悬停在一张
@@ -184,7 +187,11 @@
   --radius-control: 8px;
   --radius-pill: 999px;
   --radius-focus: 3px;   /* 焦点圈；比控件圆角小一档，贴着轮廓走 */
+  /* 与 --radius-pill 同值（999px）但不合并：语义分离——一个给正圆点，
+     一个给胶囊形的徽章/按钮，共用一个名字会让下一个改胶囊圆角的人
+     顺手把圆点也改了。 */
   --radius-dot: 999px;   /* 状态点等正圆元素 */
+  --radius-hairline: 2px; /* 细线元素的圆角（设计 14 §6：金线圆角 2px） */
 
   /* ── 间距节奏（设计 14 §5）────────────────────────────────────────
      区块间距跟着级别走。连续多个 quiet 区块之间收紧到 1.25rem——它们在
@@ -428,10 +435,12 @@ h2 {
 
 h3 {
   font-size: var(--text-sub);
-  font-weight: 700;
+  font-weight: 600;
   margin: 1.5rem 0 0.5rem;
 }
 
+/* 2.25rem 不落在任何 --gap-* 上：它是三级区块类落地之前的过渡默认值。
+   三级类还没有视图套用，这里先不动，等第 4 批各页面按三级归位后随之删除。 */
 .section {
   margin-bottom: 2.25rem;
 }
@@ -528,6 +537,8 @@ h3 {
 .tier-quiet > h2,
 .tier-quiet > .section-head h2 {
   font-size: var(--text-sub);
+  font-weight: 600;
+  letter-spacing: normal;
   color: var(--ink-muted);
 }
 
@@ -555,7 +566,7 @@ h3 {
   height: 3px;
   margin: 0.5rem 0 0.875rem;
   background: var(--brand);
-  border-radius: var(--radius-focus);
+  border-radius: var(--radius-hairline);
 }
 
 p,
@@ -1353,6 +1364,13 @@ details.stop-app[open] summary {
   }
 
   .panel {
+    padding: 1.125rem;
+  }
+
+  /* 媒体查询不提升特异性：上面这条 .panel 的特异性是 (0,1,0)，压不过
+     .tier-primary .panel 的 (0,2,0)，所以窄屏上 primary 面板会原样保留
+     1.75rem/2rem 的内边距，正文可用宽度被吃掉将近 4rem。这里单独重申。 */
+  .tier-primary .panel {
     padding: 1.125rem;
   }
 

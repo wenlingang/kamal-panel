@@ -6,13 +6,18 @@ require "test_helper"
 # font-size、又抄一段 box-shadow，尺度和分级就这样一行一行长回去。人在 review
 # 里数不出这个——它每次只多一行，每一行看起来都无害。
 #
-# 所以让测试来数。规则很粗暴：两个 :root 定义块【之外】，font-size /
+# 所以让测试来数。规则很粗暴：全部 :root 定义块【之外】，font-size /
 # box-shadow / border-radius 三个属性的值只能是 var(--…)。
 #
-# 白名单是进度条：它从 15 项开始（第 1 批播种时样式表的实际状况），每个
-# 后续任务删掉自己清理掉的那几条。清空之后剩下的唯一一条是 code 的 em，
-# 那是永久例外，理由写在它旁边。
+# 白名单里只该剩永久例外。往里加一行，必须在它旁边写清「它为什么不能是
+# token」——写不出理由，说明它该被改成 var(--…)，而不是加进这里。
 class StylesheetTokensTest < ActiveSupport::TestCase
+  # 字面量守卫（offenders）扫全部样式表：propshaft 下任何人都能再加一个
+  # .css 文件，只盯 application.css 会对新文件完全不设防。
+  STYLESHEETS = Dir[Rails.root.join("app/assets/stylesheets/*.css")].sort.map { |path| Pathname.new(path) }.freeze
+
+  # 排版尺度测试（third_root_block）只看这一个文件：它是唯一定义 token 的
+  # 文件，token 的定义天然是字面量，不该被自己的守卫扫到。
   STYLESHEET = Rails.root.join("app/assets/stylesheets/application.css")
 
   TOKENIZED_PROPERTIES = %w[font-size box-shadow border-radius].freeze
@@ -59,21 +64,37 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     assert_match(/var\(--lift-raised\)/, primary, "primary 级要用 --lift-raised")
   end
 
+  # 字面量守卫（offenders）剥掉全部 :root 块，所以 :root 【内部】不设防：
+  # 想要第七个字号的人不必写死字面量去触发守卫，只要在第三个 :root 块里
+  # 加一行 --text-list: 0.9375rem，再 font-size: var(--text-list)，就能
+  # 绕过整套尺度，全绿通过。
+  #
+  # spec §3 的判据是「需要第七档时，那是分级没想清楚，不是尺度不够用」，
+  # spec §10 说的是「让测试来数，不是让人来数」——那句判据不能只靠人在
+  # review 里记得，得有测试钉住。
+  test "排版尺度恒为六档" do
+    assert_equal %w[--text-body --text-major --text-micro --text-page --text-section --text-sub],
+                 third_root_block.scan(/(--text-[\w-]+):/).flatten.sort,
+                 "排版尺度恒为六档（spec §3）。需要第七档时，先改 spec §3，不要先加 token。"
+  end
+
   private
     # => ["font-size: 0.9375rem", "border-radius: 3px", ...]
     def offenders
-      css = STYLESHEET.read.gsub(%r{/\*.*?\*/}m, "")
+      STYLESHEETS.flat_map { |path| offenders_in(path) }.uniq.sort
+    end
 
-      # 剥掉【全部】 :root 块，不是只剥第一个：这张样式表有三个——浅色调色板
-      # (8-73)、深色调色板 (75-140)、排版与形状 token (144-155)。token 的定义
-      # 本身当然是字面值，不该被算作违规。
+    def offenders_in(path)
+      css = path.read.gsub(%r{/\*.*?\*/}m, "")
+
+      # 剥掉【全部】 :root 块：这张样式表里有浅色调色板、深色调色板（在
+      # @media 里）、排版与形状 token 三个 :root 块，token 的定义本身当然
+      # 是字面值，不该被算作违规。
       css = css.gsub(/:root\s*\{.*?\}/m, "")
 
       css.scan(/(#{Regexp.union(TOKENIZED_PROPERTIES)})\s*:\s*([^;}]+)/)
          .reject { |_property, value| tokenized?(value.strip) }
          .map { |property, value| "#{property}: #{value.strip}" }
-         .uniq
-         .sort
     end
 
     # 整个值都必须由 var(--…) 与分隔符构成。只看开头是不够的——
@@ -86,5 +107,11 @@ class StylesheetTokensTest < ActiveSupport::TestCase
       return true if %w[inherit initial unset none 0].include?(value)
 
       value.gsub(/var\(--[\w-]+\)/, "").gsub(/[\s,]/, "").empty?
+    end
+
+    # 文件里第三个 :root 块：与主题无关的排版/形状 token（第一个是浅色调色板，
+    # 第二个是深色 @media 里那个）。
+    def third_root_block
+      STYLESHEET.read.scan(/:root\s*\{(.*?)\}/m).flatten.fetch(2)
     end
 end
