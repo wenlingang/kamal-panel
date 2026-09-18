@@ -219,7 +219,7 @@ body {
 :focus-visible {
   outline: 2px solid var(--field-focus);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-focus);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -248,6 +248,9 @@ body {
 }
 
 /* 站名下的金线与标记里那根金绳是同一条线索，别再往别处加金色。 */
+/* 这是字标（wordmark），不是正文标题——它是站名固定的视觉形象，不随
+   --text-section 档的字重/字距规则走。按档位改成 700 会让站名比设计
+   意图轻一档，这里的 800/-0.02em 是刻意保留的豁免，不是漏改。 */
 .chrome-brand {
   display: inline-flex;
   align-items: center;
@@ -931,7 +934,7 @@ pre code {
   content: "";
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-dot);
   background: currentColor;
   flex: none;
 }
@@ -1208,6 +1211,8 @@ details.stop-app[open] summary {
 }
 
 /* 登录页是全站唯一一处标记该被放大的地方：这一页是空的，它撑得住。 */
+/* 同 .chrome-brand，这也是字标而非正文标题，字重字距不跟随 --text-major
+   档的排版尺度——字标有自己独立于正文层级的视觉重量，故意不改成 700。 */
 .auth-brand {
   display: flex;
   flex-direction: column;
@@ -1240,7 +1245,7 @@ details.stop-app[open] summary {
 .auth-card h1 {
   font-size: var(--text-section);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   margin: 0 0 1.25rem;
 }
 
@@ -1290,8 +1295,8 @@ details.stop-app[open] summary {
 
 /* ── 添加成员：密码设置方式 ────────────────────────────────────────── */
 .password-setup {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
   padding: 0.875rem 1rem;
   margin: 0 0 1rem;
 }
@@ -1343,6 +1348,8 @@ details.stop-app[open] summary {
 
   h1 {
     font-size: var(--text-major);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .panel {

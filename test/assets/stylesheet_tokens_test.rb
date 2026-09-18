@@ -19,10 +19,6 @@ class StylesheetTokensTest < ActiveSupport::TestCase
 
   # 每加一行都必须在这里写清「它为什么不能是 token」。
   ALLOWED = [
-    "border-radius: 3px",
-    "border-radius: 50%",
-    "border-radius: 8px",
-
     # code 要跟着父级字号缩放（表格里的等宽字比该行正文小一档），
     # 换成 rem 会让它在小字环境里反而变大。这是永久例外。
     "font-size: 0.875em"
