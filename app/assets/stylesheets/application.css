@@ -70,6 +70,15 @@
   --unknown-ink: #67615a;
   --unknown-rule: #d8d5cf;
   --unknown-edge: #b3aca2;
+
+  --lift-raised: 0 1px 2px rgba(42, 39, 36, 0.05), 0 10px 28px rgba(42, 39, 36, 0.07);
+
+  /* --card-raised 是主题相关的颜色 token，必须跟其余调色板变量一样进这个块：
+     浅色下 primary 靠阴影浮起来，背景与普通卡片相同；深色下阴影几乎不可见，
+     改用背景提亮一档（见深色 :root 块）。放进两个调色板块而不是排版/形状那个
+     与主题无关的块，是因为后者在文件里排在深色块之后——同名变量同优先级下
+     后出现者胜，放那儿会让深色值被静默覆盖（守卫见下方新增测试）。 */
+  --card-raised: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -136,6 +145,16 @@
     --unknown-ink: #aeaaa2;
     --unknown-rule: #403b35;
     --unknown-edge: #b3aca2;
+
+    --lift-raised: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.45);
+
+    /* 刻意避开 --card-hover(#2e2a26)：两者若取同一个值，鼠标悬停在一张
+       standard 卡片上时它会长得和 primary 一模一样，把「我正指着它」误读
+       成「它更重要」。任何用亮度表达层级的地方，都要先让开表达交互状态的
+       那几档亮度。（这个块必须自己定义 --card-raised，不能指望排在它后面的
+       排版/形状块补——那个块的同名变量会覆盖这里，见 color_contrast_test.rb
+       新增的「与主题无关的 token 不会被深色块重定义」。） */
+    --card-raised: #332f2a;
   }
 }
 
@@ -164,6 +183,16 @@
   --radius-card: 12px;
   --radius-control: 8px;
   --radius-pill: 999px;
+  --radius-focus: 3px;   /* 焦点圈；比控件圆角小一档，贴着轮廓走 */
+  --radius-dot: 999px;   /* 状态点等正圆元素 */
+
+  /* ── 间距节奏（设计 14 §5）────────────────────────────────────────
+     区块间距跟着级别走。连续多个 quiet 区块之间收紧到 1.25rem——它们在
+     语义上是一组（都是「这个应用是怎么配的」），间距相等会让它们散成
+     三件事。 */
+  --gap-major: 3rem;     /* primary 区块之后 */
+  --gap-block: 2.5rem;   /* standard 区块之后 */
+  --gap-quiet: 2rem;     /* quiet 区块之后 */
 
   --lift: 0 1px 2px rgba(42, 39, 36, 0.06);
 }

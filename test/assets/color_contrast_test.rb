@@ -32,7 +32,9 @@ class ColorContrastTest < ActiveSupport::TestCase
     %w[--btn-ink --btn-bg],          # 普通动作按钮上的字
     %w[--danger-ink --btn-bg],       # 危险动作按钮上的字（白底红字，不填充）
     %w[--field-ink --field-bg],      # 输入框里的字
-    %w[--ink --card-bg]              # 认证卡片上的正文
+    %w[--ink --card-bg],             # 认证卡片上的正文
+    %w[--ink --card-raised],         # primary 区块面板上的正文
+    %w[--ink-muted --card-raised]    # primary 区块面板上的次要文本
   ].freeze
 
   # WCAG 2.1 的 1.4.11（非文本对比）。站标是图形而不是文字，受的是这一档，
@@ -70,6 +72,26 @@ class ColorContrastTest < ActiveSupport::TestCase
     assert_equal light.keys.sort, dark.keys.sort,
                  "两套调色板必须定义同一组变量，否则深色下会有变量回落到浅色值"
     refute_equal light, dark
+  end
+
+  test "与主题无关的 token 不会被深色块重定义" do
+    # 文件里三个 :root 块按出现顺序是：浅色调色板、深色 @media、与主题无关的
+    # token（排版/形状）。第三块【排在深色块之后】，所以同名 token 一旦两边都
+    # 写，后出现的第三块会把深色值覆盖掉——深色模式静默失效，没有任何测试会红。
+    # 判据很简单：第三块里的 token 名，不许出现在深色块里。
+    blocks = STYLESHEET.read.scan(/:root\s*\{(.*?)\}/m).flatten
+    assert_equal 3, blocks.length, "样式表里应该正好有三个 :root 块"
+
+    dark_block, neutral_block = blocks[1], blocks[2]
+
+    dark_names    = dark_block.scan(/(--[\w-]+):/).flatten
+    neutral_names = neutral_block.scan(/(--[\w-]+):/).flatten
+    clobbered     = neutral_names & dark_names
+
+    assert_empty clobbered,
+                 "这些 token 同时定义在「与主题无关」的块和深色块里，深色值会被" \
+                 "后出现的那块覆盖掉：#{clobbered.join(', ')}。主题相关的 token " \
+                 "请放进两个调色板块。"
   end
 
   private
