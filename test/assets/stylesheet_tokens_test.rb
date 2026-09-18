@@ -42,6 +42,27 @@ class StylesheetTokensTest < ActiveSupport::TestCase
                  "这些字面量已经不在样式表里了，请从 ALLOWED 里删掉：\n#{stale.join("\n")}"
   end
 
+  test "三级区块都定义了，且 quiet 级确实做了减法" do
+    css = STYLESHEET.read
+
+    %w[.tier-primary .tier-standard .tier-quiet .rule-gold].each do |klass|
+      assert_match(/^#{Regexp.escape(klass)}\b/, css,
+                   "样式表里找不到 #{klass}——三级区块是第 2、3 批的前提")
+    end
+
+    quiet = css[/\.tier-quiet \.panel\s*\{(.*?)\}/m, 1]
+    assert quiet.present?, "找不到 .tier-quiet .panel 的定义"
+
+    # quiet 是这套分级里唯一做减法的一档：它必须把卡片的三样外观都卸掉，
+    # 否则它就只是一个「字小一点的 standard」，腾不出注意力。
+    assert_match(/box-shadow:\s*none/, quiet, "quiet 级必须去掉阴影")
+    assert_match(/border:\s*none/, quiet, "quiet 级必须去掉边框")
+    assert_match(/background:\s*transparent/, quiet, "quiet 级必须去掉背景")
+
+    primary = css[/\.tier-primary \.panel\s*\{(.*?)\}/m, 1]
+    assert_match(/var\(--lift-raised\)/, primary, "primary 级要用 --lift-raised")
+  end
+
   private
     # => ["font-size: 0.9375rem", "border-radius: 3px", ...]
     def offenders

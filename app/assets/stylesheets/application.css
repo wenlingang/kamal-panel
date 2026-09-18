@@ -474,6 +474,80 @@ h3 {
   margin-bottom: 0;
 }
 
+/* ── 区块三级（设计 14 §4）──────────────────────────────────────────
+   一个区块 = 标题 + 面板。三级的差别只在尺寸、阴影、间距上，不涉及颜色
+   ——颜色这条通道已经被状态信息占满了（见文件开头的调色板注释）。
+
+   quiet 是这套分级里最重要的一档，因为它是唯一做减法的：静态配置从「一张
+   白卡」退成「一条顶线下的几行小字」。一个区块被降到 quiet，页面上就腾出
+   了一块注意力，这块注意力才是 primary 能立起来的原因。只加 primary 不减
+   quiet，等于把所有东西一起放大，回到原点。
+
+   判据：一页至多一个 primary。两个区块都想当 primary，说明这一页该拆成两页，
+   或者其中一个其实是 standard。 */
+
+.tier-primary {
+  margin-bottom: var(--gap-major);
+}
+
+.tier-primary > h2,
+.tier-primary > .section-head h2 {
+  font-size: var(--text-major);
+}
+
+.tier-primary .panel {
+  background: var(--card-raised);
+  box-shadow: var(--lift-raised);
+  padding: 1.75rem 2rem;
+}
+
+.tier-standard {
+  margin-bottom: var(--gap-block);
+}
+
+/* standard 就是现状：.panel 自己的那套值，这里只管间距与标题档位。 */
+.tier-standard > h2,
+.tier-standard > .section-head h2 {
+  font-size: var(--text-section);
+}
+
+.tier-quiet {
+  margin-bottom: var(--gap-quiet);
+}
+
+.tier-quiet > h2,
+.tier-quiet > .section-head h2 {
+  font-size: var(--text-sub);
+  color: var(--ink-muted);
+}
+
+.tier-quiet .panel {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.875rem 0 0;
+}
+
+/* 连续的 quiet 区块是一组，收紧间距（设计 14 §5）。 */
+.tier-quiet:has(+ .tier-quiet) {
+  margin-bottom: 1.25rem;
+}
+
+/* 品牌金的第三个用途，到此为止（设计 14 §6）：次级区块标题下的短金线。
+   金色只用来标记结构，永远不标记状态（那是五支状态色的事），也永远不标记
+   可点击性（那是 --action 的事）。 */
+.rule-gold::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin: 0.5rem 0 0.875rem;
+  background: var(--brand);
+  border-radius: var(--radius-focus);
+}
+
 p,
 .hint,
 .empty-hint,
