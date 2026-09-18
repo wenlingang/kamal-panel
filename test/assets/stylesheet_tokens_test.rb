@@ -22,18 +22,10 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     "border-radius: 3px",
     "border-radius: 50%",
     "border-radius: 8px",
-    "font-size: 0.75rem",
-    "font-size: 0.8125rem",
-    "font-size: 0.875em",
-    "font-size: 0.875rem",
-    "font-size: 0.9375rem",
-    "font-size: 1.0625rem",
-    "font-size: 1.25rem",
-    "font-size: 1.375rem",
-    "font-size: 1.5rem",
-    "font-size: 16px",
-    "font-size: 1rem",
-    "font-size: 2rem"
+
+    # code 要跟着父级字号缩放（表格里的等宽字比该行正文小一档），
+    # 换成 rem 会让它在小字环境里反而变大。这是永久例外。
+    "font-size: 0.875em"
   ].freeze
 
   test "白名单之外的声明都用了 token" do
@@ -54,19 +46,28 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     # => ["font-size: 0.9375rem", "border-radius: 3px", ...]
     def offenders
       css = STYLESHEET.read.gsub(%r{/\*.*?\*/}m, "")
-      css = css.sub(/:root\s*\{.*?\}/m, "")
-      css = css.sub(/@media\s*\(prefers-color-scheme:\s*dark\).*?:root\s*\{.*?\}/m, "")
+
+      # 剥掉【全部】 :root 块，不是只剥第一个：这张样式表有三个——浅色调色板
+      # (8-73)、深色调色板 (75-140)、排版与形状 token (144-155)。token 的定义
+      # 本身当然是字面值，不该被算作违规。
+      css = css.gsub(/:root\s*\{.*?\}/m, "")
 
       css.scan(/(#{Regexp.union(TOKENIZED_PROPERTIES)})\s*:\s*([^;}]+)/)
-         .reject { |_property, value| var_or_keyword?(value.strip) }
+         .reject { |_property, value| tokenized?(value.strip) }
          .map { |property, value| "#{property}: #{value.strip}" }
          .uniq
          .sort
     end
 
-    # "0" 与 "none" 是【卸掉】一个样式，不是设定一个尺寸——quiet 级要把
-    # 卡片的圆角和阴影归零，那不该被当成「写死了字面量」。
-    def var_or_keyword?(value)
-      value.start_with?("var(") || %w[inherit initial unset none 0].include?(value)
+    # 整个值都必须由 var(--…) 与分隔符构成。只看开头是不够的——
+    # `box-shadow: var(--lift), 0 0 0 2px red` 是 var 打头却混着字面量，
+    # 旧写法会放行它，等于守卫在最容易出错的那种写法上失效。
+    #
+    # "0" 与 "none" 是【卸掉】一个样式，不是设定一个尺寸——quiet 级要把卡片的
+    # 圆角和阴影归零，那不该被当成「写死了字面量」。
+    def tokenized?(value)
+      return true if %w[inherit initial unset none 0].include?(value)
+
+      value.gsub(/var\(--[\w-]+\)/, "").gsub(/[\s,]/, "").empty?
     end
 end
