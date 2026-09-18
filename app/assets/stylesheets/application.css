@@ -70,6 +70,15 @@
   --unknown-ink: #67615a;
   --unknown-rule: #d8d5cf;
   --unknown-edge: #b3aca2;
+
+  --lift-raised: 0 1px 2px rgba(42, 39, 36, 0.05), 0 10px 28px rgba(42, 39, 36, 0.07);
+
+  /* --card-raised 是主题相关的颜色 token，必须跟其余调色板变量一样进这个块：
+     浅色下 primary 靠阴影浮起来，背景与普通卡片相同；深色下阴影几乎不可见，
+     改用背景提亮一档（见深色 :root 块）。放进两个调色板块而不是排版/形状那个
+     与主题无关的块，是因为后者在文件里排在深色块之后——同名变量同优先级下
+     后出现者胜，放那儿会让深色值被静默覆盖（守卫见下方新增测试）。 */
+  --card-raised: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -136,6 +145,19 @@
     --unknown-ink: #aeaaa2;
     --unknown-rule: #403b35;
     --unknown-edge: #b3aca2;
+
+    /* spec §9 说深色下阴影几乎不可见，层级改靠背景提亮（见下面 --card-raised）。
+       这里仍给深色一组更黑的阴影，是偏离 spec 的刻意选择，不是漏改：深色下
+       阴影确实还能帮忙分离层次，但它是辅助，--card-raised 的亮度差才是主力。 */
+    --lift-raised: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.45);
+
+    /* 刻意避开 --card-hover(#2e2a26)：两者若取同一个值，鼠标悬停在一张
+       standard 卡片上时它会长得和 primary 一模一样，把「我正指着它」误读
+       成「它更重要」。任何用亮度表达层级的地方，都要先让开表达交互状态的
+       那几档亮度。（这个块必须自己定义 --card-raised，不能指望排在它后面的
+       排版/形状块补——那个块的同名变量会覆盖这里，见 color_contrast_test.rb
+       新增的「与主题无关的 token 不会被深色块重定义」。） */
+    --card-raised: #332f2a;
   }
 }
 
@@ -147,9 +169,38 @@
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
                "Liberation Mono", monospace;
 
+  /* ── 排版尺度（设计 14 §3）────────────────────────────────────────
+     六档，各有唯一用途。上面四档是这套尺度的「声音」，相邻比值不低于 1.2
+     （1.5、1.2、1.25），不靠字重也分得出来；下面两档是辅助档，它们之间只
+     差 1px，【刻意不靠尺寸区分】，而是靠颜色与位置——14px 是次要文本，
+     13px 恒为 --ink-muted 且只出现在表头、脚注、单位上。
+
+     需要第七个字号时，那是分级没想清楚，不是尺度不够用。 */
+  --text-page:    2.25rem;   /* 36px 页标题，每页一个 */
+  --text-major:   1.5rem;    /* 24px 一级区块标题 */
+  --text-section: 1.25rem;   /* 20px 常规区块标题 */
+  --text-body:    1rem;      /* 16px 正文、表格内容 */
+  --text-sub:     0.875rem;  /* 14px 次要文本、次级区块标题 */
+  --text-micro:   0.8125rem; /* 13px 表头、脚注、数据年龄、单位 */
+
   --radius-card: 12px;
   --radius-control: 8px;
   --radius-pill: 999px;
+  --radius-focus: 3px;   /* 焦点圈；比控件圆角小一档，贴着轮廓走 */
+  /* 与 --radius-pill 同值（999px）但不合并：语义分离——一个给正圆点，
+     一个给胶囊形的徽章/按钮，共用一个名字会让下一个改胶囊圆角的人
+     顺手把圆点也改了。 */
+  --radius-dot: 999px;   /* 状态点等正圆元素 */
+  --radius-hairline: 2px; /* 细线元素的圆角（设计 14 §6：金线圆角 2px） */
+
+  /* ── 间距节奏（设计 14 §5）────────────────────────────────────────
+     区块间距跟着级别走。连续多个 quiet 区块之间收紧到 1.25rem——它们在
+     语义上是一组（都是「这个应用是怎么配的」），间距相等会让它们散成
+     三件事。 */
+  --gap-major: 3rem;     /* primary 区块之后 */
+  --gap-block: 2.5rem;   /* standard 区块之后 */
+  --gap-quiet: 2rem;     /* quiet 区块之后 */
+  --gap-group: 1.25rem;  /* 同级区块成组时的收紧间距 */
 
   --lift: 0 1px 2px rgba(42, 39, 36, 0.06);
 }
@@ -165,7 +216,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--text-body);
   line-height: 1.6;
   color: var(--ink);
   background: var(--surface);
@@ -175,7 +226,7 @@ body {
 :focus-visible {
   outline: 2px solid var(--field-focus);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-focus);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -204,11 +255,14 @@ body {
 }
 
 /* 站名下的金线与标记里那根金绳是同一条线索，别再往别处加金色。 */
+/* 这是字标（wordmark），不是正文标题——它是站名固定的视觉形象，不随
+   --text-section 档的字重/字距规则走。按档位改成 700 会让站名比设计
+   意图轻一档，这里的 800/-0.02em 是刻意保留的豁免，不是漏改。 */
 .chrome-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.0625rem;
+  font-size: var(--text-section);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -276,7 +330,7 @@ body {
 .chrome-nav a:not(.chrome-brand) {
   color: var(--ink-muted);
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
   padding-bottom: 3px;
   border-bottom: 3px solid transparent;
 }
@@ -295,7 +349,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
   color: var(--ink-muted);
 }
 
@@ -315,7 +369,7 @@ body {
   width: auto;
   margin: 0;
   padding: 0.15rem 1.4rem 0.15rem 0.4rem;
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   color: var(--ink-muted);
 }
 
@@ -333,7 +387,7 @@ body {
 
 .breadcrumb {
   margin: 0 0 0.75rem;
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
 }
 
 /* 报头是这套界面唯一张扬的地方：大标题 + 一句大白话副标题，说清这一页
@@ -358,10 +412,10 @@ body {
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: var(--text-page);
   font-weight: 800;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   margin: 0 0 1.25rem;
 }
 
@@ -369,23 +423,24 @@ h1 {
   max-width: 44rem;
   margin: 0.35rem 0 0;
   color: var(--ink-muted);
-  font-size: 1rem;
+  font-size: var(--text-body);
 }
 
 h2 {
-  font-size: 1.0625rem;
+  font-size: var(--text-section);
   font-weight: 700;
   letter-spacing: -0.015em;
   margin: 0 0 0.75rem;
 }
 
 h3 {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: var(--text-sub);
+  font-weight: 600;
   margin: 1.5rem 0 0.5rem;
 }
 
+/* 2.25rem 不落在任何 --gap-* 上：它是三级区块类落地之前的过渡默认值。
+   三级类还没有视图套用，这里先不动，等第 4 批各页面按三级归位后随之删除。 */
 .section {
   margin-bottom: 2.25rem;
 }
@@ -432,6 +487,88 @@ h3 {
   margin-bottom: 0;
 }
 
+/* ── 区块三级（设计 14 §4）──────────────────────────────────────────
+   一个区块 = 标题 + 面板。三级不动用状态色（--drift-* / --unhealthy-* /
+   --ok-* 等）——那条通道已经被状态信息占满了（见文件开头的调色板注释）。
+
+   但 --ink-muted 这类文本层级墨色不算状态色，它是既有的文本降级手段
+   （表头、脚注、单位用的就是它），quiet 标题用它降一档，用的是它本来的
+   用途。看到下面 .tier-quiet > h2 上的 color，不要读成「颜色也能用来
+   分级」——三级真正靠的是尺寸、阴影、间距；这一处颜色只是借用了已有的
+   文本层级，不是三级新开的一条通道。
+
+   quiet 是这套分级里最重要的一档，因为它是唯一做减法的：静态配置从「一张
+   白卡」退成「一条顶线下的几行小字」。一个区块被降到 quiet，页面上就腾出
+   了一块注意力，这块注意力才是 primary 能立起来的原因。只加 primary 不减
+   quiet，等于把所有东西一起放大，回到原点。
+
+   判据：一页至多一个 primary。两个区块都想当 primary，说明这一页该拆成两页，
+   或者其中一个其实是 standard。 */
+
+.tier-primary {
+  margin-bottom: var(--gap-major);
+}
+
+.tier-primary > h2,
+.tier-primary > .section-head h2 {
+  font-size: var(--text-major);
+}
+
+.tier-primary .panel {
+  background: var(--card-raised);
+  box-shadow: var(--lift-raised);
+  padding: 1.75rem 2rem;
+}
+
+.tier-standard {
+  margin-bottom: var(--gap-block);
+}
+
+/* standard 就是现状：.panel 自己的那套值，这里只管间距与标题档位。 */
+.tier-standard > h2,
+.tier-standard > .section-head h2 {
+  font-size: var(--text-section);
+}
+
+.tier-quiet {
+  margin-bottom: var(--gap-quiet);
+}
+
+.tier-quiet > h2,
+.tier-quiet > .section-head h2 {
+  font-size: var(--text-sub);
+  font-weight: 600;
+  letter-spacing: normal;
+  color: var(--ink-muted);
+}
+
+.tier-quiet .panel {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.875rem 0 0;
+}
+
+/* 连续的 quiet 区块是一组，收紧间距（设计 14 §5）。 */
+.tier-quiet:has(+ .tier-quiet) {
+  margin-bottom: var(--gap-group);
+}
+
+/* 品牌金的第三个用途，到此为止（设计 14 §6）：次级区块标题下的短金线。
+   金色只用来标记结构，永远不标记状态（那是五支状态色的事），也永远不标记
+   可点击性（那是 --action 的事）。 */
+.rule-gold::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin: 0.5rem 0 0.875rem;
+  background: var(--brand);
+  border-radius: var(--radius-hairline);
+}
+
 p,
 .hint,
 .empty-hint,
@@ -442,7 +579,7 @@ p,
 .warning,
 .hint {
   color: var(--ink-muted);
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 .hint,
@@ -481,7 +618,7 @@ a.btn,
 a.btn-primary {
   display: inline-block;
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
   font-weight: 700;
   line-height: 1.3;
   color: var(--btn-ink);
@@ -534,7 +671,7 @@ input[type="submit"].btn-quiet {
   border-bottom-width: 1px;
   color: var(--ink-muted);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
   padding: 5px 10px;
 }
 
@@ -569,7 +706,7 @@ input[type="submit"].btn-quiet:hover {
 label {
   display: block;
   font-weight: 700;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
   margin-bottom: 0.3rem;
 }
 
@@ -581,7 +718,7 @@ input[type="search"],
 textarea,
 select {
   font: inherit;
-  font-size: 16px;
+  font-size: var(--text-body);
   color: var(--field-ink);
   background: var(--field-bg);
   border: 1px solid var(--field-rule);
@@ -595,7 +732,7 @@ textarea {
   width: 100%;
   min-height: 8rem;
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
 }
 
@@ -632,7 +769,7 @@ select:focus {
 }
 
 .filter-clear {
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
 }
 
 .visually-hidden {
@@ -670,7 +807,7 @@ td {
    全大写；后者在中文列名上根本不起作用，只会把字挤开。 */
 th {
   font-weight: 600;
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   color: var(--ink-muted);
   white-space: nowrap;
   padding-bottom: 0.4rem;
@@ -688,7 +825,7 @@ th {
 /* 总览表是这个面板存在的理由：行更高、应用名更重、整行可 hover。 */
 table.overview-grid {
   width: 100%;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 .overview-grid th,
@@ -730,7 +867,7 @@ table.overview-grid {
 .host-table,
 .deploy-history {
   width: 100%;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 .host-table th,
@@ -756,7 +893,7 @@ table.overview-grid {
 .overview-grid td:nth-child(3),
 .deploy-history td:first-child {
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
 }
 
 dl {
@@ -786,7 +923,7 @@ pre {
 }
 
 pre code {
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
 }
 
@@ -799,7 +936,7 @@ pre code {
   padding: 0.2rem 0.65rem;
   border-radius: var(--radius-pill);
   font-weight: 700;
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   white-space: nowrap;
   border: 1px solid transparent;
 }
@@ -808,7 +945,7 @@ pre code {
   content: "";
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-dot);
   background: currentColor;
   flex: none;
 }
@@ -849,7 +986,7 @@ pre code {
   margin-left: 0.4rem;
   padding: 0.1rem 0.5rem;
   border-radius: var(--radius-pill);
-  font-size: 0.75rem;
+  font-size: var(--text-micro);
   font-weight: 700;
   background: var(--drift-bg);
   color: var(--drift-ink);
@@ -967,7 +1104,7 @@ pre code {
   border: 1px solid var(--output-rule);
   border-radius: var(--radius-control);
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--text-micro);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
@@ -981,7 +1118,7 @@ pre code {
 .data-age {
   margin: 0 0 0.875rem;
   color: var(--ink-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
 }
 
 .deploy-history-hint,
@@ -989,7 +1126,7 @@ pre code {
 .affected-scope,
 .action-unavailable {
   color: var(--ink-muted);
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 .affected-scope {
@@ -1027,7 +1164,7 @@ pre code {
 .record-list .record-meta {
   color: var(--ink-muted);
   font-weight: 400;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 /* ── 折叠的危险操作 ───────────────────────────────────────────────── */
@@ -1040,7 +1177,7 @@ details.force-unlock summary,
 details.stop-app summary {
   cursor: pointer;
   font-weight: 700;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
   color: var(--danger-ink);
   width: fit-content;
 }
@@ -1065,7 +1202,7 @@ details.stop-app[open] summary {
   gap: 0.4rem;
   font-weight: 400;
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
   margin: 0.25rem 0 0;
 }
 
@@ -1085,12 +1222,14 @@ details.stop-app[open] summary {
 }
 
 /* 登录页是全站唯一一处标记该被放大的地方：这一页是空的，它撑得住。 */
+/* 同 .chrome-brand，这也是字标而非正文标题，字重字距不跟随 --text-major
+   档的排版尺度——字标有自己独立于正文层级的视觉重量，故意不改成 700。 */
 .auth-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.625rem;
-  font-size: 1.375rem;
+  font-size: var(--text-major);
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--ink);
@@ -1115,9 +1254,9 @@ details.stop-app[open] summary {
 }
 
 .auth-card h1 {
-  font-size: 1.25rem;
+  font-size: var(--text-section);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   margin: 0 0 1.25rem;
 }
 
@@ -1129,7 +1268,7 @@ details.stop-app[open] summary {
 }
 
 .auth-card input[type="submit"] {
-  font-size: 1rem;
+  font-size: var(--text-body);
   padding: 11px 16px;
   margin-top: 0.25rem;
 }
@@ -1146,7 +1285,7 @@ details.stop-app[open] summary {
   max-width: none;
   text-align: center;
   margin-top: 1.25rem;
-  font-size: 0.9375rem;
+  font-size: var(--text-sub);
 }
 
 /* ── 表格行内的操作 ───────────────────────────────────────────────── */
@@ -1167,15 +1306,15 @@ details.stop-app[open] summary {
 
 /* ── 添加成员：密码设置方式 ────────────────────────────────────────── */
 .password-setup {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
   padding: 0.875rem 1rem;
   margin: 0 0 1rem;
 }
 
 .password-setup legend {
   padding: 0 0.375rem;
-  font-size: 0.875rem;
+  font-size: var(--text-sub);
   font-weight: 600;
 }
 
@@ -1219,10 +1358,19 @@ details.stop-app[open] summary {
   }
 
   h1 {
-    font-size: 1.5rem;
+    font-size: var(--text-major);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   .panel {
+    padding: 1.125rem;
+  }
+
+  /* 媒体查询不提升特异性：上面这条 .panel 的特异性是 (0,1,0)，压不过
+     .tier-primary .panel 的 (0,2,0)，所以窄屏上 primary 面板会原样保留
+     1.75rem/2rem 的内边距，正文可用宽度被吃掉将近 4rem。这里单独重申。 */
+  .tier-primary .panel {
     padding: 1.125rem;
   }
 
