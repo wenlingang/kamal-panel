@@ -22,7 +22,6 @@ class PasswordsController < ApplicationController
       @user.sessions.destroy_all
       redirect_to new_session_path, notice: t("flash.password.reset_done")
     else
-      # 别把所有失败都说成「不一致」：密码太短也会走到这里，照着错误的提示
       # 反复重试是这类页面最常见的死循环。
       redirect_to edit_password_path(params[:token]),
                   alert: @user.errors.full_messages.to_sentence.presence || t("flash.password.mismatch")

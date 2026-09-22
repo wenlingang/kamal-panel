@@ -26,7 +26,7 @@
             <% end %>
           </td>
           <td>
-            <span class="status-badge status-unreachable"><%= t(".config_broken") %></span>
+            <%= status_badge("unreachable", t(".config_broken")) %>
           </td>
           <td colspan="2">
             <%= t(".config_broken_detail", since: time_ago_in_words(app.first_poll_error_at)) %>
@@ -43,10 +43,8 @@
             <% end %>
           </td>
           <td>
-            <%# 状态绝不只靠颜色：这里同时给出文字（spec 8.6） %>
-            <span class="status-badge status-<%= status.level %>">
-              <%= status.label %>
-            </span>
+            <%# 状态绝不只靠颜色：文字与形状各是一个独立于颜色的信号 %>
+            <%= status_badge(status.level, status.label) %>
           </td>
           <td>
             <% if status.versions.empty? %>

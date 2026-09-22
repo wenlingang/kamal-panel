@@ -1,6 +1,4 @@
-# 执行一个动作。顺序是刻意的（spec 7.5）：
-#   审计先落 pending → 检查锁 → 执行 → 更新审计
-# 面板中途崩溃时留下的 pending 记录，正是「有人发起过这个操作」的证据。
+# 执行一个动作。
 class RunActionJob < ApplicationJob
   queue_as :default
 
@@ -52,14 +50,9 @@ class RunActionJob < ApplicationJob
       broadcast_line(log, message)
       log.finish!(result: "failure", command: "(未执行)", output_digest: message,
                   duration_ms: ((Time.current - started) * 1000).round)
-      # 被锁挡住的动作同样要把"执行中……"换掉，否则这一页会永远停在执行中
       broadcast_result(log)
     end
 
-    # 后台任务里没有请求上下文，也就没有"当前用户"——但这条广播是给人看的，
-    # 总得挑一种语言。挑【发起这次动作的人】：这一页基本上就是他在盯着。
-    # 代价说清楚：如果另一个语言不同的人也开着同一页，他会看到发起人的语言，
-    # 直到刷新（刷新后由 actions/show 自己按他的 locale 渲染）。
     def result_text(log)
       I18n.with_locale(log.user.locale.presence || I18n.default_locale) do
         log.result == "success" ? I18n.t("actions.result.succeeded") : I18n.t("actions.result.failed")

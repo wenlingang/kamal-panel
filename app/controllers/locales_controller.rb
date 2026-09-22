@@ -4,7 +4,6 @@ class LocalesController < ApplicationController
   def update
     Current.user.update(locale: params[:locale])
 
-    # 换语言不该把人从当前页面弹走。referer 不可信但这里无所谓：它只决定
     # 跳回哪一页，拿不到或是外站都只会退到首页。
     redirect_back fallback_location: root_path
   end

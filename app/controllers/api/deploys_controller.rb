@@ -1,23 +1,13 @@
 module Api
   # 唯一的上报入口（spec 03 第 4 节）。
-  #
-  # 成功也不返回任何内容：token 是写入凭证，不能顺带变成读取面板状态的通道。
-  #
-  # 限流是硬要求而不是防御性编程——收到事件会触发 burst 轮询，也就是一个
-  # token 能撬动面板对用户的所有机器发起 SSH 扇出。
   class DeploysController < ActionController::API
-    # version 会进 UI、进告警文案、参与配对查询。这里按保守字符集收口，
+    # version 会进 UI、进告警文案、参与配对查询。
     # 与"上报字段不进入任何 cli_args"是两道独立的防线。
     VERSION_FORMAT = /\A[A-Za-z0-9._-]{1,128}\z/
     TEXT_LIMIT = 255
 
     rate_limit to: 30, within: 1.minute, by: -> { request.headers["Authorization"].to_s }
 
-    # rate_limit 触发时默认抛 ActionController::TooManyRequests，Rails 靠
-    # "public/429.html 不存在"这个巧合才回退成空 body。一旦有人给浏览器端加了
-    # 统一错误页（哪怕只是给 public/429.html 塞了内容），这个 API 端点也会跟着
-    # 把那页 HTML 吐进 body——"成功和限流都不回内容"必须由这个 controller 自己
-    # 保证，不能依赖 public 目录现在恰好是空的。
     rescue_from ActionController::TooManyRequests do
       head :too_many_requests
     end
@@ -48,9 +38,6 @@ module Api
           params[:version].to_s.match?(VERSION_FORMAT)
       end
 
-      # :ok / :mismatch / :unparsable ——三种结果分别对应不同的拒收文案，
-      # 因为"token 粘错了"和"这个应用的配置现在解析不过"是两种完全不同的
-      # 排查方向，混成一句话会把运维者指向错误的地方去查。
       def match_status(app)
         params[:service].to_s == app.service &&
           params[:destination].to_s == app.destination.to_s ? :ok : :mismatch
@@ -77,10 +64,6 @@ module Api
         head :conflict
       end
 
-      # 配置现在解析不了，判断不了 service/destination 是否匹配——这时候不猜，
-      # 照样 409 拒收，但文案不能说"粘错了"：真实原因很可能是 deploy.yml 本身
-      # 解析不过（比如 Kamal 升级后语法变了），运维者照着"粘错了"的提示去查
-      # token 永远查不到。
       def reject_unparsable(app)
         app.reject_hook!(
           "暂时无法判断这条上报是否属于本应用，因为这个应用的 deploy.yml 现在解析不过" \
@@ -96,7 +79,7 @@ module Api
           recorded_at: parsed_recorded_at }
       end
 
-      # 机器上的原文，只用于展示。解析不了就丢掉，绝不因此拒收整条上报——
+      # 机器上的原文，只用于展示。
       # 也绝不用它做任何判定（那会让时钟漂移变成告警的开关）。
       def parsed_recorded_at
         Time.zone.parse(params[:recorded_at].to_s)

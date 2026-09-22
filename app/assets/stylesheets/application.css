@@ -71,6 +71,13 @@
   --unknown-rule: #d8d5cf;
   --unknown-edge: #b3aca2;
 
+  /* 控件阴影。带颜色，所以必须进两个调色板块（同 --lift-raised）。 */
+  --ring: 0 0 0 3px rgba(20, 98, 184, 0.35);
+  --shadow-xs: 0 1px 2px rgba(42, 39, 36, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(42, 39, 36, 0.1), 0 2px 4px -2px rgba(42, 39, 36, 0.1);
+  --popover-bg: #ffffff;
+  --accent-bg: #f1eee8;
+
   --lift-raised: 0 1px 2px rgba(42, 39, 36, 0.05), 0 10px 28px rgba(42, 39, 36, 0.07);
 
   /* --card-raised 是主题相关的颜色 token，必须跟其余调色板变量一样进这个块：
@@ -146,6 +153,12 @@
     --unknown-rule: #403b35;
     --unknown-edge: #b3aca2;
 
+    --ring: 0 0 0 3px rgba(138, 180, 248, 0.35);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+    --popover-bg: #2b2825;
+    --accent-bg: #353128;
+
     /* spec §9 说深色下阴影几乎不可见，层级改靠背景提亮（见下面 --card-raised）。
        这里仍给深色一组更黑的阴影，是偏离 spec 的刻意选择，不是漏改：深色下
        阴影确实还能帮忙分离层次，但它是辅助，--card-raised 的亮度差才是主力。 */
@@ -169,38 +182,67 @@
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
                "Liberation Mono", monospace;
 
-  /* ── 排版尺度（设计 14 §3）────────────────────────────────────────
-     六档，各有唯一用途。上面四档是这套尺度的「声音」，相邻比值不低于 1.2
-     （1.5、1.2、1.25），不靠字重也分得出来；下面两档是辅助档，它们之间只
-     差 1px，【刻意不靠尺寸区分】，而是靠颜色与位置——14px 是次要文本，
-     13px 恒为 --ink-muted 且只出现在表头、脚注、单位上。
+  /* ── 排版尺度（设计 15 §3.1）──────────────────────────────────────
+     五档，不是六档。skill 给的 Web 档位是 12/14/16/18/20/24 六档，本项目
+     去掉 18px：六档挤在 12–24 之间，数学上不可能让相邻比值都不低于 1.2
+     （18/16 = 1.125），硬塞六档就是假装有区别而实际分不出来。
 
-     需要第七个字号时，那是分级没想清楚，不是尺度不够用。 */
-  --text-page:    2.25rem;   /* 36px 页标题，每页一个 */
-  --text-major:   1.5rem;    /* 24px 一级区块标题 */
-  --text-section: 1.25rem;   /* 20px 常规区块标题 */
-  --text-body:    1rem;      /* 16px 正文、表格内容 */
-  --text-sub:     0.875rem;  /* 14px 次要文本、次级区块标题 */
-  --text-micro:   0.8125rem; /* 13px 表头、脚注、数据年龄、单位 */
+     声音档是 24 / 20 / 16，比值 1.2 与 1.25，不靠字重也分得出来。
+     14 与 12 是辅助档，【刻意不靠尺寸区分】，靠场景：14 在正文流里，
+     12 只出现在不参与正文阅读的位置（表头、徽标内、单位、机器数据）。
 
-  --radius-card: 12px;
-  --radius-control: 8px;
-  --radius-pill: 999px;
-  --radius-focus: 3px;   /* 焦点圈；比控件圆角小一档，贴着轮廓走 */
-  /* 与 --radius-pill 同值（999px）但不合并：语义分离——一个给正圆点，
-     一个给胶囊形的徽章/按钮，共用一个名字会让下一个改胶囊圆角的人
-     顺手把圆点也改了。 */
-  --radius-dot: 999px;   /* 状态点等正圆元素 */
-  --radius-hairline: 2px; /* 细线元素的圆角（设计 14 §6：金线圆角 2px） */
+     需要第六个字号时，那是分级没想清楚，不是尺度不够用。 */
+  --text-2xl:  1.5rem;    /* 24px 页标题，每页一个 */
+  --text-xl:   1.25rem;   /* 20px primary 区块标题 */
+  --text-base: 1rem;      /* 16px 正文；standard 区块标题（字重 600） */
+  --text-sm:   0.875rem;  /* 14px 表格正文、quiet 区块标题、按钮、说明行 */
+  --text-xs:   0.75rem;   /* 12px 表头、脚注、数据年龄、单位、徽标 */
 
-  /* ── 间距节奏（设计 14 §5）────────────────────────────────────────
-     区块间距跟着级别走。连续多个 quiet 区块之间收紧到 1.25rem——它们在
-     语义上是一组（都是「这个应用是怎么配的」），间距相等会让它们散成
-     三件事。 */
-  --gap-major: 3rem;     /* primary 区块之后 */
-  --gap-block: 2.5rem;   /* standard 区块之后 */
-  --gap-quiet: 2rem;     /* quiet 区块之后 */
-  --gap-group: 1.25rem;  /* 同级区块成组时的收紧间距 */
+  --radius-card:    0.75rem;    /* 12px */
+  --radius-control: 0.5rem;     /* 8px */
+  --radius-pill:    999px;      /* 哨兵值，不是尺寸，故意不换算成 rem */
+  --radius-focus:   0.1875rem;  /* 3px 焦点圈；比控件圆角小一档，贴着轮廓走 */
+  /* 与 --radius-pill 同值但不合并：语义分离——一个给正圆点，一个给胶囊形的
+     徽章/按钮，共用一个名字会让下一个改胶囊圆角的人顺手把圆点也改了。 */
+  --radius-dot:      999px;
+  --radius-hairline: 0.125rem;  /* 2px 细线元素的圆角 */
+
+  /* ── 线宽（设计 15 §5 修订）───────────────────────────────────────
+     --line-gold 有四个用处，两处是 border-bottom-width、两处是 height。
+     它们【必须同粗】——Turbo 进度条在视觉上就是站名下那条金线滑过页面顶端。
+     此前这个约束只靠注释提醒，四处各写各的 3px。 */
+  --line-gold:   3px;  /* 站名下的金线、当前导航下划线、Turbo 进度条、区块金短线 */
+  --line-status: 4px;  /* 总览表首列的状态色条 */
+
+  /* ── 间距（设计 15 §4）────────────────────────────────────────────
+     七档，按【关系】命名，不按级别命名。设计 14 的 gap-major / gap-block（旧名）
+     说的是「留多大」，这套说的是「这两个东西是什么关系」。
+
+     排序法则比具体数值重要：
+       label 与控件的距离 < 两个 group 的距离 < 两个 section 的距离
+
+     配套三条（空间语法）：组件的 padding 由组件自己拥有，组件之间的 gap 由
+     父容器拥有；不重复 padding；光学校正要能解释。 */
+  --space-xxs: 0.125rem;  /* 2px  光学校正 */
+  --space-xs:  0.25rem;   /* 4px  同一控件的各部分 */
+  --space-sm:  0.5rem;    /* 8px  紧密相关的控件 */
+  --space-md:  0.75rem;   /* 12px 同一内容组 */
+  --space-lg:  1rem;      /* 16px 同一 section 的不同组 */
+  --space-xl:  1.5rem;    /* 24px 不同 section */
+  --space-xxl: 2rem;      /* 32px 主要区域边界 */
+
+  /* ── 控件尺寸（设计 15 §6）────────────────────────────────────────
+     两档，【整体切换，不单独改高度】。token 是高度值，配套的 .control-md /
+     .control-sm 类（第 2 批建）负责把它连同对应的字号与内边距一起套上去
+     ——改高度而不改字号和内边距，就是「只改外框高度」那种错。 */
+  --control-md: 2.25rem;  /* 36px 默认：表单、对话框、页面级操作 */
+  --control-sm: 1.75rem;  /* 28px 紧凑：表格行内操作、工具栏 */
+
+  /* ── 图标（设计 15 §14.2）─────────────────────────────────────────
+     与控件档和字号档配套，共享同一条 rem 缩放轴：用户调大字号时图标跟着长。
+     本批只定义，图标 partial 与 icon_tag 是第 2 批。 */
+  --icon-md: 1rem;      /* 16px 配 --control-md 与 --text-base */
+  --icon-sm: 0.875rem;  /* 14px 配 --control-sm 与 --text-sm */
 
   --lift: 0 1px 2px rgba(42, 39, 36, 0.06);
 }
@@ -216,11 +258,27 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-ui);
-  font-size: var(--text-body);
+  font-size: var(--text-base);
   line-height: 1.6;
   color: var(--ink);
   background: var(--surface);
   -webkit-font-smoothing: antialiased;
+}
+
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.125em;
+}
+
+.icon-md {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.icon-sm {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 
 :focus-visible {
@@ -255,19 +313,19 @@ body {
 }
 
 /* 站名下的金线与标记里那根金绳是同一条线索，别再往别处加金色。 */
-/* 这是字标（wordmark），不是正文标题——它是站名固定的视觉形象，不随
-   --text-section 档的字重/字距规则走。按档位改成 700 会让站名比设计
-   意图轻一档，这里的 800/-0.02em 是刻意保留的豁免，不是漏改。 */
+/* 这是字标（wordmark），不是正文标题——它是站名固定的视觉形象，字号仍
+   走 --text-xl，但不随该档的字重/字距规则走。按档位改成 700 会让站名比
+   设计意图轻一档，这里的 800/-0.02em 是刻意保留的豁免，不是漏改。 */
 .chrome-brand {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: var(--text-section);
+  font-size: var(--text-xl);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--ink);
-  padding-bottom: 3px;
-  border-bottom: 3px solid var(--brand);
+  padding-bottom: var(--space-xxs);
+  border-bottom: var(--line-gold) solid var(--brand);
 }
 
 /* 标记是图形不是文字，不能跟着字面一起坐在基线上——那样看着会往下沉。
@@ -293,7 +351,7 @@ body {
 /* 页面切换时 Turbo 自带的进度条。染成品牌金，粗细跟站名下那条线对齐——
    它在视觉上就是那条线滑过页面顶端，不是另起一个加载指示。 */
 .turbo-progress-bar {
-  height: 3px;
+  height: var(--line-gold);
   background: var(--brand);
 }
 
@@ -312,6 +370,13 @@ body {
   opacity: 0.25;
 }
 
+.empty-state .empty-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--ink-muted);
+  opacity: 0.45;
+}
+
 .empty-state .empty-hint {
   margin: 0;
 }
@@ -328,11 +393,23 @@ body {
 }
 
 .chrome-nav a:not(.chrome-brand) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   color: var(--ink-muted);
   font-weight: 600;
-  font-size: var(--text-sub);
-  padding-bottom: 3px;
-  border-bottom: 3px solid transparent;
+  font-size: var(--text-sm);
+  padding-bottom: var(--space-xxs);
+  border-bottom: var(--line-gold) solid transparent;
+}
+
+.chrome-nav a:not(.chrome-brand) .icon {
+  opacity: 0.7;
+}
+
+.chrome-nav a:not(.chrome-brand):hover .icon,
+.chrome-nav a.is-current .icon {
+  opacity: 1;
 }
 
 .chrome-nav a:not(.chrome-brand):hover {
@@ -349,7 +426,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   color: var(--ink-muted);
 }
 
@@ -368,14 +445,18 @@ body {
 .chrome-locale select {
   width: auto;
   margin: 0;
-  padding: 0.15rem 1.4rem 0.15rem 0.4rem;
-  font-size: var(--text-micro);
+  height: var(--control-sm);
+  padding-left: var(--space-sm);
+  padding-right: calc(var(--icon-sm) + var(--space-sm) * 2);
+  background-position: right var(--space-sm) center;
+  background-size: var(--icon-sm) var(--icon-sm);
+  font-size: var(--text-xs);
   color: var(--ink-muted);
 }
 
 /* ── 页面骨架 ─────────────────────────────────────────────────────── */
 .page {
-  max-width: 1180px;
+  max-width: 73.75rem;
   margin: 0 auto;
   padding: 2.25rem 2rem 5rem;
 }
@@ -387,7 +468,7 @@ body {
 
 .breadcrumb {
   margin: 0 0 0.75rem;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 /* 报头是这套界面唯一张扬的地方：大标题 + 一句大白话副标题，说清这一页
@@ -412,10 +493,10 @@ body {
 }
 
 h1 {
-  font-size: var(--text-page);
-  font-weight: 800;
+  font-size: var(--text-2xl);
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.02em;
   margin: 0 0 1.25rem;
 }
 
@@ -423,23 +504,23 @@ h1 {
   max-width: 44rem;
   margin: 0.35rem 0 0;
   color: var(--ink-muted);
-  font-size: var(--text-body);
+  font-size: var(--text-base);
 }
 
 h2 {
-  font-size: var(--text-section);
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -0.015em;
   margin: 0 0 0.75rem;
 }
 
 h3 {
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   font-weight: 600;
   margin: 1.5rem 0 0.5rem;
 }
 
-/* 2.25rem 不落在任何 --gap-* 上：它是三级区块类落地之前的过渡默认值。
+/* 2.25rem 不落在任何 --space-* 上：它是三级区块类落地之前的过渡默认值。
    三级类还没有视图套用，这里先不动，等第 4 批各页面按三级归位后随之删除。 */
 .section {
   margin-bottom: 2.25rem;
@@ -505,13 +586,16 @@ h3 {
    判据：一页至多一个 primary。两个区块都想当 primary，说明这一页该拆成两页，
    或者其中一个其实是 standard。 */
 
+/* primary 与 standard 用同一档间距（原先 3rem 与 2.5rem，两档不同）。这不是
+   遗漏：间距表达的是「这个区块结束、下一个开始」这一种关系，对两者是同一种
+   关系。分级由区块自身的内边距、抬升、标题档位承担，不由它与邻居的距离承担。 */
 .tier-primary {
-  margin-bottom: var(--gap-major);
+  margin-bottom: var(--space-xl);
 }
 
 .tier-primary > h2,
 .tier-primary > .section-head h2 {
-  font-size: var(--text-major);
+  font-size: var(--text-xl);
 }
 
 .tier-primary .panel {
@@ -521,22 +605,24 @@ h3 {
 }
 
 .tier-standard {
-  margin-bottom: var(--gap-block);
+  margin-bottom: var(--space-xl);
 }
 
 /* standard 就是现状：.panel 自己的那套值，这里只管间距与标题档位。 */
 .tier-standard > h2,
 .tier-standard > .section-head h2 {
-  font-size: var(--text-section);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 .tier-quiet {
-  margin-bottom: var(--gap-quiet);
+  margin-bottom: var(--space-lg);
 }
 
 .tier-quiet > h2,
 .tier-quiet > .section-head h2 {
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: normal;
   color: var(--ink-muted);
@@ -553,7 +639,7 @@ h3 {
 
 /* 连续的 quiet 区块是一组，收紧间距（设计 14 §5）。 */
 .tier-quiet:has(+ .tier-quiet) {
-  margin-bottom: var(--gap-group);
+  margin-bottom: var(--space-md);
 }
 
 /* 品牌金的第三个用途，到此为止（设计 14 §6）：次级区块标题下的短金线。
@@ -562,8 +648,8 @@ h3 {
 .rule-gold::after {
   content: "";
   display: block;
-  width: 28px;
-  height: 3px;
+  width: 1.75rem;
+  height: var(--line-gold);
   margin: 0.5rem 0 0.875rem;
   background: var(--brand);
   border-radius: var(--radius-hairline);
@@ -579,7 +665,7 @@ p,
 .warning,
 .hint {
   color: var(--ink-muted);
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .hint,
@@ -616,20 +702,34 @@ input[type="submit"],
 button,
 a.btn,
 a.btn-primary {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  height: var(--control-md);
   font: inherit;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.3;
   color: var(--btn-ink);
   background: var(--btn-bg);
   border: 1px solid var(--btn-rule);
-  border-bottom-width: 2px;
   border-radius: var(--radius-control);
-  padding: 9px 16px;
+  box-shadow: var(--shadow-xs);
+  padding: 0 var(--space-lg);
   cursor: pointer;
   text-decoration: none;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+              box-shadow 0.12s ease;
+}
+
+input[type="submit"]:focus-visible,
+button:focus-visible,
+a.btn:focus-visible,
+a.btn-primary:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--ring);
 }
 
 input[type="submit"]:hover,
@@ -668,11 +768,12 @@ button.btn-danger {
 input[type="submit"].btn-quiet {
   background: transparent;
   border-color: var(--rule);
-  border-bottom-width: 1px;
+  box-shadow: none;
   color: var(--ink-muted);
   font-weight: 600;
-  font-size: var(--text-sub);
-  padding: 5px 10px;
+  font-size: var(--text-sm);
+  height: var(--control-sm);
+  padding: 0 var(--space-sm);
 }
 
 /* 顶栏里的「退出」不该长得像个待办的操作——那里它只是个出口，
@@ -706,7 +807,7 @@ input[type="submit"].btn-quiet:hover {
 label {
   display: block;
   font-weight: 700;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   margin-bottom: 0.3rem;
 }
 
@@ -718,30 +819,75 @@ input[type="search"],
 textarea,
 select {
   font: inherit;
-  font-size: var(--text-body);
+  font-size: var(--text-sm);
   color: var(--field-ink);
   background: var(--field-bg);
   border: 1px solid var(--field-rule);
   border-radius: var(--radius-control);
-  padding: 10px 12px;
+  box-shadow: var(--shadow-xs);
+  padding: 0 var(--space-md);
   width: 24rem;
   max-width: 100%;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+input:hover:not(:disabled),
+textarea:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--ink-muted);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+select {
+  height: var(--control-md);
 }
 
 textarea {
   width: 100%;
   min-height: 8rem;
+  padding: var(--space-sm) var(--space-md);
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 
-input:focus,
-textarea:focus,
+/* outline 留成透明的 2px 而不是 none：高对比度模式丢掉 box-shadow，只认 outline。 */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+/* 各浏览器对"鼠标点开 select 算不算 focus-visible"判断不一致，补一条 :focus。 */
 select:focus {
-  outline: 2px solid var(--field-focus);
-  outline-offset: 1px;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   border-color: var(--field-focus);
+  box-shadow: var(--ring);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 没有 JS 时看到的是原生 select：去掉系统箭头，自己画一个对齐的。 */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: calc(var(--icon-md) + var(--space-md) * 2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath opacity='.55' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-md) center;
+  background-size: var(--icon-md) var(--icon-md);
 }
 
 /* ── 总览页筛选 ───────────────────────────────────────────────────────
@@ -760,16 +906,19 @@ select:focus {
    按自己的内容排。 */
 .filter-bar input[type="search"] {
   width: auto;
-  flex: 1 1 14rem;
-  min-width: 10rem;
 }
 
 .filter-bar select {
   width: auto;
 }
 
+.filter-bar input[type="submit"] {
+  height: var(--control-md);
+  padding: 0 var(--space-md);
+}
+
 .filter-clear {
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .visually-hidden {
@@ -807,7 +956,7 @@ td {
    全大写；后者在中文列名上根本不起作用，只会把字挤开。 */
 th {
   font-weight: 600;
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   color: var(--ink-muted);
   white-space: nowrap;
   padding-bottom: 0.4rem;
@@ -825,7 +974,7 @@ th {
 /* 总览表是这个面板存在的理由：行更高、应用名更重、整行可 hover。 */
 table.overview-grid {
   width: 100%;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .overview-grid th,
@@ -841,7 +990,7 @@ table.overview-grid {
 
 .overview-grid td:first-child {
   font-weight: 700;
-  border-left: 4px solid transparent;
+  border-left: var(--line-status) solid transparent;
 }
 
 .overview-grid tr.status-drift td:first-child {
@@ -867,7 +1016,7 @@ table.overview-grid {
 .host-table,
 .deploy-history {
   width: 100%;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .host-table th,
@@ -893,7 +1042,7 @@ table.overview-grid {
 .overview-grid td:nth-child(3),
 .deploy-history td:first-child {
   font-family: var(--font-mono);
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 dl {
@@ -923,7 +1072,7 @@ pre {
 }
 
 pre code {
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 
@@ -936,18 +1085,13 @@ pre code {
   padding: 0.2rem 0.65rem;
   border-radius: var(--radius-pill);
   font-weight: 700;
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   white-space: nowrap;
   border: 1px solid transparent;
 }
 
-.status-badge::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-dot);
-  background: currentColor;
-  flex: none;
+.status-badge .icon {
+  margin-right: var(--space-xxs);
 }
 
 .status-badge.status-drift {
@@ -986,7 +1130,7 @@ pre code {
   margin-left: 0.4rem;
   padding: 0.1rem 0.5rem;
   border-radius: var(--radius-pill);
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   font-weight: 700;
   background: var(--drift-bg);
   color: var(--drift-ink);
@@ -1031,6 +1175,37 @@ pre code {
   color: var(--ok-ink);
   background: var(--ok-bg);
   border-color: var(--ok-rule);
+}
+
+.flash {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.flash .icon {
+  margin-top: 0.3em;
+}
+
+.field-with-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
+.field-with-icon .icon {
+  position: absolute;
+  left: var(--space-md);
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+/* 特异性要压过 .filter-bar input[type="search"] 的 width: auto。 */
+.field-with-icon input[type="search"],
+.field-with-icon input[type="text"] {
+  width: 18rem;
+  padding-left: calc(var(--icon-sm) + var(--space-md) * 2);
 }
 
 .callout-warn,
@@ -1104,7 +1279,7 @@ pre code {
   border: 1px solid var(--output-rule);
   border-radius: var(--radius-control);
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: var(--text-xs);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
@@ -1118,7 +1293,7 @@ pre code {
 .data-age {
   margin: 0 0 0.875rem;
   color: var(--ink-muted);
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .deploy-history-hint,
@@ -1126,7 +1301,7 @@ pre code {
 .affected-scope,
 .action-unavailable {
   color: var(--ink-muted);
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 .affected-scope {
@@ -1164,7 +1339,7 @@ pre code {
 .record-list .record-meta {
   color: var(--ink-muted);
   font-weight: 400;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 /* ── 折叠的危险操作 ───────────────────────────────────────────────── */
@@ -1177,7 +1352,7 @@ details.force-unlock summary,
 details.stop-app summary {
   cursor: pointer;
   font-weight: 700;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   color: var(--danger-ink);
   width: fit-content;
 }
@@ -1202,7 +1377,7 @@ details.stop-app[open] summary {
   gap: 0.4rem;
   font-weight: 400;
   font-family: var(--font-mono);
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   margin: 0.25rem 0 0;
 }
 
@@ -1217,19 +1392,20 @@ details.stop-app[open] summary {
 /* ── 认证页 ───────────────────────────────────────────────────────── */
 /* 全站唯一的居中版式：这里没有数据要扫，只有一件事要做。 */
 .auth {
-  max-width: 420px;
+  max-width: 26.25rem;
   margin: 12vh auto 0;
 }
 
 /* 登录页是全站唯一一处标记该被放大的地方：这一页是空的，它撑得住。 */
-/* 同 .chrome-brand，这也是字标而非正文标题，字重字距不跟随 --text-major
-   档的排版尺度——字标有自己独立于正文层级的视觉重量，故意不改成 700。 */
+/* 同 .chrome-brand，这也是字标而非正文标题，字号走 --text-xl，但字重
+   字距不跟随该档的排版尺度——字标有自己独立于正文层级的视觉重量，故意
+   不改成 700。 */
 .auth-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.625rem;
-  font-size: var(--text-major);
+  font-size: var(--text-xl);
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--ink);
@@ -1239,8 +1415,8 @@ details.stop-app[open] summary {
 .auth-brand::after {
   content: "";
   display: block;
-  width: 40px;
-  height: 3px;
+  width: 2.5rem;
+  height: var(--line-gold);
   background: var(--brand);
   margin: 0.5rem auto 0;
 }
@@ -1254,7 +1430,7 @@ details.stop-app[open] summary {
 }
 
 .auth-card h1 {
-  font-size: var(--text-section);
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -0.015em;
   margin: 0 0 1.25rem;
@@ -1268,8 +1444,9 @@ details.stop-app[open] summary {
 }
 
 .auth-card input[type="submit"] {
-  font-size: var(--text-body);
-  padding: 11px 16px;
+  font-size: var(--text-base);
+  height: calc(var(--control-md) + var(--space-sm));
+  padding: 0 var(--space-lg);
   margin-top: 0.25rem;
 }
 
@@ -1285,7 +1462,7 @@ details.stop-app[open] summary {
   max-width: none;
   text-align: center;
   margin-top: 1.25rem;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
 }
 
 /* ── 表格行内的操作 ───────────────────────────────────────────────── */
@@ -1314,7 +1491,7 @@ details.stop-app[open] summary {
 
 .password-setup legend {
   padding: 0 0.375rem;
-  font-size: var(--text-sub);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -1358,9 +1535,9 @@ details.stop-app[open] summary {
   }
 
   h1 {
-    font-size: var(--text-major);
+    font-size: var(--text-xl);
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
   }
 
   .panel {
@@ -1386,4 +1563,135 @@ details.stop-app[open] summary {
   .panel {
     overflow-x: auto;
   }
+}
+
+/* 下拉：触发器与菜单面板由 select_controller.js 建。 */
+/* margin 归零：站点级的 `form div { margin-bottom: 1rem }` 会打到它，
+   让外边距盒比本体高 16px，在 align-items: center 的一行里本体就上移 8px。 */
+.sel {
+  position: relative;
+  display: inline-flex;
+  margin: 0;
+}
+
+.sel-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  height: var(--control-md);
+  min-width: 9rem;
+  padding: 0 var(--space-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--field-ink);
+  background: var(--field-bg);
+  border: 1px solid var(--field-rule);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sel-trigger:hover {
+  border-color: var(--ink-muted);
+  background: var(--field-bg);
+}
+
+.sel-trigger:focus-visible,
+.sel.is-open .sel-trigger {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  border-color: var(--field-focus);
+  box-shadow: var(--ring);
+}
+
+.sel-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sel-chevron {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  opacity: 0.55;
+  transition: transform 0.15s ease;
+}
+
+.sel.is-open .sel-chevron {
+  transform: rotate(180deg);
+}
+
+.sel-list {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + var(--space-xs));
+  left: 0;
+  min-width: 100%;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: var(--space-xs);
+  background: var(--popover-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-md);
+  animation: sel-in 0.12s ease-out;
+}
+
+.sel.drops-up .sel-list {
+  top: auto;
+  bottom: calc(100% + var(--space-xs));
+}
+
+@keyframes sel-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.sel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-hairline);
+  font-size: var(--text-sm);
+  color: var(--field-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sel-item.is-active {
+  background: var(--accent-bg);
+}
+
+.sel-check {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  opacity: 0;
+  color: var(--field-focus);
+}
+
+.sel-item.is-selected .sel-check {
+  opacity: 1;
+}
+
+.chrome-locale .sel-trigger {
+  height: var(--control-sm);
+  min-width: 0;
+  padding: 0 var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.chrome-locale .sel-chevron {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.chrome-locale .sel-list {
+  min-width: 4.5rem;
 }

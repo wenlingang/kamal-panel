@@ -55,7 +55,7 @@
           <li>
             <%= link_to app, class: "record-row" do %>
               <span><%= app.name %></span>
-              <span class="status-badge status-unknown"><%= t(".deactivated_badge") %></span>
+              <%= status_badge("unknown", t(".deactivated_badge")) %>
             <% end %>
           </li>
         <% end %>

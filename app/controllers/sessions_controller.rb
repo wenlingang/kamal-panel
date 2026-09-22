@@ -13,10 +13,6 @@ class SessionsController < ApplicationController
       start_new_session_for user
       redirect_to after_authentication_url
     else
-      # render 而不是 redirect：重定向会把人刚填的邮箱一起丢掉，而错的通常
-      # 只是密码，让他把邮箱重打一遍是纯粹的惩罚。视图里的
-      # value: params[:email_address] 本来就是为这条路准备的，此前因为走
-      # 重定向而一直没生效。仓库里其他表单失败时也都是 render + 422。
       flash.now[:alert] = t("flash.bad_credentials")
       render :new, status: :unprocessable_entity
     end

@@ -1,4 +1,4 @@
-# Kamal 命名空间下的值对象。不落库——deploy.yml 是唯一真相，
+# Kamal 命名空间下的值对象。
 # 解析结果每次现算（spec 5.1）。
 class Kamal::ParsedConfig
   attr_reader :service, :destination, :roles, :app_hosts, :primary_host,

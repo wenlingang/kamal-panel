@@ -1,8 +1,4 @@
 # 面板相对 CLI 的真实增量（spec 7.1）。
-#
-# kamal rollback 要求该 version 的容器在【每台 host 的每个 role】上都存在，
-# 否则直接拒绝——CLI 是你试了才告诉你不行。
-# 面板手里已有全量 docker ps --all，因此能提前算出来，并注明是哪台机器缺。
 class RollbackCandidates
   RUNNING_STATUSES = %w[running restarting].freeze
 
@@ -21,9 +17,7 @@ class RollbackCandidates
     end
   end
 
-  # 正在跑的那个版本。`kamal app boot` 必须显式带 --version（面板的临时
-  # 目录没有 git 仓库，Kamal 推导不出来），而"重启"要的就是重启当前这一版。
-  # 观测里同时有多个版本在跑时不猜——返回 nil，界面据此把重启关掉。
+  # 正在跑的那个版本。
   def running_version
     versions = running_versions
     versions.first if versions.one?

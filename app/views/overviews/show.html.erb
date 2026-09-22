@@ -19,7 +19,7 @@
       <%# 水印只给"一个都还没接入"这种长期空状态。筛选筛空的那条不放——
           那是临时状态，摆上一枚放大的标会显得像"出事了"。 %>
       <div class="empty-state">
-        <%= render "shared/mark", size: "40px" %>
+        <%= icon_tag("box", css: "empty-icon") %>
         <p class="empty-hint"><%= t(".empty") %></p>
       </div>
     </div>
@@ -28,14 +28,17 @@
   <section class="section">
     <%= form_with url: overview_path, method: :get, class: "filter-bar" do |form| %>
       <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
-      <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
-                            autocomplete: "off", class: "filter-search" %>
+      <span class="field-with-icon">
+        <%= icon_tag("search", size: :sm) %>
+        <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
+                              autocomplete: "off", class: "filter-search" %>
+      </span>
 
       <%= form.label :status, t(".filter_status"), class: "visually-hidden" %>
       <%= form.select :status,
                       options_for_select(OverviewFilter.options, @filter.status),
                       { include_blank: t(".filter_all_statuses") },
-                      class: "filter-status" %>
+                      class: "filter-status", data: { controller: "select" } %>
 
       <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
 

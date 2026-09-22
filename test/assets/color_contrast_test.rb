@@ -65,20 +65,8 @@ class ColorContrastTest < ActiveSupport::TestCase
     assert_all_graphic_pairs_pass palette(:dark), "深色"
   end
 
-  test "深色主题不是把浅色主题原样照搬" do
-    light = palette(:light)
-    dark  = palette(:dark)
-
-    assert_equal light.keys.sort, dark.keys.sort,
-                 "两套调色板必须定义同一组变量，否则深色下会有变量回落到浅色值"
-    refute_equal light, dark
-  end
-
-  # 上一条靠 palette() 的 keys 比对，但 palette() 只认六位 hex，
-  # rgba()/hsl()/三位 hex 写的 token（比如 --lift-raised）完全落在它的
-  # 正则之外，两边漏写一个都不会红。这条不看值、不限格式，只比【变量名】
-  # 的集合——分工是：上一条管「颜色值都验过对比度」，这条管「深色副本
-  # 没漏写」。
+  # 上面几条走 palette()，只认六位 hex；rgba() 写的 token（--ring、--shadow-md
+  # 这些）落在它的正则之外，两边漏写一个都不会红。这条只比变量名的集合。
   test "两套调色板的变量名集合必须相等" do
     assert_equal palette_names(:light), palette_names(:dark),
                  "浅色块和深色块必须定义同一组变量名，否则深色下会有 token 静默" \

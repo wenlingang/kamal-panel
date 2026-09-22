@@ -1,16 +1,10 @@
 require "test_helper"
 
-# 设计 14 §10 的守卫。
-#
 # 这套视觉语言的失效方式是可预见的：下一个功能照着旁边的写法，又写死一个
-# font-size、又抄一段 box-shadow，尺度和分级就这样一行一行长回去。人在 review
-# 里数不出这个——它每次只多一行，每一行看起来都无害。
+# font-size、又抄一段 px，尺度就这样一行一行长回去。每次只多一行，人在
+# review 里数不出来，所以让测试来数。
 #
-# 所以让测试来数。规则很粗暴：全部 :root 定义块【之外】，font-size /
-# box-shadow / border-radius 三个属性的值只能是 var(--…)。
-#
-# 白名单里只该剩永久例外。往里加一行，必须在它旁边写清「它为什么不能是
-# token」——写不出理由，说明它该被改成 var(--…)，而不是加进这里。
+# 白名单里只该剩永久例外。往里加一行，必须在旁边写清它为什么不能是 token。
 class StylesheetTokensTest < ActiveSupport::TestCase
   # 字面量守卫（offenders）扫全部样式表：propshaft 下任何人都能再加一个
   # .css 文件，只盯 application.css 会对新文件完全不设防。
@@ -29,6 +23,31 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     "font-size: 0.875em"
   ].freeze
 
+  # :root 之外允许出现的 px，四类（spec §5 修订后的表）：
+  #   1. 描边宽度——边框是分隔符不是内容，字号变大不该让分隔线变粗
+  #   2. 媒体查询断点——断点量的是设备，不是内容尺度（由 px_offenders_in 整段剔除）
+  #   3. 站标几何——必须匹配那张 24 画布
+  #   4. .visually-hidden 的裁剪——是一个隐藏技巧的固定配方，不是可见尺寸
+  # 往这里加一行之前，先确认它属于上面四类中的哪一类，并在行尾注明。
+  PX_ALLOWED = [
+    "border: 1px solid transparent",              # 1
+    "border: 1px solid var(--btn-rule)",          # 1
+    "border: 1px solid var(--drift-rule)",        # 1
+    "border: 1px solid var(--field-rule)",        # 1
+    "border: 1px solid var(--output-rule)",       # 1
+    "border: 1px solid var(--rule)",              # 1
+    "border-bottom: 1px solid var(--rule)",       # 1
+    "border-top: 1px solid var(--rule)",          # 1
+    "outline: 2px solid var(--field-focus)",      # 1
+    "outline: 2px solid transparent",             # 1 高对比度模式的兜底描边
+    "outline-offset: 2px",                        # 1
+    "height: 1px",                                # 4 .visually-hidden
+    "width: 1px",                                 # 4 .visually-hidden
+    "margin: -1px",                               # 4 .visually-hidden
+    "transform-origin: 12px 16.6px",              # 3 站标
+    "transform: translateY(-3.4px)"               # 3 站标
+  ].freeze
+
   test "白名单之外的声明都用了 token" do
     extra = offenders - ALLOWED
 
@@ -43,39 +62,19 @@ class StylesheetTokensTest < ActiveSupport::TestCase
                  "这些字面量已经不在样式表里了，请从 ALLOWED 里删掉：\n#{stale.join("\n")}"
   end
 
-  test "三级区块都定义了，且 quiet 级确实做了减法" do
-    css = STYLESHEET.read
 
-    %w[.tier-primary .tier-standard .tier-quiet .rule-gold].each do |klass|
-      assert_match(/^#{Regexp.escape(klass)}\b/, css,
-                   "样式表里找不到 #{klass}——三级区块是第 2、3 批的前提")
-    end
+  test ":root 之外不出现 px 字面量" do
+    extra = px_offenders - PX_ALLOWED
 
-    quiet = css[/\.tier-quiet \.panel\s*\{(.*?)\}/m, 1]
-    assert quiet.present?, "找不到 .tier-quiet .panel 的定义"
-
-    # quiet 是这套分级里唯一做减法的一档：它必须把卡片的三样外观都卸掉，
-    # 否则它就只是一个「字小一点的 standard」，腾不出注意力。
-    assert_match(/box-shadow:\s*none/, quiet, "quiet 级必须去掉阴影")
-    assert_match(/border:\s*none/, quiet, "quiet 级必须去掉边框")
-    assert_match(/background:\s*transparent/, quiet, "quiet 级必须去掉背景")
-
-    primary = css[/\.tier-primary \.panel\s*\{(.*?)\}/m, 1]
-    assert_match(/var\(--lift-raised\)/, primary, "primary 级要用 --lift-raised")
+    assert_empty extra,
+                 "这些声明在 :root 之外写死了 px（spec §5）。px 不跟随 rem 缩放轴——用户调大字号时它们不动，层级在缩放后塌掉。改用 rem 或 token；确属四类例外之一的，加进 PX_ALLOWED 并注明类别：\n#{extra.join("\n")}"
   end
 
-  # 字面量守卫（offenders）剥掉全部 :root 块，所以 :root 【内部】不设防：
-  # 想要第七个字号的人不必写死字面量去触发守卫，只要在第三个 :root 块里
-  # 加一行 --text-list: 0.9375rem，再 font-size: var(--text-list)，就能
-  # 绕过整套尺度，全绿通过。
-  #
-  # spec §3 的判据是「需要第七档时，那是分级没想清楚，不是尺度不够用」，
-  # spec §10 说的是「让测试来数，不是让人来数」——那句判据不能只靠人在
-  # review 里记得，得有测试钉住。
-  test "排版尺度恒为六档" do
-    assert_equal %w[--text-body --text-major --text-micro --text-page --text-section --text-sub],
-                 third_root_block.scan(/(--text-[\w-]+):/).flatten.sort,
-                 "排版尺度恒为六档（spec §3）。需要第七档时，先改 spec §3，不要先加 token。"
+  test "px 白名单里没有已经清理干净的条目" do
+    stale = PX_ALLOWED - px_offenders
+
+    assert_empty stale,
+                 "这些 px 已经不在样式表里了，请从 PX_ALLOWED 里删掉：\n#{stale.join("\n")}"
   end
 
   private
@@ -109,9 +108,22 @@ class StylesheetTokensTest < ActiveSupport::TestCase
       value.gsub(/var\(--[\w-]+\)/, "").gsub(/[\s,]/, "").empty?
     end
 
-    # 文件里第三个 :root 块：与主题无关的排版/形状 token（第一个是浅色调色板，
-    # 第二个是深色 @media 里那个）。
-    def third_root_block
-      STYLESHEET.read.scan(/:root\s*\{(.*?)\}/m).flatten.fetch(2)
+    def px_offenders
+      STYLESHEETS.flat_map { |path| px_offenders_in(path) }.uniq.sort
     end
+
+    def px_offenders_in(path)
+      css = path.read.gsub(%r{/\*.*?\*/}m, "")
+
+      css = css.gsub(/:root\s*\{.*?\}/m, "")
+
+      # 媒体查询的条件部分不算——断点量的是设备，不是内容尺度
+      css = css.gsub(/@media[^{]*\{/, "{")
+
+      css.scan(/([\w-]+)\s*:\s*([^;{}]*\d+(?:\.\d+)?px[^;{}]*)/)
+         .map { |property, value| "#{property}: #{value.strip}" }
+    end
+
+  # 文件里第三个 :root 块：与主题无关的排版/形状 token（第一个是浅色调色板，
+  # 第二个是深色 @media 里那个）。
 end

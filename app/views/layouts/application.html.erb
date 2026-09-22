@@ -36,18 +36,19 @@
           <%= link_to root_path, class: "chrome-brand" do %>
             <%= render "shared/mark", size: "20px" %>Kamal Panel
           <% end %>
-          <%= nav_link_to t(".overview"), root_path, controllers: "overviews" %>
+          <%= nav_link_to t(".overview"), root_path, controllers: "overviews", icon: "layout-grid" %>
           <%# 「应用」这一栏里还有 actions（某次动作的输出页），它们都是
               /apps/... 下的页面，高亮应该留在「应用」上。 %>
-          <%= nav_link_to t(".apps"), managed_apps_path, controllers: %w[managed_apps actions] %>
-          <%= nav_link_to t(".audit"), audit_logs_path, controllers: "audit_logs" %>
+          <%= nav_link_to t(".apps"), managed_apps_path, controllers: %w[managed_apps actions], icon: "box" %>
+          <%= nav_link_to t(".audit"), audit_logs_path, controllers: "audit_logs", icon: "scroll-text" %>
           <%# 只有 admin 看得到人员入口——判断用的是与控制器同一个 UserPolicy。 %>
           <%= allowed_to(:manage, User) do %>
-            <%= nav_link_to t(".people"), users_path, controllers: "users" %>
+            <%= nav_link_to t(".people"), users_path, controllers: "users", icon: "users" %>
           <% end %>
           <%= allowed_to(:manage, Credential) do %>
             <%= nav_link_to t(".credentials"), credentials_path,
-                            controllers: %w[credentials registry_credentials] %>
+                            controllers: %w[credentials registry_credentials],
+                            icon: "key-round" %>
           <% end %>
         </nav>
         <div class="chrome-user">
@@ -68,7 +69,7 @@
                                   User::SELECTABLE_LOCALES.map { |l| [ locale_label(l), l ] },
                                   I18n.locale.to_s
                                 ),
-                                {}, { name: "locale" } %>
+                                {}, { name: "locale", data: { controller: "select" } } %>
                 <%= form.submit t(".switch_language"),
                                 class: "btn-quiet",
                                 data: { auto_submit_target: "fallback" } %>
@@ -90,7 +91,9 @@
           失败时同一句话会出现两次。 %>
       <% if authenticated? %>
         <% flash.each do |type, message| %>
-          <p class="flash flash-<%= type %>"><%= message %></p>
+          <p class="flash flash-<%= type %>" role="<%= type.to_s == "notice" ? "status" : "alert" %>">
+            <%= icon_tag(flash_icon(type), size: :sm) %><%= message %>
+          </p>
         <% end %>
       <% end %>
 

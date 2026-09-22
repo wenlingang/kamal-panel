@@ -25,7 +25,6 @@ module Authentication
       Current.session ||= find_session_by_cookie
     end
 
-    # 停用的判断放在这里而不是只放登录：只挡登录的话，停用之前就已经拿到
     # cookie 的人会一直有效到 cookie 过期。每次请求都问一遍，停用才是即时的。
     def find_session_by_cookie
       return nil unless cookies.signed[:session_id]

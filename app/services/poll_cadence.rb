@@ -1,6 +1,4 @@
 # 自适应轮询节奏（spec 6.3）。
-#
-# 没人看的时候不该烧 SSH 连接；有人正在看、或刚有动静时才加密。
 class PollCadence
   IDLE     = 60.seconds
   VIEWING  = 10.seconds

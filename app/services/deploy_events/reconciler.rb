@@ -1,8 +1,5 @@
 module DeployEvents
   # 把"面板真的看见这一版在跑了"这件事回填到 DeployEvent 上（spec 03 第 5 节）。
-  #
-  # 填的是那条观测自己的 observed_at，不是 Time.current：延迟数字说的是
-  # "机器上多久之后才看到它"，不是"面板多久之后才想起来算这件事"。
   class Reconciler
     RUNNING_STATUSES = %w[running restarting].freeze
 
