@@ -162,7 +162,11 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       "builder" => { "arch" => "amd64" }
     )
 
-    parsed = Kamal::ConfigParser.call(yaml: large_yaml)
+    # 显式给一个宽裕的超时。这条断言的对象是"输出撑爆管道缓冲区时不会被误报成
+    # 超时"，跟 DEFAULT_TIMEOUT 那 5 秒的预算无关——5000 台主机在本机解析要
+    # 3.9 秒，只剩 1.1 秒余量，CI runner 一慢就真的超时，于是一个正确的行为
+    # 被渲染成红（两次 CI 都栽在这一条）。
+    parsed = Kamal::ConfigParser.call(yaml: large_yaml, timeout: 60.seconds)
 
     assert_equal many_hosts.sort, parsed.app_hosts.sort
   end
