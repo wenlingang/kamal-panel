@@ -69,7 +69,7 @@
                                   User::SELECTABLE_LOCALES.map { |l| [ locale_label(l), l ] },
                                   I18n.locale.to_s
                                 ),
-                                {}, { name: "locale", data: { controller: "select" } } %>
+                                {}, { name: "locale" } %>
                 <%= form.submit t(".switch_language"),
                                 class: "btn-quiet",
                                 data: { auto_submit_target: "fallback" } %>
@@ -89,8 +89,11 @@
           和卡片对不上。三个未登录页（登录、忘记密码、设置新密码）各自在卡片
           【里面】渲染 flash，所以这里不能再渲染一遍——此前两边都渲染，登录
           失败时同一句话会出现两次。 %>
+      <%# 只渲染【消息】键。flash 也被用来在一次重定向里传载荷（:hook_token
+          是明文上报 token，由 deploy_reporting 取值渲染成脚本），把它当消息
+          渲染就是让一个秘密裸着显示在页面顶部。 %>
       <% if authenticated? %>
-        <% flash.each do |type, message| %>
+        <% flash.to_h.slice("notice", "alert", "warning").each do |type, message| %>
           <p class="flash flash-<%= type %>" role="<%= type.to_s == "notice" ? "status" : "alert" %>">
             <%= icon_tag(flash_icon(type), size: :sm) %><%= message %>
           </p>

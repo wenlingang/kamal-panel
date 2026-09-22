@@ -72,6 +72,11 @@ export default class extends Controller {
       text.textContent = option.text
       item.append(text, this.checkMark())
 
+      // mousedown 上 preventDefault 是这里的关键：菜单项是个 div，按下它会让
+      // 触发器失焦，于是下面那个 blur 处理器在 rAF 里把菜单关掉——而 click
+      // 要等 mouseup 才到，目标此时已经 hidden，click 根本不会触发，选择丢失。
+      // 按下时间越长越必踩（自动化点击在同一帧内完成，测不出来）。
+      item.addEventListener("mousedown", (e) => e.preventDefault())
       item.addEventListener("click", () => this.choose(i))
       item.addEventListener("pointermove", () => this.highlight(i))
       this.list.append(item)

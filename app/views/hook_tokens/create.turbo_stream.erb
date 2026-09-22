@@ -1,0 +1,3 @@
+<%= turbo_stream.update "hook_token_dialog" do %>
+  <%= render "managed_apps/hook_token_dialog", managed_app: @managed_app, token: @token %>
+<% end %>

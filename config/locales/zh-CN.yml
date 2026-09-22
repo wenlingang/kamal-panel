@@ -121,6 +121,13 @@ zh-CN:
       apps_hint: 只对 developer 生效。admin 与 ops 的权限来自全站角色，勾选对他们没有任何作用。
 
   credentials:
+    # 私钥输入框的示意格式。首尾两行必须完整粘贴——只贴中间那段 base64
+    # 是最常见的粘贴错误。
+    value_placeholder: |-
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
+      c2gtZW…（这里是你私钥文件的完整内容，通常几十行）
+      -----END OPENSSH PRIVATE KEY-----
     index:
       title: 凭据
       subtitle: 面板持有的 SSH 私钥与 registry 密码。接入应用时从这里选，不在别处新建。
@@ -133,7 +140,7 @@ zh-CN:
       name: 名字
       fingerprint: 指纹
       registry: Registry
-      used_by: 正被哪些应用用着
+      used_by: 使用服务
       unused: （没有）
       delete: 删除
     new:
@@ -215,7 +222,13 @@ zh-CN:
       subtitle: 这个应用每台机器上现在跑的是什么，以及能对它做哪些操作。
       edit: 编辑
       reactivate: 启用
+      reactivate_confirm: |-
+        启用 %{name}？
+        面板会重新开始采集它，并重新接受对它的操作。启用后需要重新选一次凭据。
       deactivate: 停用
+      deactivate_confirm: |-
+        停用 %{name}？
+        面板会停止采集它，并拒绝对它的一切操作。它占着的 SSH 私钥与镜像库密码会被释放，启用后需要重新选一次。线上正在跑的容器不受影响。
       deactivated_html: 这个应用已停用：面板不再采集它，也不接受任何操作。停用时释放了它占着的凭据，启用之后需要%{link}。
       deactivated_link: 重新选一次凭据
       parse_error_title: 这个应用的 deploy.yml 现在无法解析，采集已停止。
@@ -247,6 +260,7 @@ zh-CN:
       host_status: 各机器状态
       refresh_now: 立即刷新
       view_logs: 查看日志
+      lock_reading: 正在读取部署锁……
       lock_unknown: 锁状态未知
       lock_unknown_detail: 无法连接 primary host，操作已禁用
       lock_held: 部署进行中
@@ -317,11 +331,20 @@ zh-CN:
       title: 部署上报
       intro_html: 可选增强：在你自己项目的 <code>.kamal/hooks/</code> 里放两段 curl，面板就能显示"谁在什么时候部署了哪一版"，并在上报与实际观测矛盾时告警。不配也不影响面板的其他功能。面板挂掉或变慢也不会拖累你的部署——脚本自带 5 秒超时和失败兜底。
       once_only_html: <strong>下面两段脚本只显示这一次。</strong>离开这个页面后就只能重新生成（旧 token 当场失效）。
+      reveal_title: 上报脚本已生成
+      reveal_close: 我已保存
+      reveal_download: 下载为 txt
       executable_bit_html: 两个文件都要有可执行位：<code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>
       rejected: 有上报被拒收
       rejected_ago: "%{time}前"
       regenerate: 重新生成 token（旧的立即失效）
+      regenerate_confirm: |-
+        重新生成 %{name} 的上报 token？
+        旧 token 当场失效。凡是还在用旧 token 的 hook 脚本，下一次部署的上报都会被拒收，直到你把新 token 换进去。新脚本只显示这一次。
       generate: 生成上报 token
+      generate_confirm: |-
+        为 %{name} 生成上报 token？
+        生成之后脚本只显示这一次，离开页面就只能重新生成。这是可选增强，不配也不影响面板的其他功能。
 
   actions:
     # 动作结束时由后台任务广播到 #action-result。文案和 actions.show 里那两句

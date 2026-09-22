@@ -38,7 +38,7 @@
       <%= form.select :status,
                       options_for_select(OverviewFilter.options, @filter.status),
                       { include_blank: t(".filter_all_statuses") },
-                      class: "filter-status", data: { controller: "select" } %>
+                      class: "filter-status" %>
 
       <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
 

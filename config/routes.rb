@@ -17,6 +17,9 @@ Rails.application.routes.draw do
   resources :managed_apps, path: "apps", only: [ :index, :new, :create, :show, :edit, :update ] do
     resources :actions, only: [ :create, :show ]
     resource :hook_token, only: [ :create ]
+    # 锁状态与挂在它上面的操作区。单独一条路由是因为读锁要真的 SSH 上去，
+    # 让它在详情页里同步跑会把整页拖到 3 秒以上（见 show 里那个 frame 的注释）。
+    resource :lock, only: [ :show ]
     # 手动触发一次采集。是【读】动作：不取部署锁、不写审计、三档角色都能用
     # ——它只是让一次本来就会自动发生的采集提前。
     resources :refreshes, only: [ :create ]

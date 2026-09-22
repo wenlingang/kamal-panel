@@ -532,7 +532,7 @@ h3 {
 
 .section-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 0.625rem;
@@ -701,7 +701,9 @@ a:hover {
 input[type="submit"],
 button,
 a.btn,
-a.btn-primary {
+a.btn-primary,
+a.btn-quiet,
+a.btn-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -726,7 +728,9 @@ a.btn-primary {
 input[type="submit"]:focus-visible,
 button:focus-visible,
 a.btn:focus-visible,
-a.btn-primary:focus-visible {
+a.btn-primary:focus-visible,
+a.btn-quiet:focus-visible,
+a.btn-danger:focus-visible {
   outline: 2px solid transparent;
   outline-offset: 2px;
   box-shadow: var(--ring);
@@ -735,7 +739,9 @@ a.btn-primary:focus-visible {
 input[type="submit"]:hover,
 button:hover,
 a.btn:hover,
-a.btn-primary:hover {
+a.btn-primary:hover,
+a.btn-quiet:hover,
+a.btn-danger:hover {
   text-decoration: none;
   background: var(--card-hover);
   border-color: var(--field-rule);
@@ -759,12 +765,14 @@ a.btn-primary:hover {
 
 .btn-danger input[type="submit"],
 input[type="submit"].btn-danger,
+a.btn-danger,
 button.btn-danger {
   color: var(--danger-ink);
   border-color: var(--danger-rule);
 }
 
 .btn-quiet,
+a.btn-quiet,
 input[type="submit"].btn-quiet {
   background: transparent;
   border-color: var(--rule);
@@ -1150,7 +1158,6 @@ pre code {
 .errors,
 .deploy-alerts,
 .config-parse-error-banner,
-.hook-token-reveal,
 .hook-rejection,
 .lock-held,
 .lock-unknown {
@@ -1211,12 +1218,6 @@ pre code {
 .callout-warn,
 .lock-held,
 .deploy-alerts,
-.hook-token-reveal {
-  color: var(--drift-ink);
-  background: var(--drift-bg);
-  border-color: var(--drift-rule);
-}
-
 .lock-unknown {
   color: var(--unreachable-ink);
   background: var(--unreachable-bg);
@@ -1469,10 +1470,12 @@ details.stop-app[open] summary {
 /* button_to 生成的是 <form>，块级元素：和 <a> 并排放在一个单元格里，它会
    自己掉到下一行。这里把这一格的操作排成一行。flex 放在内层 div 上而不是
    td 上——给 td 换掉 display: table-cell 会连带影响整张表的列对齐。 */
+/* 行内操作靠右，和页头/区块头的按钮组一致；gap 走 token。 */
 .row-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: var(--space-sm);
 }
 
 /* 站点级的 `form div { margin-bottom: 1rem }` 会把这里撑开半行。 */
@@ -1694,4 +1697,122 @@ details.stop-app[open] summary {
 
 .chrome-locale .sel-list {
   min-width: 4.5rem;
+}
+
+/* 页头与区块头里的操作按钮成一组靠右。不加这一层的话，space-between 会把
+   标题和每个按钮平摊到整行宽度上——两个按钮时中间那个就落在行中央。 */
+.head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.head-actions form {
+  margin: 0;
+}
+
+
+/* 二次确认对话框。Turbo 的 data-turbo-confirm 默认走原生 confirm()，
+   由 app/javascript/confirm_dialog.js 换成这个。 */
+.confirm-dialog {
+  max-width: 28rem;
+  padding: var(--space-xl);
+  color: var(--ink);
+  background: var(--popover-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  animation: sel-in 0.12s ease-out;
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-xl);
+}
+
+/* 上报脚本的模态框。比确认框宽，要装两段脚本。 */
+.token-dialog {
+  width: min(48rem, calc(100vw - var(--space-xxl) * 2));
+  max-height: calc(100vh - var(--space-xxl) * 2);
+  overflow-y: auto;
+  padding: var(--space-xl);
+  color: var(--ink);
+  background: var(--popover-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  animation: sel-in 0.12s ease-out;
+}
+
+.token-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.token-dialog h2 {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--text-xl);
+}
+
+.token-dialog h3 {
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+/* 这句是整个弹窗里最要紧的一句：脚本只出现这一次。用告警色 + 左侧粗边，
+   让它在两段等宽代码块之间仍然抢得过注意力。 */
+.token-warning {
+  margin: 0;
+  padding: var(--space-md) var(--space-lg);
+  color: var(--drift-ink);
+  background: var(--drift-bg);
+  border: 1px solid var(--drift-rule);
+  border-left: var(--line-status) solid var(--drift-edge);
+  border-radius: var(--radius-control);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.token-dialog .hint {
+  margin: var(--space-lg) 0 0;
+}
+
+/* 模态框打开时锁住底层滚动。scrollbar-gutter 让滚动条消失时页面不横跳。 */
+.scroll-locked {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* 弹窗里的脚本要看着就是代码块：深底 + 浅墨，和执行页的输出同一套。 */
+.token-scripts pre {
+  margin: 0;
+  padding: var(--space-md) var(--space-lg);
+  color: var(--output-ink);
+  background: var(--output-bg);
+  border: 1px solid var(--output-rule);
+  border-radius: var(--radius-control);
+}
+
+.token-scripts pre code {
+  color: inherit;
 }

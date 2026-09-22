@@ -127,6 +127,11 @@ en:
       apps_hint: Only applies to developer. admin and ops get their permissions from the site-wide role, so checking boxes does nothing for them.
 
   credentials:
+    value_placeholder: |-
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
+      c2gtZW… (the full contents of your key file, usually a few dozen lines)
+      -----END OPENSSH PRIVATE KEY-----
     index:
       title: Credentials
       subtitle: The SSH keys and registry passwords this panel holds. Pick from here when onboarding an app — do not create them anywhere else.
@@ -221,7 +226,13 @@ en:
       subtitle: What is running on each machine of this app, and what you can do to it.
       edit: Edit
       reactivate: Reactivate
+      reactivate_confirm: |-
+        Reactivate %{name}?
+        The panel will start collecting from it again and accept actions on it. You will need to pick its credentials again.
       deactivate: Deactivate
+      deactivate_confirm: |-
+        Deactivate %{name}?
+        The panel will stop collecting from it and refuse every action. The SSH key and registry password it holds are released, and you will need to pick them again to reactivate. Containers already running are not affected.
       deactivated_html: 'This app is deactivated: the panel no longer collects from it and accepts no operations. Deactivating released the credentials it held, so after reactivating you need to %{link}.'
       deactivated_link: pick credentials again
       parse_error_title: This app's deploy.yml cannot be parsed right now, and collection has stopped.
@@ -253,6 +264,7 @@ en:
       host_status: Host status
       refresh_now: Refresh now
       view_logs: View logs
+      lock_reading: Reading the deploy lock…
       lock_unknown: Lock state unknown
       lock_unknown_detail: cannot reach the primary host, operations are disabled
       lock_held: Deploy in progress
@@ -323,11 +335,20 @@ en:
       title: Deploy reporting
       intro_html: 'Optional: put two curl calls in your own project''s <code>.kamal/hooks/</code> and the panel can show who deployed which version and when, and warn you when the report and the actual observations disagree. Skipping it does not affect anything else. A panel that is down or slow will not hold up your deploys either — the scripts carry a 5-second timeout and fail open.'
       once_only_html: <strong>The two scripts below are shown this once.</strong> Once you leave this page they can only be regenerated, which invalidates the old token on the spot.
+      reveal_title: Reporting scripts generated
+      reveal_close: I have saved them
+      reveal_download: Download as txt
       executable_bit_html: 'Both files need the executable bit: <code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>'
       rejected: A report was rejected
       rejected_ago: '%{time} ago'
       regenerate: Regenerate token (the old one stops working immediately)
+      regenerate_confirm: |-
+        Regenerate the reporting token for %{name}?
+        The old token stops working immediately. Any hook script still using it will have its next report rejected until you swap the new one in. The new scripts are shown only once.
       generate: Generate reporting token
+      generate_confirm: |-
+        Generate a reporting token for %{name}?
+        The scripts are shown only once — leave the page and you can only regenerate. This is an optional enhancement; skipping it does not affect anything else.
 
   actions:
     result:
