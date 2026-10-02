@@ -65,7 +65,7 @@ module FakeHost
     return if ready?
 
     raise NotReady, <<~MSG
-      fake host 未就绪。请先启动：
+      Fake hosts are not ready. Start them first:
         docker compose -f docker-compose.test.yml up -d --build
     MSG
   end
@@ -84,7 +84,7 @@ module FakeHost
   def self.wait_until_node_ready!(node, timeout: 60)
     deadline = Time.now + timeout
     until node_ready?(node)
-      raise NotReady, "#{node} 在 #{timeout} 秒内未能恢复就绪" if Time.now > deadline
+      raise NotReady, "#{node} did not become ready again within #{timeout} seconds" if Time.now > deadline
       sleep 1
     end
   end
@@ -135,7 +135,7 @@ module FakeHost
       sleep 0.5
     end
 
-    raise NotReady, "kamal-proxy 在 #{node} 上未能就绪"
+    raise NotReady, "kamal-proxy did not become ready on #{node}"
   end
 
   def self.proxy_deploy(node:, service:, target:)
