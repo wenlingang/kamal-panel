@@ -18,7 +18,7 @@ class Api::DeploysControllerTest < ActionDispatch::IntegrationTest
          headers: { "Authorization" => "Bearer #{token}" }
   end
 
-  test "认得的 token 收下上报，且不回任何内容" do
+  test "accepts a report with a known token and returns no content" do
     post_report
 
     assert_response :no_content
@@ -26,14 +26,14 @@ class Api::DeploysControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, @managed_app.deploy_events.count
   end
 
-  test "不认的 token 是 401，不落任何行" do
+  test "rejects an unknown token with 401 and records nothing" do
     post_report(token: "nope")
 
     assert_response :unauthorized
     assert_equal 0, DeployEvent.count
   end
 
-  test "service 与 token 不匹配是 409，并记在应用上" do
+  test "rejects a service/token mismatch with 409 and records it on the app" do
     post_report(service: "other")
 
     assert_response :conflict
@@ -41,50 +41,50 @@ class Api::DeploysControllerTest < ActionDispatch::IntegrationTest
     assert_match "other", @managed_app.reload.last_hook_rejection
   end
 
-  test "destination 与 token 不匹配是 409" do
+  test "rejects a destination/token mismatch with 409" do
     post_report(destination: "staging")
 
     assert_response :conflict
     assert_match "staging", @managed_app.reload.last_hook_rejection
   end
 
-  test "非法 version 是 422" do
+  test "rejects an invalid version with 422" do
     post_report(version: "a; rm -rf /")
 
     assert_response :unprocessable_entity
     assert_equal 0, @managed_app.deploy_events.count
   end
 
-  test "未知 phase 是 422" do
+  test "rejects an unknown phase with 422" do
     post_report(phase: "whatever")
 
     assert_response :unprocessable_entity
   end
 
-  test "状态发生变化时触发 burst 轮询" do
+  test "triggers burst polling when the state changes" do
     post_report(phase: "started")
 
     assert_equal PollCadence::BURST, PollCadence.interval_for(@managed_app)
   end
 
-  test "重复上报不再撬动 burst" do
+  test "does not trigger burst again on a repeated report" do
     post_report(phase: "started")
     Rails.cache.clear
 
     post_report(phase: "started")
 
     refute_equal PollCadence::BURST, PollCadence.interval_for(@managed_app),
-                 "重复上报不该反复触发一次 SSH 扇出"
+                 "a repeated report must not trigger an SSH fan-out each time"
   end
 
-  test "超出限流后返回 429，且不回任何内容" do
+  test "returns 429 with no content once the rate limit is exceeded" do
     31.times { post_report }
 
     assert_response :too_many_requests
     assert_equal "", response.body
   end
 
-  test "config_yaml 解析不过时是 409，文案指向配置而不是 token" do
+  test "rejects with 409 when config_yaml cannot be parsed, and the message points at the config rather than the token" do
     @managed_app.update_column(:config_yaml, "not: [valid, yaml: broken")
     assert_not @managed_app.reload.valid?
 
@@ -97,7 +97,7 @@ class Api::DeploysControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "粘到了别的项目", rejection
   end
 
-  test "performer 与 command 过长时截断而不是报错" do
+  test "truncates an overlong performer and command instead of raising" do
     post_report(performer: "x" * 500, command: "y" * 500)
 
     assert_response :no_content

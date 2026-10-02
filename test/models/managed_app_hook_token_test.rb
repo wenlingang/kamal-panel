@@ -6,19 +6,19 @@ class ManagedAppHookTokenTest < ActiveSupport::TestCase
                               destination: "production")
   end
 
-  test "未生成时上报未启用" do
+  test "reports hook reporting as disabled when no token is generated" do
     refute_predicate @app, :hook_reporting_enabled?
     assert_nil ManagedApp.find_by_hook_token("anything")
   end
 
-  test "生成后能按明文找回应用" do
+  test "finds the app by plaintext after generation" do
     token = @app.regenerate_hook_token!
 
     assert_predicate @app.reload, :hook_reporting_enabled?
     assert_equal @app, ManagedApp.find_by_hook_token(token)
   end
 
-  test "明文不落库" do
+  test "does not persist the plaintext" do
     token = @app.regenerate_hook_token!
 
     row = ManagedApp.connection.select_one("SELECT * FROM managed_apps WHERE id = #{@app.id}")
@@ -26,7 +26,7 @@ class ManagedAppHookTokenTest < ActiveSupport::TestCase
     refute_includes row.values.map(&:to_s).join("\n"), token
   end
 
-  test "重置让旧 token 立即失效" do
+  test "reset invalidates the old token immediately" do
     old = @app.regenerate_hook_token!
     new = @app.regenerate_hook_token!
 
@@ -35,21 +35,21 @@ class ManagedAppHookTokenTest < ActiveSupport::TestCase
     assert_equal @app, ManagedApp.find_by_hook_token(new)
   end
 
-  test "空 token 不匹配任何应用" do
+  test "an empty token matches no app" do
     @app.regenerate_hook_token!
 
     assert_nil ManagedApp.find_by_hook_token("")
     assert_nil ManagedApp.find_by_hook_token(nil)
   end
 
-  test "被拒上报记在应用上" do
+  test "records a rejected report on the app" do
     @app.reject_hook!("收到 service=other 的上报，但这个 token 属于 blog")
 
     assert_match "service=other", @app.reload.last_hook_rejection
     assert_predicate @app.last_hook_rejection_at, :present?
   end
 
-  test "配置已损坏的应用仍能轮换 token" do
+  test "rotates the token even for an app with a broken config" do
     @app.update_column(:config_yaml, "这不是 yaml: [")
     refute_predicate @app.reload, :valid? # confirm it really is broken, not testing a premise that always passes
 

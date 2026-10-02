@@ -11,7 +11,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     File.read(Rails.root.join("test/fake_host/id_ed25519"))
   end
 
-  test "接入时从池里选凭据" do
+  test "picks a credential from the pool when onboarding" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     registry = RegistryCredential.create!(name: "Docker Hub", value: "s3cr3t")
     sign_in_as users(:two)
@@ -30,7 +30,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
 
   # Creating credentials now has only one path, the credentials page. Two creation paths mean two
   # sets of validation, two sets of tests, and that they will sooner or later disagree.
-  test "接入表单不再接受当场粘贴的私钥" do
+  test "onboarding form no longer accepts a pasted private key" do
     sign_in_as users(:two)
 
     assert_no_difference -> { Credential.count } do
@@ -42,7 +42,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "docker ps 输出解析不了时，逐主机文案是「输出无法解析」而不是「失联」" do
+  test "uses the per-host unparseable-output wording instead of unreachable when docker ps output cannot be parsed" do
     Rails.cache.clear # cached_app_hosts cache key contains the id, and SQLite may reuse ids after rollback
 
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -60,7 +60,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     refute_match "失联", @response.body
   end
 
-  test "一个应用的 deploy.yml 坏掉时，/apps 仍能列出其余应用" do
+  test "still lists the other apps on /apps when one app's deploy.yml is broken" do
     good = ManagedApp.create!(name: "good", config_yaml: file_fixture("simple_deploy.yml").read,
                               destination: "production")
     broken = ManagedApp.create!(name: "broken", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -75,7 +75,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_match "配置无法解析", @response.body
   end
 
-  test "ops 不能接入应用" do
+  test "does not let ops onboard apps" do
     sign_in_as(users(:one)) # ops
 
     assert_no_difference "ManagedApp.count" do
@@ -87,7 +87,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
-  test "ops 访问接入表单会被重定向" do
+  test "redirects ops who visit the onboarding form" do
     sign_in_as(users(:one)) # ops
 
     get new_managed_app_path
@@ -95,7 +95,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
-  test "表单填写的 kamal_secrets / kamal_hooks 确实落到 Invocation 的临时目录里" do
+  test "writes kamal_secrets / kamal_hooks from the form into the Invocation temp directory" do
     # Looking at the ManagedApp model or the Invocation unit tests alone can't prove users really
     # have a way to fill in these two fields -- if the form/controller isn't wired up, these two
     # columns are dead columns that "exist but are always nil", and any test proving Invocation uses
@@ -131,14 +131,14 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
       # temp dir has no git repo, so commands with hooks need an explicit --version.
       KamalCli::Invocation.new(managed_app).run(%w[app details --version v1]) { |_line| }
 
-      assert File.exist?(marker), "表单填写的 kamal_hooks 对应的 hook 应被 kamal 执行"
+      assert File.exist?(marker), "the hook from the form's kamal_hooks should have been run by kamal"
       dumped = File.read(marker)
       assert_match(/^KAMAL_REGISTRY_PASSWORD=s3cr3t-from-form$/, dumped,
-                   "表单填写的 kamal_secrets 应被 kamal 读到并注入 hook 环境")
+                   "the kamal_secrets from the form should be read by kamal and injected into the hook environment")
     end
   end
 
-  test "developer 不能接入新应用" do
+  test "does not let a developer onboard a new app" do
     sign_in_as users(:three)
 
     get new_managed_app_path
@@ -147,7 +147,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "没有权限执行该操作", flash[:alert]
   end
 
-  test "选中的 registry 凭据与配置里的 registry 对不上时，应用页给出提示" do
+  test "warns on the app page when the selected registry credential does not match the registry in the config" do
     registry = RegistryCredential.create!(name: "别家的", value: "s3cr3t", server: "other.example.com")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production", registry_credential: registry)
@@ -158,7 +158,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p.warning", text: /other\.example\.com/
   end
 
-  test "对得上时不提示" do
+  test "does not warn when they match" do
     registry = RegistryCredential.create!(name: "自家的", value: "s3cr3t", server: "registry.example.com")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production", registry_credential: registry)
@@ -171,7 +171,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
 
   # Leaving server blank is allowed (it's already in deploy.yml), so there's nothing to compare
   # against, and no hint.
-  test "凭据没填 registry 地址时不提示" do
+  test "does not warn when the credential has no registry server" do
     registry = RegistryCredential.create!(name: "没填地址的", value: "s3cr3t")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production", registry_credential: registry)
@@ -192,7 +192,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     ManagedApp.create!({ name: "blog", config_yaml: valid_yaml, destination: "production" }.merge(attrs))
   end
 
-  test "admin 能改配置" do
+  test "lets admin edit the config" do
     app = editable_app
 
     patch managed_app_path(app), params: { managed_app: { config_yaml: valid_yaml.sub("blog", "blog2") } }
@@ -200,7 +200,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_includes app.reload.config_yaml, "blog2"
   end
 
-  test "名下 developer 能改自己应用的配置" do
+  test "lets the owning developer edit their own app's config" do
     app = editable_app
     AppMembership.create!(user: users(:three), managed_app: app)
     sign_in_as users(:three)
@@ -210,7 +210,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog-renamed", app.reload.name
   end
 
-  test "非名下 developer 改不了别人的应用" do
+  test "does not let a non-owning developer edit another app" do
     app = editable_app
     sign_in_as users(:three)
 
@@ -219,7 +219,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog", app.reload.name
   end
 
-  test "ops 改不了任何应用" do
+  test "does not let ops edit any app" do
     app = editable_app
     sign_in_as users(:one)
 
@@ -232,7 +232,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   # managed by admin alone. Hiding the dropdown in the view only saves one doomed click; the real
   # defense must be at the params layer, otherwise a hand-crafted PATCH would let a developer swap
   # their app onto any key in the pool.
-  test "developer 伪造带凭据 id 的请求会被参数层丢弃" do
+  test "drops a developer's forged credential id params at the parameter layer" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "别人的钥匙")
     app = editable_app
     AppMembership.create!(user: users(:three), managed_app: app)
@@ -242,11 +242,11 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
       managed_app: { name: "blog-renamed", ssh_credential_id: credential.id }
     }
 
-    assert_equal "blog-renamed", app.reload.name, "它自己有权改的字段应该照常生效"
-    assert_nil app.ssh_credential, "凭据绑定不该被非 admin 改动"
+    assert_equal "blog-renamed", app.reload.name, "the fields it may edit itself should still take effect"
+    assert_nil app.ssh_credential, "the credential binding must not be changed by a non-admin"
   end
 
-  test "admin 能改绑凭据" do
+  test "lets admin rebind the credential" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群")
     registry = RegistryCredential.create!(name: "Docker Hub", value: "s3cr3t")
     app = editable_app
@@ -262,7 +262,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
 
   # destination determines the container name, and existing observations and deploy events were all
   # recorded under the old destination. Changing it would make the history misleading.
-  test "destination 改不动，哪怕被 POST 上来" do
+  test "keeps destination immutable even when it is POSTed" do
     app = editable_app
 
     patch managed_app_path(app), params: { managed_app: { destination: "staging" } }
@@ -273,7 +273,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   # The cache key of cached_app_hosts is a hash of three pieces of config content. This test guards
   # that invalidation mechanism: changing the config yet still connecting to machines with the old
   # parse is exactly what this cache scheme exists to prevent.
-  test "改了配置之后采集的目标机器跟着变" do
+  test "changes the collection target hosts after the config changes" do
     app = editable_app(config_yaml: file_fixture("two_host_deploy.yml").read)
     assert_equal 2, app.cached_app_hosts.size
 
@@ -285,7 +285,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   # last_poll_error records the sins of the [old content]. If it isn't cleared, after the config is
   # changed the detail page keeps accusing the new config until the next collection round (at most
   # one IDLE period). If the new config is also broken, the next round records it again.
-  test "改了配置就清掉旧的轮询错误" do
+  test "clears the old poll error when the config changes" do
     app = editable_app
     app.update_columns(last_poll_error: "旧配置解析失败", last_poll_error_at: 1.hour.ago,
                        first_poll_error_at: 1.hour.ago)
@@ -298,7 +298,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_nil app.first_poll_error_at
   end
 
-  test "只改了别的字段时不动轮询错误" do
+  test "leaves the poll error alone when only other fields change" do
     app = editable_app
     app.update_columns(last_poll_error: "配置确实还坏着", last_poll_error_at: 1.hour.ago)
 
@@ -310,7 +310,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   # Rebinding a credential decides which key this app can use, which is a permission change; the
   # rule in this repo is that permission changes must leave a trace. detail records only field names
   # -- recording values would write secrets into the audit table.
-  test "编辑写一条审计，只记改了哪些字段而不记值" do
+  test "writes one audit log on edit that records changed field names but not values" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群")
     app = editable_app
 
@@ -325,10 +325,10 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     # for translation.
     assert_includes log.detail_args["fields"], "name"
     assert_includes log.detail_args["fields"], "ssh_credential_id"
-    refute_includes log.detail_args.to_s, "blog-renamed", "审计只记字段名，不记值"
+    refute_includes log.detail_args.to_s, "blog-renamed", "the audit log records field names only, not values"
   end
 
-  test "保存失败时不写审计" do
+  test "writes no audit log when saving fails" do
     app = editable_app
 
     assert_no_difference -> { AuditLog.count } do
@@ -340,7 +340,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
 
   # ---- Deactivating and activating (branch app-deactivate) ------------------------------------
 
-  test "admin 停用应用：释放凭据、写审计" do
+  test "admin deactivates an app: releases the credential and writes an audit log" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群")
     app = editable_app(ssh_credential: credential)
 
@@ -352,7 +352,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog", AuditLog.where(action_name: "app.deactivate").sole.detail
   end
 
-  test "启用写审计，并且不把凭据找回来" do
+  test "writes an audit log on enable and does not restore the credential" do
     app = editable_app(ssh_credential: Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群"))
     app.deactivate!
 
@@ -364,7 +364,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog", AuditLog.where(action_name: "app.reactivate").sole.detail
   end
 
-  test "非 admin 停用不了——名下 developer 也不行" do
+  test "does not let non-admins deactivate, including the owning developer" do
     app = editable_app
     AppMembership.create!(user: users(:three), managed_app: app)
     sign_in_as users(:three)
@@ -374,7 +374,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     refute_predicate app.reload, :deactivated?
   end
 
-  test "停用的应用编辑不了" do
+  test "does not allow editing a deactivated app" do
     app = editable_app
     app.deactivate!
 
@@ -383,7 +383,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog", app.reload.name
   end
 
-  test "停用的应用仍然打得开详情页" do
+  test "still opens the detail page of a deactivated app" do
     app = editable_app
     app.deactivate!
 

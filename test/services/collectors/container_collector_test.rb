@@ -29,7 +29,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     )
   end
 
-  test "采集到运行中的容器，并解析出版本与角色" do
+  test "collects running containers and parses their version and role" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
 
@@ -45,7 +45,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert observation.reachable
   end
 
-  test "已停止的旧版本容器也被采集到——这就是回滚候选" do
+  test "also collects stopped old-version containers, which are the rollback candidates" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
@@ -61,7 +61,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_equal "exited",  by_version["0000000"].docker_status
   end
 
-  test "只采集本应用的容器，不串到别的 service" do
+  test "collects only this app's containers without leaking in other services" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     FakeHost.seed_container(node: "node-1", service: "shop", role: "web",
@@ -75,7 +75,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_equal [ "aaaaaaa" ], versions
   end
 
-  test "主机连不上时写一条 unreachable 记录，而不是什么都不写" do
+  test "writes an unreachable record when the host cannot be reached instead of writing nothing" do
     app = build_app(hosts: [ "192.0.2.1" ])
     Collectors::ContainerCollector.call(app)
 
@@ -85,7 +85,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_predicate observation.error, :present?
   end
 
-  test "主机可达但一个容器都没有时，也留一条痕迹" do
+  test "still leaves a trace when the host is reachable but has no containers" do
     app = build_app(hosts: [ "127.0.0.1" ])
     Collectors::ContainerCollector.call(app)
 
@@ -109,7 +109,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
   # new implementation uses docker's own `.Label` function to JSON-encode each field's value
   # separately, no longer relying on splitting this flattened string, so it is naturally immune to
   # "some unrelated label contains a comma".
-  test "容器身上其它 label 的值里带逗号，也不会污染 role/version 的解析" do
+  test "commas in other label values do not corrupt role/version parsing" do
     name = "blog-web-production-aaaaaaa"
 
     FakeHost.ssh("node-1", <<~SH)
@@ -131,7 +131,7 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_equal "running", observation.docker_status
   end
 
-  test "docker ps 输出里有一行解析不了时，跳过它并记录日志，而不是悄悄丢掉" do
+  test "skips an unparseable docker ps line and logs it instead of silently dropping it" do
     app = build_app(hosts: [ "127.0.0.1" ])
 
     fake_session = Object.new
@@ -154,16 +154,16 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_equal 1, count
 
     observation = Observation.latest_for(app).first
-    refute observation.reachable, "解析不了不能悄悄算作\"可达且一切正常\""
+    refute observation.reachable, "an unparseable line must not be silently counted as \"reachable and healthy\""
     assert_match(/无法解析/, observation.error)
     refute_match(/not-json/, observation.error.to_s,
-      "落库的 error 摘要不应包含原始行内容")
+      "the persisted error summary must not contain the raw line content")
 
     logged = log_output.string
     assert_match(/无法解析 docker ps 输出/, logged)
     assert_match(/JSON::ParserError/, logged)
     assert_match(/127\.0\.0\.1/, logged)
-    refute_match(/not-json/, logged, "不应该把原始行内容（或衍生出的错误摘录）记进日志")
+    refute_match(/not-json/, logged, "the raw line content (or any error excerpt derived from it) must not be logged")
   ensure
     Collectors::SshSession.define_singleton_method(:new, original_new)
     Rails.logger = original_logger

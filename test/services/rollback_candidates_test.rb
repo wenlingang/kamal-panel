@@ -15,7 +15,7 @@ class RollbackCandidatesTest < ActiveSupport::TestCase
                         reachable: true, observed_at: @now)
   end
 
-  test "所有主机都有该版本容器时可回滚" do
+  test "is rollbackable when every host has a container of that version" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "aaaaaaa")
 
@@ -25,7 +25,7 @@ class RollbackCandidatesTest < ActiveSupport::TestCase
     assert_nil entry[:reason]
   end
 
-  test "某台主机上已被清理时不可回滚，并注明是哪一台" do
+  test "is not rollbackable when one host has pruned it, and names which host" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
 
     entry = RollbackCandidates.new(@app).list.detect { |c| c[:version] == "aaaaaaa" }
@@ -34,7 +34,7 @@ class RollbackCandidatesTest < ActiveSupport::TestCase
     assert_match "10.0.0.2", entry[:reason]
   end
 
-  test "当前正在运行的版本不出现在回滚候选中" do
+  test "excludes the currently running version from the rollback candidates" do
     observe(host: "10.0.0.1", version: "current", status: "running")
     observe(host: "10.0.0.2", version: "current", status: "running")
 

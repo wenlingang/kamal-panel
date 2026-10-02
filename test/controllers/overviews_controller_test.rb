@@ -36,7 +36,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     app
   end
 
-  test "没有筛选参数时列出全部应用" do
+  test "lists all apps when there are no filter params" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "shop", versions: %w[bbbbbbb ccccccc])
 
@@ -47,7 +47,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "shop"
   end
 
-  test "按名称模糊匹配" do
+  test "fuzzy-matches by name" do
     app_with(name: "demo-blog", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "demo-shop", versions: %w[aaaaaaa aaaaaaa])
 
@@ -57,7 +57,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "demo-shop", count: 0
   end
 
-  test "名称匹配不分大小写" do
+  test "name matching is case-insensitive" do
     app_with(name: "Blog", versions: %w[aaaaaaa aaaaaaa])
 
     get overview_path(q: "blog")
@@ -65,7 +65,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "Blog"
   end
 
-  test "按状态筛选——只留正常的" do
+  test "filters by status, keeping only healthy apps" do
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "drifted", versions: %w[aaaaaaa bbbbbbb])
 
@@ -75,7 +75,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "drifted", count: 0
   end
 
-  test "按状态筛选——只留版本不一致的" do
+  test "filters by status, keeping only apps with version drift" do
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "drifted", versions: %w[aaaaaaa bbbbbbb])
 
@@ -87,7 +87,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
 
   # "Config can't be parsed" is not a level of ManagedAppStatus, but a separate row branch in the
   # grid. It is exactly the kind that most needs to be filtered out, so the dropdown must have it.
-  test "按状态筛选——配置无法解析的应用能被单独筛出来" do
+  test "filters by status, isolating apps whose config cannot be parsed" do
     broken_app(name: "unparseable")
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
 
@@ -100,7 +100,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
   # An app whose config can't be parsed can't even have ManagedAppStatus computed (computing it
   # would blow up with ParseError again). When filtering by other statuses, it must neither leak
   # into the results nor crash the whole page.
-  test "按别的状态筛选时，配置无法解析的应用不出现也不报错" do
+  test "hides apps with unparseable config without error when filtering by another status" do
     broken_app(name: "unparseable")
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
 
@@ -111,7 +111,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "unparseable", count: 0
   end
 
-  test "名称与状态叠加" do
+  test "combines name and status filters" do
     app_with(name: "demo-blog", versions: %w[aaaaaaa bbbbbbb])
     app_with(name: "demo-shop", versions: %w[aaaaaaa bbbbbbb])
     app_with(name: "demo-api",  versions: %w[aaaaaaa aaaaaaa])
@@ -123,7 +123,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "demo-api", count: 0
   end
 
-  test "筛空了给的是「没有符合条件」，不是「一个应用都还没接入」" do
+  test "shows 'no matches' for an empty filter result, not 'no apps onboarded yet'" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
 
     get overview_path(q: "不存在的应用")
@@ -134,7 +134,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", overview_path, text: /清除筛选/
   end
 
-  test "一个应用都没接入时，给的仍是接入引导而不是筛选空状态" do
+  test "shows the onboarding guide, not the filtered-empty state, when no apps are onboarded" do
     get overview_path
 
     assert_response :success
@@ -143,7 +143,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
 
   # Params come from the URL, and anyone can edit them by hand. An unknown status value is treated
   # as no filter -- no 500, no empty page.
-  test "未知的状态值当作没有筛选" do
+  test "treats an unknown status value as no filter" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
 
     get overview_path(status: "不是一个状态")
@@ -155,7 +155,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
   # Filtering means "I only want to see these rows right now", not "the rest needn't be collected".
   # Following the filter would let people silently slow down collection for other apps just by
   # filtering, and that is the last thing that should happen during an incident.
-  test "筛选不影响采集节奏——被筛掉的应用一样标记为正在被查看" do
+  test "filtering does not affect polling cadence; filtered-out apps are still marked as being viewed" do
     visible = app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     hidden  = app_with(name: "shop", versions: %w[aaaaaaa aaaaaaa])
 
@@ -165,7 +165,7 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_equal PollCadence::VIEWING, PollCadence.interval_for(hidden)
   end
 
-  test "筛选条件回填到表单里" do
+  test "refills the filter form with the current criteria" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
 
     get overview_path(q: "blo", status: "ok")

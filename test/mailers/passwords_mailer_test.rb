@@ -9,7 +9,7 @@ require "test_helper"
 # account for an English-speaking colleague would have the colleague receive a Chinese email, and no
 # test would go red because of it.
 class PasswordsMailerTest < ActionMailer::TestCase
-  test "按收件人的偏好渲染" do
+  test "renders according to the recipient's preference" do
     user = User.create!(email_address: "en@example.com", password: "secret123456", locale: "en")
 
     mail = PasswordsMailer.reset(user)
@@ -18,7 +18,7 @@ class PasswordsMailerTest < ActionMailer::TestCase
     assert_match "Open the reset page", mail.body.encoded
   end
 
-  test "收件人没设偏好时用默认语言" do
+  test "uses the default locale when the recipient has no preference" do
     user = User.create!(email_address: "zh@example.com", password: "secret123456")
 
     mail = PasswordsMailer.reset(user)
@@ -27,7 +27,7 @@ class PasswordsMailerTest < ActionMailer::TestCase
   end
 
   # What language the UI is in at the moment of sending doesn't affect what the recipient receives.
-  test "不受发信时当前 locale 的影响" do
+  test "is unaffected by the current locale at send time" do
     user = User.create!(email_address: "en2@example.com", password: "secret123456", locale: "en")
 
     mail = I18n.with_locale(:"zh-CN") { PasswordsMailer.reset(user) }
@@ -35,7 +35,7 @@ class PasswordsMailerTest < ActionMailer::TestCase
     assert_equal "Reset your Kamal Panel password", mail.subject
   end
 
-  test "渲染完不改动全局 locale" do
+  test "does not change the global locale after rendering" do
     user = User.create!(email_address: "en3@example.com", password: "secret123456", locale: "en")
 
     PasswordsMailer.reset(user).subject

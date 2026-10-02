@@ -39,25 +39,25 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     ]
   }.freeze
 
-  test "声明式授权的控制器动作一个都不能漏" do
+  test "no declaratively authorized controller action is missing a rule" do
     DECLARATIVE.each do |controller_name, actions|
       controller = controller_name.constantize
       covered = controller.authorization_rules.flat_map { |rule| rule[:only] }.map(&:to_s)
 
       actions.each do |action|
         assert_includes covered, action,
-          "#{controller_name}##{action} 没有声明授权规则——它现在对任何登录用户都开放"
+          "#{controller_name}##{action} declares no authorization rule -- it is currently open to any signed-in user"
       end
     end
   end
 
-  test "行内授权的控制器里那句判断还在" do
+  test "the inline authorization check is still present in inline-authorized controllers" do
     INLINE.each do |path, needles|
       source = Rails.root.join(path).read
 
       needles.each do |needle|
         assert_includes source, needle,
-          "#{path} 里的授权判断不见了——这个动作现在对任何登录用户都开放"
+          "the authorization check in #{path} is gone -- this action is currently open to any signed-in user"
       end
     end
   end

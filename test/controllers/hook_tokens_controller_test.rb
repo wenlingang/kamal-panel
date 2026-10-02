@@ -12,18 +12,18 @@ class HookTokensControllerTest < ActionDispatch::IntegrationTest
   # (require_permission! + return if performed?). If someone ever deletes `return if performed?`,
   # the redirect is still issued but the token has already been reset -- so the rejection cases
   # below assert that the digest is unchanged, not just where the redirect went.
-  test "名下 developer 能重新生成上报 token" do
+  test "developer can regenerate the report token for an app they own" do
     AppMembership.create!(user: users(:three), managed_app: @managed_app)
     sign_in_as users(:three)
 
     post managed_app_hook_token_path(@managed_app)
 
     assert_redirected_to managed_app_path(@managed_app)
-    assert flash[:hook_token].present?, "明文 token 只在这一次的 flash 里出现"
+    assert flash[:hook_token].present?, "The plaintext token appears only in this one flash"
     assert @managed_app.reload.hook_reporting_enabled?
   end
 
-  test "非名下的 developer 被拒，且该应用的 token 原封不动" do
+  test "rejects a developer who does not own the app and leaves its token untouched" do
     @managed_app.regenerate_hook_token!
     digest_before = @managed_app.reload.hook_token_digest
 
@@ -35,10 +35,10 @@ class HookTokensControllerTest < ActionDispatch::IntegrationTest
     assert_equal "没有权限执行该操作", flash[:alert]
     assert_nil flash[:hook_token]
     assert_equal digest_before, @managed_app.reload.hook_token_digest,
-      "被拒的请求绝不能顺手把线上正在用的 token 作废掉"
+      "A rejected request must never invalidate the token currently in use in production"
   end
 
-  test "ops 被拒，且该应用的 token 原封不动" do
+  test "rejects ops and leaves the app's token untouched" do
     @managed_app.regenerate_hook_token!
     digest_before = @managed_app.reload.hook_token_digest
 
@@ -50,7 +50,7 @@ class HookTokensControllerTest < ActionDispatch::IntegrationTest
     assert_equal digest_before, @managed_app.reload.hook_token_digest
   end
 
-  test "admin 能重新生成上报 token，旧的当场失效" do
+  test "admin can regenerate the report token and the old one is invalidated immediately" do
     @managed_app.regenerate_hook_token!
     digest_before = @managed_app.reload.hook_token_digest
 

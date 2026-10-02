@@ -19,7 +19,7 @@ class DeployEvents::ReconcilerTest < ActiveSupport::TestCase
                         succeeded_at: succeeded_at)
   end
 
-  test "填的是观测时间，而不是当下" do
+  test "fills in the observation time, not the current time" do
     e = event
     observe(version: "aaaaaaa")
 
@@ -28,7 +28,7 @@ class DeployEvents::ReconcilerTest < ActiveSupport::TestCase
     assert_in_delta @observed_at, e.reload.observed_at, 1.second
   end
 
-  test "只认 running，exited 不算被观测到" do
+  test "only running counts; exited is not observed" do
     e = event
     observe(version: "aaaaaaa", status: "exited")
 
@@ -37,7 +37,7 @@ class DeployEvents::ReconcilerTest < ActiveSupport::TestCase
     assert_nil e.reload.observed_at
   end
 
-  test "已经填过的不被后来的观测覆写" do
+  test "an already filled value is not overwritten by a later observation" do
     first = 10.minutes.ago
     e = event
     e.update!(observed_at: first)
@@ -48,7 +48,7 @@ class DeployEvents::ReconcilerTest < ActiveSupport::TestCase
     assert_in_delta first, e.reload.observed_at, 1.second
   end
 
-  test "不越过应用边界" do
+  test "does not cross app boundaries" do
     other = ManagedApp.create!(name: "other", config_yaml: file_fixture("simple_deploy.yml").read,
                                destination: "production")
     theirs = DeployEvent.create!(managed_app: other, version: "aaaaaaa", source: "hook",
@@ -60,7 +60,7 @@ class DeployEvents::ReconcilerTest < ActiveSupport::TestCase
     assert_nil theirs.reload.observed_at
   end
 
-  test "没有观测时什么都不做" do
+  test "does nothing when there are no observations" do
     e = event
 
     DeployEvents::Reconciler.call(@app)

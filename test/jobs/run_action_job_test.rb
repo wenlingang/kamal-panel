@@ -39,7 +39,7 @@ class RunActionJobTest < ExecutionLayerTest
                     target_version: target_version, hosts: [ "127.0.0.1" ])
   end
 
-  test "锁状态未知时阻塞动作——不当成「未锁定」处理（task-5 教训）" do
+  test "blocks the action when the lock state is unknown instead of treating it as unlocked (task-5 lesson)" do
     app = build_app
     app.update_column(:config_yaml, app.config_yaml.sub("127.0.0.1", "192.0.2.1"))
     app.reload
@@ -55,7 +55,7 @@ class RunActionJobTest < ExecutionLayerTest
     assert_match "锁状态未知", log.output_digest
   end
 
-  test "已加锁时阻塞动作，不执行命令" do
+  test "blocks the action without running the command when locked" do
     app = build_app
     lock_dir = ".kamal/lock-blog-production"
     FakeHost.ssh("node-1", "mkdir -p #{lock_dir} && printf 'Locked by: ci@example.com' | base64 > #{lock_dir}/details")
@@ -76,7 +76,7 @@ class RunActionJobTest < ExecutionLayerTest
     end
   end
 
-  test "无锁时真正执行动作，成功后触发 burst 轮询并让新的 Observation 确认" do
+  test "runs the action when unlocked, then triggers burst polling and lets a new Observation confirm on success" do
     container = FakeHost.seed_container(
       node: "node-1", service: "blog", role: "web", destination: "production", version: "v1"
     )
@@ -96,7 +96,7 @@ class RunActionJobTest < ExecutionLayerTest
     assert_equal "exited", FakeHost.ssh("node-1", "docker inspect -f '{{.State.Status}}' #{container}").strip
   end
 
-  test "未知动作名不会走到这里（注册表在 Actions::Base 层已经拒绝）——job 假设 action_name 已合法" do
+  test "assumes action_name is valid since Actions::Base already rejects unknown action names" do
     app = build_app
     log = AuditLog.create!(user: build_user, managed_app: app, action_name: "exec",
                            target_version: nil, hosts: [], result: "pending")
@@ -109,15 +109,15 @@ class RunActionJobTest < ExecutionLayerTest
   # swallows [errors in the copy itself] -- e.g. a missing translation. The symptom of
   # that bug is the page stuck on "Running…" forever, very far from the cause, and only
   # visible when running system tests. This blocks that class of bug up front the cheapest way.
-  test "终态广播用到的译文中英文都存在" do
+  test "has both Chinese and English translations for the terminal broadcast" do
     %w[actions.result.succeeded actions.result.failed].each do |key|
       %i[zh-CN en].each do |locale|
-        assert I18n.exists?(key, locale), "#{key} 缺 #{locale} 译文"
+        assert I18n.exists?(key, locale), "#{key} missing #{locale} translation"
       end
     end
   end
 
-  test "终态广播按发起人的语言渲染" do
+  test "renders the terminal broadcast in the initiator's locale" do
     app = ManagedApp.create!(name: "broadcast-locale", config_yaml: BASE_YAML,
                              destination: "production")
     log = AuditLog.start!(user: users(:two), managed_app: app, action_name: "restart",
@@ -129,7 +129,7 @@ class RunActionJobTest < ExecutionLayerTest
                  RunActionJob.new.send(:result_text, log.reload)
   end
 
-  test "发起人没设语言时终态广播用默认语言" do
+  test "uses the default locale for the terminal broadcast when the initiator has no locale" do
     app = ManagedApp.create!(name: "broadcast-default", config_yaml: BASE_YAML,
                              destination: "production")
     log = AuditLog.start!(user: users(:two), managed_app: app, action_name: "restart",

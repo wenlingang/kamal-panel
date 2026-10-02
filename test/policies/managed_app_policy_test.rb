@@ -18,43 +18,43 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
 
   def policy(user, app) = ManagedAppPolicy.new(user, app)
 
-  test "看：三档角色都能看任何应用" do
+  test "view: all three roles can view any app" do
     [ @admin, @developer, @ops ].each do |user|
       assert_predicate policy(user, @theirs), :show?
     end
   end
 
-  test "动：admin 对任何应用都能动" do
+  test "act: admin can act on any app" do
     assert_predicate policy(@admin, @mine), :act?
     assert_predicate policy(@admin, @theirs), :act?
   end
 
-  test "动：developer 只能动名下的应用" do
+  test "act: developer can only act on owned apps" do
     assert_predicate policy(@developer, @mine), :act?
     refute_predicate policy(@developer, @theirs), :act?
   end
 
-  test "动：ops 一个都不能动，哪怕被错误地加成了成员" do
+  test "act: ops cannot act on any app, even if wrongly added as a member" do
     AppMembership.create!(user: @ops, managed_app: @mine)
 
     refute_predicate policy(@ops, @mine), :act?,
-      "ops 的权限来自全站角色，成员行不该给它额外的动作权限"
+      "ops permissions come from the site-wide role; a membership row must not grant extra action permission"
   end
 
-  test "日志：ops 全站可看，developer 只看名下，admin 全站" do
+  test "logs: ops can view all, developer only owned apps, admin all" do
     assert_predicate policy(@ops, @theirs), :view_logs?
     assert_predicate policy(@admin, @theirs), :view_logs?
     assert_predicate policy(@developer, @mine), :view_logs?
     refute_predicate policy(@developer, @theirs), :view_logs?
   end
 
-  test "重生成上报 token 与动作同权" do
+  test "regenerating the hook token requires the same permission as acting" do
     assert_predicate policy(@developer, @mine), :regenerate_hook_token?
     refute_predicate policy(@developer, @theirs), :regenerate_hook_token?
     refute_predicate policy(@ops, @mine), :regenerate_hook_token?
   end
 
-  test "接入应用与管理成员是 admin 独占" do
+  test "onboarding apps and managing members are admin-only" do
     assert_predicate policy(@admin, nil), :create_app?
     refute_predicate policy(@developer, nil), :create_app?
     refute_predicate policy(@ops, nil), :create_app?
@@ -79,9 +79,9 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
   # actions have mutating? true); Task 6's Actions::Logs will be the first to use it -- which is
   # exactly why it needs a test now, otherwise it is dead code nobody has verified, and a bug would
   # only surface once someone depends on it.
-  test "run?：只读动作跟着 view_logs? 走，而不是跟着可见性走" do
+  test "run?: read-only actions follow view_logs?, not visibility" do
     assert policy(@ops, @theirs).run?(ReadOnlyAction),
-      "ops 的价值就是查问题，只读动作必须对它全站开放"
+      "the point of ops is investigating problems, so read-only actions must be open to it site-wide"
     assert policy(@admin, @theirs).run?(ReadOnlyAction)
     assert policy(@developer, @mine).run?(ReadOnlyAction)
 
@@ -89,14 +89,14 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     # overview must be viewable at a glance), but logs contain things the app itself printed,
     # so access is narrowed by ownership -- see the view_logs? case above.
     refute policy(@developer, @theirs).run?(ReadOnlyAction),
-      "developer 对名下之外的应用能看见状态，但不能读它的日志"
+      "developer can see the status of apps outside their own but cannot read their logs"
   end
 
-  test "run?：会改变线上状态的动作按动作权限收窄" do
+  test "run?: actions that change production state are narrowed by action permission" do
     refute policy(@ops, @mine).run?(MutatingAction),
-      "ops 无论如何都不该执行会改变线上状态的动作"
+      "ops must never run actions that change production state"
     refute policy(@developer, @theirs).run?(MutatingAction),
-      "developer 对名下之外的应用不该能动"
+      "developer must not be able to act on apps outside their own"
     assert policy(@developer, @mine).run?(MutatingAction)
     assert policy(@admin, @theirs).run?(MutatingAction)
   end
@@ -104,7 +104,7 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
   # A deactivated app accepts no actions. The guard sits at the top of the policy, so one
   # change blocks restart, rollback, force unlock, view logs, regenerate token and edit
   # at once -- they all go through these methods.
-  test "停用的应用：谁都动不了它" do
+  test "deactivated app: nobody can act on it" do
     @mine.deactivate!
 
     refute_predicate policy(@admin, @mine), :act?
@@ -112,7 +112,7 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     refute_predicate policy(@admin, @mine), :regenerate_hook_token?
   end
 
-  test "停用的应用：日志也看不了，ops 也不行" do
+  test "deactivated app: logs cannot be viewed either, not even by ops" do
     @mine.deactivate!
 
     refute_predicate policy(@ops, @mine), :view_logs?
@@ -120,13 +120,13 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
   end
 
   # Can't enable it if you can't see it.
-  test "停用的应用仍然看得见" do
+  test "deactivated app is still visible" do
     @mine.deactivate!
 
     assert_predicate policy(@ops, @mine), :show?
   end
 
-  test "只有 admin 能停用或启用" do
+  test "only admin can deactivate or activate" do
     assert_predicate policy(@admin, @mine), :deactivate?
     refute_predicate policy(@developer, @mine), :deactivate?
     refute_predicate policy(@ops, @mine), :deactivate?

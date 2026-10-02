@@ -27,14 +27,14 @@ class KamalLockTest < ExecutionLayerTest
                                                        name: "#{app_name} 的 SSH 私钥"))
   end
 
-  test "没有锁时报告未锁定" do
+  test "reports unlocked when there is no lock" do
     status = KamalLock.new(build_app).status
 
     refute status[:locked]
     assert_nil status[:error]
   end
 
-  test "锁目录存在时报告已锁定并带出持有者信息" do
+  test "reports locked with holder info when the lock directory exists" do
     app = build_app
     lock_dir = ".kamal/lock-blog-production"
     FakeHost.ssh("node-1", "mkdir -p #{lock_dir} && printf 'Locked by: ci@example.com' | base64 > #{lock_dir}/details")
@@ -47,7 +47,7 @@ class KamalLockTest < ExecutionLayerTest
     FakeHost.ssh("node-1", "rm -rf .kamal/lock-blog-production")
   end
 
-  test "锁消息里恰好含有哨兵字符串时仍报告已锁定（Critical 1，task-5 review）" do
+  test "still reports locked when the lock message contains the sentinel string (Critical 1, task-5 review)" do
     # A lock's details are free text written by whoever holds the lock (the message argument in
     # write_lock_details, coming from `kamal lock acquire -m`), and the panel has no control over
     # its content. The old implementation used `stdout.include?("LOCK_ABSENT")` to decide "is it
@@ -65,13 +65,13 @@ class KamalLockTest < ExecutionLayerTest
     status = KamalLock.new(app).status
 
     assert status[:locked],
-      "锁消息里含有 \"LOCK_ABSENT\" 子串不该被误判成「未锁定」——判定信号不能和自由文本共用同一个通道"
+      "a lock message containing the substring \"LOCK_ABSENT\" must not be misread as \"unlocked\" -- the signal must not share a channel with free text"
     assert_match "ci@example.com", status[:details]
   ensure
     FakeHost.ssh("node-1", "rm -rf .kamal/lock-blog-production")
   end
 
-  test "主机不可达时报告错误而不是「未锁定」" do
+  test "reports an error instead of 'unlocked' when the host is unreachable" do
     app = build_app
     app.update_column(:config_yaml, app.config_yaml.sub("127.0.0.1", "192.0.2.1"))
 

@@ -45,7 +45,7 @@ class Collectors::HostDownTest < ExecutionLayerTest
     FakeHost.wait_until_node_ready!("node-2", timeout: 60)
   end
 
-  test "机器停机后：写入 unreachable，且保留上一次已知状态（含数据年龄）" do
+  test "after a host goes down: records unreachable and keeps the last known state (including data age)" do
     FakeHost.seed_container(node: "node-2", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
 
@@ -73,9 +73,9 @@ class Collectors::HostDownTest < ExecutionLayerTest
 
     assert_equal :unreachable, status.level
     assert_equal "aaaaaaa", row[:version],
-      "失联后必须保留上次已知状态，不能清空——否则无法区分「服务挂了」和「面板瞎了」"
+      "the last known state must be kept after losing contact, not cleared -- otherwise 'the service is down' cannot be told apart from 'the panel is blind'"
     assert_equal last_good_observed_at.to_i, row[:stale_since].to_i,
-      "保留上次已知状态必须连带它的真实年龄一起保留——只留版本号、丢掉" \
-      "这是什么时候的状态，操作者照样判断不出这份数据现在有多旧"
+      "the last known state must be kept together with its real age -- keeping only the version and dropping " \
+      "when that state was observed leaves the operator unable to tell how stale the data is"
   end
 end

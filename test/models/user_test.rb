@@ -8,12 +8,12 @@ class UserTest < ActiveSupport::TestCase
 
   # nickname is an optional display name. The six display points share display_name, so the fallback
   # rule is defined only once.
-  test "display_name 有昵称时用昵称" do
+  test "display_name uses the nickname when present" do
     user = User.new(email_address: "wang@example.com", nickname: "老王")
     assert_equal "老王", user.display_name
   end
 
-  test "display_name 没有昵称时回落到邮箱" do
+  test "display_name falls back to the email when there is no nickname" do
     user = User.new(email_address: "lisi@example.com")
     assert_equal "lisi@example.com", user.display_name
   end
@@ -21,26 +21,26 @@ class UserTest < ActiveSupport::TestCase
   # "Stored an empty string" and "left blank" look identical in the UI, but the former
   # makes anything other than a presence check (e.g. nickname.nil?) behave inconsistently.
   # Normalize both to nil.
-  test "只有空白的昵称存成 nil，不是空串" do
+  test "stores a whitespace-only nickname as nil, not an empty string" do
     user = User.create!(email_address: "blank@example.com", password: "secret123456",
                         nickname: "   ")
     assert_nil user.reload.nickname
     assert_equal "blank@example.com", user.display_name
   end
 
-  test "昵称两侧的空白被去掉" do
+  test "strips whitespace around the nickname" do
     user = User.new(nickname: "  老王  ")
     assert_equal "老王", user.nickname
   end
 
-  test "昵称过长会被拒" do
+  test "rejects an overly long nickname" do
     user = User.new(email_address: "long@example.com", password: "secret123456",
                     nickname: "名" * 51)
     refute user.valid?
     assert_predicate user.errors[:nickname], :any?
   end
 
-  test "昵称不要求唯一：两个人可以叫同一个名字" do
+  test "does not require nickname uniqueness: two people can share a name" do
     User.create!(email_address: "a1@example.com", password: "secret123456", nickname: "老王")
     other = User.new(email_address: "a2@example.com", password: "secret123456", nickname: "老王")
     assert_predicate other, :valid?
@@ -48,12 +48,12 @@ class UserTest < ActiveSupport::TestCase
 
   # locale is nullable: someone who hasn't expressed a preference follows the default, rather than
   # being forced to pick a language at account creation.
-  test "没设过 locale 的用户 locale 是 nil" do
+  test "locale is nil for a user who never set one" do
     user = User.create!(email_address: "nolocale@example.com", password: "secret123456")
     assert_nil user.locale
   end
 
-  test "接受可用语言" do
+  test "accepts an available locale" do
     user = User.new(email_address: "l@example.com", password: "secret123456", locale: "en")
     assert_predicate user, :valid?
   end
@@ -62,39 +62,39 @@ class UserTest < ActiveSupport::TestCase
   # "whether the switcher lets you pick it", a display decision that changes from batch to batch;
   # whether the database can store it is a separate matter, and rows that already store en shouldn't
   # become invalid just because the UI temporarily doesn't expose English.
-  test "拒绝不可用的语言" do
+  test "rejects an unavailable locale" do
     user = User.new(email_address: "l2@example.com", password: "secret123456", locale: "fr")
     refute_predicate user, :valid?
   end
 
-  test "SELECTABLE_LOCALES 都在 available_locales 里" do
+  test "SELECTABLE_LOCALES are all within available_locales" do
     User::SELECTABLE_LOCALES.each do |locale|
       assert_includes I18n.available_locales.map(&:to_s), locale
     end
   end
 
-  test "默认角色是 ops" do
+  test "default role is ops" do
     user = User.create!(email_address: "a@example.com", password: "secret123456")
     assert user.ops?
     refute user.admin?
   end
 
-  test "admin 角色" do
+  test "accepts the admin role" do
     user = User.create!(email_address: "b@example.com", password: "secret123456", role: "admin")
     assert user.admin?
     refute user.ops?
   end
 
-  test "拒绝未知角色" do
+  test "rejects an unknown role" do
     user = User.new(email_address: "c@example.com", password: "secret123456", role: "superuser")
     refute user.valid?
   end
 
-  test "角色恰好三档" do
+  test "has exactly three roles" do
     assert_equal %w[admin developer ops], User::ROLES
   end
 
-  test "三个谓词各自只对自己那一档为真" do
+  test "each of the three predicates is true only for its own role" do
     assert_predicate User.new(role: "admin"), :admin?
     refute_predicate User.new(role: "admin"), :developer?
     refute_predicate User.new(role: "admin"), :ops?
@@ -106,30 +106,30 @@ class UserTest < ActiveSupport::TestCase
     refute_predicate User.new(role: "ops"), :admin?
   end
 
-  test "旧角色值不再被接受" do
+  test "legacy role values are no longer accepted" do
     %w[viewer operator].each do |legacy|
       user = User.new(email_address: "x@example.com", password: "secret123456", role: legacy)
-      refute_predicate user, :valid?, "#{legacy} 必须被拒绝，不能悄悄留在库里"
+      refute_predicate user, :valid?, "#{legacy} must be rejected and not silently remain in the database"
     end
   end
 
   # After the migration there should be no role left outside ROLES. The test DB is built
   # from fixtures, so this also pins down whether the fixtures were updated accordingly.
-  test "库里没有任何角色落在 ROLES 之外" do
+  test "no role in the database falls outside ROLES" do
     assert_empty User.where.not(role: User::ROLES).pluck(:email_address)
   end
 
-  test "停用会写上时间戳并销毁其现有会话" do
+  test "deactivating sets a timestamp and destroys existing sessions" do
     user = User.create!(email_address: "gone@example.com", password: "secret123456", role: "ops")
     user.sessions.create!
 
     user.deactivate!
 
     assert_predicate user, :deactivated?
-    assert_equal 0, user.sessions.count, "停用必须立刻踢掉已登录的会话，否则停用要等到 cookie 过期才生效"
+    assert_equal 0, user.sessions.count, "Deactivation must kick out signed-in sessions immediately, otherwise it only takes effect after the cookie expires"
   end
 
-  test "启用会清掉时间戳" do
+  test "activating clears the timestamp" do
     user = User.create!(email_address: "back@example.com", password: "secret123456", role: "ops")
     user.deactivate!
 
@@ -138,7 +138,7 @@ class UserTest < ActiveSupport::TestCase
     refute_predicate user, :deactivated?
   end
 
-  test "active scope 只包含未停用的用户" do
+  test "active scope includes only non-deactivated users" do
     active = User.create!(email_address: "a@example.com", password: "secret123456", role: "ops")
     gone   = User.create!(email_address: "b@example.com", password: "secret123456", role: "ops")
     gone.deactivate!
@@ -150,13 +150,13 @@ class UserTest < ActiveSupport::TestCase
   # Uniqueness used to be backed only by the database index: a duplicate email on the
   # people page is a RecordNotUnique (500), and an empty email could save an account that
   # can never log in, leaving an audit row behind as a bonus.
-  test "邮箱不能为空" do
+  test "email cannot be blank" do
     user = User.new(password: "secret123456", role: "ops")
     refute_predicate user, :valid?
     assert_includes user.errors.attribute_names, :email_address
   end
 
-  test "邮箱不能重复" do
+  test "email cannot be duplicated" do
     User.create!(email_address: "dup@example.com", password: "secret123456", role: "ops")
     dup = User.new(email_address: "dup@example.com", password: "secret123456", role: "ops")
 
@@ -166,7 +166,7 @@ class UserTest < ActiveSupport::TestCase
 
   # normalizes runs before validation, so the "same email" differing in case or whitespace must be
   # blocked too.
-  test "大小写不同的同一个邮箱也算重复" do
+  test "the same email with different casing counts as a duplicate" do
     User.create!(email_address: "dup@example.com", password: "secret123456", role: "ops")
 
     refute_predicate User.new(email_address: " DUP@EXAMPLE.COM ", password: "secret123456"), :valid?

@@ -13,7 +13,7 @@ class LocalizationTest < ActionDispatch::IntegrationTest
                             target_user: users(:one))
   end
 
-  test "登录用户的偏好决定语言" do
+  test "signed-in user's preference determines the locale" do
     @admin.update!(locale: "en")
     sign_in_as @admin
 
@@ -25,7 +25,7 @@ class LocalizationTest < ActionDispatch::IntegrationTest
   # When preference is empty it falls to the second tier. This also proves the request header is
   # really read -- apart from the match_accept_language unit tests, it's the only test proving "the
   # wiring is right".
-  test "没设偏好的登录用户跟 Accept-Language 走" do
+  test "signed-in user without a preference follows Accept-Language" do
     @admin.update!(locale: nil)
     sign_in_as @admin
 
@@ -34,7 +34,7 @@ class LocalizationTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "Deactivate member"
   end
 
-  test "偏好优先于 Accept-Language" do
+  test "preference takes precedence over Accept-Language" do
     @admin.update!(locale: "zh-CN")
     sign_in_as @admin
 
@@ -43,7 +43,7 @@ class LocalizationTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "停用成员"
   end
 
-  test "两级都拿不到时用默认语言" do
+  test "falls back to the default locale when neither level yields one" do
     @admin.update!(locale: nil)
     sign_in_as @admin
 
@@ -55,7 +55,7 @@ class LocalizationTest < ActionDispatch::IntegrationTest
   # I18n.locale is thread-level global state. If it isn't restored at the end of a request, the same
   # thread serving the next request carries over the previous user's language -- such
   # cross-contamination is extremely hard to reproduce in production, so a test must watch it.
-  test "请求结束后 I18n.locale 已还原" do
+  test "restores I18n.locale after the request" do
     @admin.update!(locale: "en")
     sign_in_as @admin
 
@@ -70,25 +70,25 @@ end
 class LocalizationAcceptLanguageTest < ActiveSupport::TestCase
   def match(header) = Localization.match_accept_language(header)
 
-  test "认出英文" do
+  test "recognizes English" do
     assert_equal :en, match("en-US,en;q=0.9")
   end
 
-  test "任何 zh 变体都算简体中文" do
+  test "treats any zh variant as Simplified Chinese" do
     assert_equal :"zh-CN", match("zh-CN,zh;q=0.9")
     assert_equal :"zh-CN", match("zh-TW")
     assert_equal :"zh-CN", match("zh")
   end
 
-  test "取第一个认得出的标签，不做权重协商" do
+  test "picks the first recognizable tag without q-value negotiation" do
     assert_equal :en, match("fr-FR,fr;q=0.9,en;q=0.8")
   end
 
-  test "一个都认不出时返回 nil，交给调用方回落" do
+  test "returns nil when none is recognized, leaving fallback to the caller" do
     assert_nil match("fr-FR,fr;q=0.9")
   end
 
-  test "空头部返回 nil" do
+  test "returns nil for an empty header" do
     assert_nil match(nil)
     assert_nil match("")
   end

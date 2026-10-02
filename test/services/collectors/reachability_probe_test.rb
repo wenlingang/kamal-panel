@@ -1,7 +1,7 @@
 require "test_helper"
 
 class Collectors::ReachabilityProbeTest < ExecutionLayerTest
-  test "逐台报告连通性，不因某台失败而整体失败" do
+  test "reports connectivity per host without failing as a whole when one host fails" do
     yaml = <<~YAML
       service: blog
       image: example/blog

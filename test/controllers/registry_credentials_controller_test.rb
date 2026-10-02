@@ -6,7 +6,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
   SECRET = "绝密registry密码-Zk7q".freeze
   OTHER_SECRET = "另一个绝密registry密码-Mx2v".freeze
 
-  test "非 admin 一个动作都进不去" do
+  test "non-admins cannot access any action" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET,
                                             server: "registry.example.com")
     sign_in_as users(:three)
@@ -33,7 +33,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
-  test "admin 新建并写审计" do
+  test "admin creates a credential and an audit entry is written" do
     sign_in_as users(:two)
 
     assert_difference -> { RegistryCredential.count }, 1 do
@@ -46,7 +46,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
 
   # Credentials are write-only: the form page must never render the password plaintext back into
   # HTML.
-  test "新建页与替换页都不回显密码明文" do
+  test "neither the new page nor the replace page echoes the password in plaintext" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET,
                                             server: "registry.example.com")
     sign_in_as users(:two)
@@ -60,7 +60,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, SECRET
   end
 
-  test "创建失败重渲表单时也不回显密码明文" do
+  test "the re-rendered form after a failed create does not echo the password in plaintext either" do
     RegistryCredential.create!(name: "Docker Hub", value: SECRET)
     sign_in_as users(:two)
 
@@ -72,7 +72,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, SECRET
   end
 
-  test "列表页不含密码明文" do
+  test "the list page does not contain the password in plaintext" do
     RegistryCredential.create!(name: "Docker Hub", value: SECRET, server: "registry.example.com")
     sign_in_as users(:two)
 
@@ -84,7 +84,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
 
   def value_digest(record) = Digest::SHA256.hexdigest(record.value)
 
-  test "轮换真的换掉了 value，名字不变，并写审计" do
+  test "rotation really replaces the value, keeps the name, and writes an audit entry" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET,
                                             server: "registry.example.com")
     digest_before = value_digest(credential)
@@ -99,7 +99,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Docker Hub", AuditLog.where(action_name: "registry_credential.rotate").sole.detail
   end
 
-  test "没被引用的凭据可以删，并写审计" do
+  test "an unreferenced credential can be deleted and an audit entry is written" do
     credential = RegistryCredential.create!(name: "闲置的", value: SECRET)
     sign_in_as users(:two)
 
@@ -112,7 +112,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
   # When referenced, that hint is the only copy on this page that teaches people what to do, so what
   # it says must be something the panel can really do: the panel has no entry point for changing
   # credentials on an onboarded app; all it can do is replace this credential's content.
-  test "被引用的凭据删不掉，提示点名了是哪个应用、也只让人做做得到的事" do
+  test "a referenced credential cannot be deleted and the hint names the app and only suggests feasible actions" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET)
     ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                        destination: "production", registry_credential: credential)

@@ -47,7 +47,7 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     )
   end
 
-  test "能对真实主机跑通一条只读的 kamal 命令——且认证确实只靠 ssh-agent" do
+  test "runs a read-only kamal command against a real host, authenticating only via ssh-agent" do
     # The load-bearing assertion of this test isn't "there is output" but "the output has that
     # container name that can only be seen via SSH + docker".
     #
@@ -64,14 +64,14 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     result = KamalCli::Invocation.new(build_app).run(%w[app details]) { |line| lines << line }
 
     assert_kind_of Integer, result[:status]
-    assert_predicate lines, :any?, "应逐行产出输出"
+    assert_predicate lines, :any?, "should produce output line by line"
     assert_includes result[:output], container,
-                    "输出里应出现远端容器名——否则说明这次并没有真的连上主机（例如认证失败）"
+                    "the remote container name should appear in the output, otherwise the host was never actually reached (e.g. auth failed)"
     refute_match(/password:|Authentication failed|Permission denied/, result[:output],
-                 "输出里不得出现认证失败的痕迹")
+                 "no sign of an authentication failure should appear in the output")
   end
 
-  test "私钥全程不落盘" do
+  test "never writes the private key to disk" do
     app = build_app
     leaked = []
     before = snapshot_paths
@@ -105,11 +105,11 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       end
     end
 
-    assert scanned, "扫描一次都没跑到——这条测试就没有检测力了"
-    assert_empty leaked, "调用期间新出现的文件中不得包含私钥内容"
+    assert scanned, "the scan never ran, so this test has no detection power"
+    assert_empty leaked, "no newly created file during the call may contain the private key content"
   end
 
-  test "调用结束后临时目录与 agent 均被清理" do
+  test "cleans up the temp directory and agent after the call" do
     app = build_app
     before = Dir.glob("#{Dir.tmpdir}/#{KamalCli::Invocation::TMPDIR_PREFIX}*").size
 
@@ -123,11 +123,11 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     # and it has nothing to do with the directory count.
     agent = invocation.agent
     assert_not_nil agent&.pid
-    assert_raises(Errno::ESRCH, "ssh-agent 应已退出") { Process.kill(0, agent.pid.to_i) }
-    assert_not File.exist?(agent.auth_sock), "agent 的 socket 应已消失"
+    assert_raises(Errno::ESRCH, "ssh-agent should have exited") { Process.kill(0, agent.pid.to_i) }
+    assert_not File.exist?(agent.auth_sock), "the agent's socket should be gone"
   end
 
-  test "超时会杀掉整个进程组并返回 124" do
+  test "a timeout kills the whole process group and returns 124" do
     # The old test used `app logs --follow`, expecting it to "never exit on its own". It actually
     # does: the temp dir has no git repo, kamal can't compute version, and exits with 123 within a
     # few hundred milliseconds, and `refute_equal 0, status` passes for 123 too -- the timeout
@@ -151,18 +151,18 @@ class KamalCli::InvocationTest < ExecutionLayerTest
 
       assert_equal KamalCli::Invocation::TIMEOUT_STATUS, result[:status]
       assert_includes result[:output], "执行超时，已终止"
-      assert_operator elapsed, :<, 60, "3 秒的超时不应把整条调用拖过 60 秒"
+      assert_operator elapsed, :<, 60, "a 3 second timeout should not drag the whole call past 60 seconds"
 
       hook_pid = File.read(pidfile).to_i
-      assert_operator hook_pid, :>, 0, "hook 应该真的跑起来过（否则这次并没有挂在 hook 上）"
-      assert_raises(Errno::ESRCH, "kamal 的孙子进程也必须随超时一起死掉") do
+      assert_operator hook_pid, :>, 0, "the hook should really have run (otherwise this run never hung on the hook)"
+      assert_raises(Errno::ESRCH, "kamal's grandchild process must also die with the timeout") do
         # Give the kernel a moment to reap
         20.times { Process.kill(0, hook_pid); sleep 0.1 }
       end
     end
   end
 
-  test "kamal 真的加载了 deploy.<destination>.yml 覆盖文件" do
+  test "kamal actually loads the deploy.<destination>.yml override file" do
     # This project has already fixed "connected to the wrong machine" twice, and a filename typo in
     # write_project_files (deploy-production.yml) produces no error at all: kamal loads only the
     # base config and acts on the [wrong host] as usual, with all four old tests green. So here the
@@ -180,11 +180,11 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     result = KamalCli::Invocation.new(app).run(%w[config --version v1]) { |_| }
 
     assert_equal 0, result[:status], result[:output]
-    assert_includes result[:output], "10.77.77.77", "应使用 destination 覆盖文件里的主机"
-    refute_includes result[:output], "127.0.0.1", "覆盖文件应替换掉基础配置里的主机"
+    assert_includes result[:output], "10.77.77.77", "the host from the destination override file should be used"
+    refute_includes result[:output], "127.0.0.1", "the override file should replace the host in the base config"
   end
 
-  test "用户自己的 pre/post-deploy hook 确实会被触发" do
+  test "the user's own pre/post-deploy hooks actually fire" do
     # The entire reason for "calling the CLI rather than assembling commands ourselves" is to let
     # users' hooks fire as usual. Before this test existed, that sentence was just an assertion in
     # the header comment of invocation.rb, and the implementation (chdir into an empty directory)
@@ -197,13 +197,13 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       # and the temp dir has no git repo -- so commands with hooks must pass --version explicitly.
       result = KamalCli::Invocation.new(app).run(%w[app details --version v1]) { |_| }
 
-      assert File.exist?(marker), "pre-connect hook 应被执行。kamal 输出：\n#{result[:output]}"
+      assert File.exist?(marker), "the pre-connect hook should have run. kamal output:\n#{result[:output]}"
       assert_match(/^KAMAL_SERVICE=blog$/, File.read(marker),
-                   "hook 应在 kamal 提供的 hook 环境里执行，而不是被别的东西碰巧跑了一下")
+                   "the hook should run inside the hook environment provided by kamal, not be hit by something else by chance")
     end
   end
 
-  test "kamal 能读到 .kamal/secrets——数组式密码写法可用" do
+  test "kamal can read .kamal/secrets, and the array-style password syntax works" do
     # `registry.password: [KAMAL_REGISTRY_PASSWORD]` is Kamal 2's standard form, and also the form
     # this fixture uses. When the secrets file is unreachable it raises ConfigurationError directly
     # in app boot / rollback (Task 7's target). The cheapest path for kamal to parse the secrets
@@ -216,14 +216,14 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       KamalCli::Invocation.new(app).run(%w[app details --version v1]) { |_| }
 
       assert_match(/^KAMAL_REGISTRY_PASSWORD=s3cr3t-from-panel$/, File.read(marker),
-                   "kamal 应从面板写出的 .kamal/secrets-common 里读到这个 secret")
+                   "kamal should read this secret from the .kamal/secrets-common written by the panel")
     end
   end
 
   # The variable name comes from the app's own deploy.yml (the name in CUSTOM_REGISTRY_ENV_YAML
   # isn't KAMAL_REGISTRY_PASSWORD -- an implementation with a hard-coded constant goes red right
   # here).
-  test "选了 registry 凭据时，密码按配置引用的变量名写进 secrets-common" do
+  test "writes the password into secrets-common under the variable name the config references when a registry credential is selected" do
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       secret = "s3cr3t-#{SecureRandom.hex(4)}"
@@ -233,7 +233,7 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       KamalCli::Invocation.new(app).run(%w[app details --version v1]) { |_| }
 
       assert_match(/^MY_OWN_REGISTRY_TOKEN=#{Regexp.escape(secret)}$/, File.read(marker),
-                   "kamal 应从面板写出的 .kamal/secrets-common 里读到按配置变量名写入的密码")
+                   "kamal should read the password written under the config's variable name from the .kamal/secrets-common written by the panel")
     end
   end
 
@@ -247,18 +247,18 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   # kamal_secrets)` writing it out verbatim; if the new implementation also adds a separator newline
   # when there's only the free-text part, this would go red -- which is exactly the check point of
   # the promise "apps that didn't pick a registry credential are unaffected byte for byte".
-  test "没选 registry 凭据时，不带尾换行的 kamal_secrets 原样写出，一个字节都不多" do
+  test "writes kamal_secrets without a trailing newline verbatim, not one byte extra, when no registry credential is selected" do
     Dir.mktmpdir("kamal-panel-writetest-") do |dir|
       app = build_app(kamal_secrets: "RAILS_MASTER_KEY=abc")
 
       KamalCli::Invocation.new(app).send(:write_project_files, dir)
 
       assert_equal "RAILS_MASTER_KEY=abc", File.read(File.join(dir, ".kamal", "secrets-common")),
-                   "未选 registry 凭据的应用，写出的 secrets-common 应与此前逐字节一致"
+                   "for an app with no registry credential selected, the written secrets-common should be byte-identical to before"
     end
   end
 
-  test "两份内容并存时都写进去" do
+  test "writes both when both contents are present" do
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       app = env_dumping_app(marker, config_yaml: CUSTOM_REGISTRY_ENV_YAML, kamal_secrets: "RAILS_MASTER_KEY=abc\n")
@@ -277,7 +277,7 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   # dotenv finally hands kamal is the original password". Without quotes dotenv would truncate at #,
   # strip trailing whitespace, unescape \s into s, interpolate $HOME away, and [actually execute]
   # $(id) -- and that executes on the panel's machine, not on the target host.
-  test "密码里的 dotenv 元字符原样到达 kamal，$(...) 不会被当成命令执行" do
+  test "dotenv metacharacters in the password reach kamal verbatim and $(...) is not executed as a command" do
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       secret = "p@ss#word $(id) $HOME back\\slash "
@@ -288,13 +288,13 @@ class KamalCli::InvocationTest < ExecutionLayerTest
 
       dumped = File.read(marker)
       assert_match(/^MY_OWN_REGISTRY_TOKEN=#{Regexp.escape(secret)}$/, dumped,
-                   "密码应逐字节到达 kamal：截断、反转义、插值、命令替换一个都不能发生")
+                   "the password should arrive at kamal byte for byte: no truncation, unescaping, interpolation, or command substitution")
       refute_match(/^MY_OWN_REGISTRY_TOKEN=.*uid=\d+/, dumped,
-                   "$(id) 绝不能在面板这台机器上被执行")
+                   "$(id) must never be executed on the panel machine")
     end
   end
 
-  test "子进程看不到面板的敏感环境变量" do
+  test "the subprocess cannot see the panel's sensitive environment variables" do
     # kamal ERB-evaluates the user's deploy.yml, which means attacker-influenced code can run
     # in this subprocess. Open3's env argument is merged into ENV, and without
     # unsetenv_others it would get RAILS_MASTER_KEY -- a key that can decrypt every
@@ -309,14 +309,14 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       end
 
       dumped = File.read(marker)
-      refute_includes dumped, "panel-master-key-marker", "RAILS_MASTER_KEY 不得进入子进程"
-      refute_includes dumped, "panel-ar-key-marker", "AR_ENCRYPTION_* 不得进入子进程"
-      assert_match(/^SSH_AUTH_SOCK=/, dumped, "白名单里该有的东西还得在")
+      refute_includes dumped, "panel-master-key-marker", "RAILS_MASTER_KEY must not enter the subprocess"
+      refute_includes dumped, "panel-ar-key-marker", "AR_ENCRYPTION_* must not enter the subprocess"
+      assert_match(/^SSH_AUTH_SOCK=/, dumped, "what belongs on the allowlist must still be there")
       assert_match(/^PATH=/, dumped)
     end
   end
 
-  test "调用方块里的异常按原样抛出，而不是被吞成一次超时" do
+  test "re-raises exceptions from the caller's block as-is instead of swallowing them into a timeout" do
     app = build_app
     boom = Class.new(StandardError)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -330,10 +330,10 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     # The original implementation let this exception kill the reader thread, the pipe was no longer
     # drained, kamal hung, and it finally ran out the whole timeout and returned status 124 -- a bug
     # in Task 7's line handler would be reported to ops as "kamal hung".
-    assert_operator elapsed, :<, 60, "调用方块出错时应立即终止子进程，而不是等满超时"
+    assert_operator elapsed, :<, 60, "an error in the call block should terminate the subprocess immediately instead of waiting out the timeout"
   end
 
-  test "被信号杀死的子进程也返回 Integer 退出码" do
+  test "a subprocess killed by a signal also returns an Integer exit code" do
     # exitstatus is nil for a signal-killed child, and returning it directly would break the
     # documented `status: Integer` contract (a caller's single result[:status].zero? is a
     # NoMethodError). Converted to 128 + signo, following shell convention.

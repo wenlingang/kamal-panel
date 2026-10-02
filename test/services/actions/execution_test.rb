@@ -36,7 +36,7 @@ class Actions::ExecutionTest < ExecutionLayerTest
                                role: "admin")
   end
 
-  test "stop 对真实主机执行并把结果写进审计" do
+  test "stop runs against the real host and writes the result to the audit" do
     app = build_app
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -46,7 +46,7 @@ class Actions::ExecutionTest < ExecutionLayerTest
     RunActionJob.perform_now(log.id)
 
     assert_includes %w[success failure], log.reload.result
-    refute_equal "pending", log.result, "执行完必须更新审计，不能停在 pending"
+    refute_equal "pending", log.result, "The audit must be updated after execution and not stay pending"
     assert_predicate log.duration_ms, :present?
     assert_match(/\Akamal app stop\b/, log.command)
     # Proves it really reached the remote rather than exiting early locally: kamal's SSHKit output
@@ -54,7 +54,7 @@ class Actions::ExecutionTest < ExecutionLayerTest
     assert_match "127.0.0.1", log.output_digest
   end
 
-  test "锁被占用时不执行，并在审计中说明" do
+  test "does not execute when the lock is held and says so in the audit" do
     app = build_app
     lock_dir = ".kamal/lock-blog-production"
     FakeHost.ssh("node-1", "mkdir -p #{lock_dir} && printf 'Locked by: ci' | base64 > #{lock_dir}/details")

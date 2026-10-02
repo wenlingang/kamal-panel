@@ -13,7 +13,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # exactly why gaps like this can live on forever. So every state-changing action must actually be
   # hit, and we assert the state is unchanged, not just the redirect: controllers exist that
   # redirect correctly and still performed the write.
-  test "非 admin 一个会改状态的动作都进不去" do
+  test "denies non-admins every state-changing action" do
     [ users(:one), users(:three) ].each do |actor|
       victim = users(:two)
       before_count = User.count
@@ -58,12 +58,12 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "未登录进不去" do
+  test "denies access when signed out" do
     get users_path
     assert_redirected_to new_session_path
   end
 
-  test "admin 能看到人员列表" do
+  test "lets admin see the user list" do
     sign_in_as users(:two)
 
     get users_path
@@ -74,7 +74,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
   # Only integration tests render these two pages (system tests don't cover the users pages), so if
   # the ERB is wrong, they're what raises the alarm.
-  test "新建与编辑两页都能渲染" do
+  test "renders both the new and edit pages" do
     sign_in_as users(:two)
 
     get new_user_path
@@ -89,7 +89,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
   # admin shouldn't know other people's passwords. Creating a user takes only email and role; the
   # password is set by the user through the existing password-recovery flow.
-  test "新建用户不设密码，发一封设置密码的邮件" do
+  test "creates a user without a password and sends a set-password email" do
     sign_in_as users(:two)
 
     assert_difference -> { User.count }, 1 do
@@ -106,7 +106,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # still sending email -- admin not knowing other people's passwords remains the better default;
   # setting the password directly is a back door left for cases like "the recipient can't receive
   # email / intranet with no outbound mail".
-  test "选择直接设置密码：不发邮件，且对方能用这个密码登录" do
+  test "setting a password directly sends no email and the user can sign in with it" do
     sign_in_as users(:two)
 
     assert_difference -> { User.count }, 1 do
@@ -123,7 +123,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
-  test "直接设置密码时两次输入不一致：不建用户，退回表单" do
+  test "does not create the user and re-renders the form when the two passwords differ on direct set" do
     sign_in_as users(:two)
 
     assert_no_difference -> { User.count } do
@@ -139,7 +139,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # When the form is sent back, remember to carry the "set password directly" choice along,
   # otherwise after the admin mistypes a password once the form quietly snaps back to "send email",
   # and submitting again yields an email they never meant to send.
-  test "直接设置密码失败退回时，表单仍停在「直接设置密码」上" do
+  test "keeps the direct-set-password option selected when the form is re-rendered after a failure" do
     sign_in_as users(:two)
 
     post users_path, params: { password_setup: "manual",
@@ -150,7 +150,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=radio][name=password_setup][value=manual][checked=checked]"
   end
 
-  test "直接设置密码：密码太短会被拒" do
+  test "rejects a password that is too short when set directly" do
     sign_in_as users(:two)
 
     assert_no_difference -> { User.count } do
@@ -164,7 +164,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
   # "The admin knows this person's password" is a fact worth leaving an audit trace of, and the two
   # paths must be distinguishable in the log.
-  test "两种设密码方式在审计日志里可区分" do
+  test "distinguishes the two password-setting methods in the audit log" do
     sign_in_as users(:two)
 
     post users_path, params: { password_setup: "manual",
@@ -182,7 +182,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_nil by_target["manual@example.com"].detail
   end
 
-  test "新建用户写审计" do
+  test "writes an audit log when creating a user" do
     sign_in_as users(:two)
 
     post users_path, params: { user: { email_address: "new@example.com", role: "ops" } }
@@ -192,7 +192,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "new@example.com", log.target_user.email_address
   end
 
-  test "新建成员时可以带昵称" do
+  test "accepts a nickname when creating a member" do
     sign_in_as users(:two)
 
     post users_path, params: { user: { email_address: "new@example.com", role: "ops",
@@ -201,7 +201,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "老王", User.find_by(email_address: "new@example.com").nickname
   end
 
-  test "编辑页可以改昵称" do
+  test "lets the edit page change the nickname" do
     sign_in_as users(:two)
 
     patch user_path(users(:one)), params: { user: { role: "ops", nickname: "小李" } }
@@ -212,7 +212,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # If role didn't change, no user.update_role should be left behind -- an audit entry for a role
   # change that never happened is worse than no record: whoever investigates will follow it to look
   # for something that never occurred.
-  test "只改昵称不写改角色的审计" do
+  test "does not write a role-change audit log when only the nickname changes" do
     sign_in_as users(:two)
 
     patch user_path(users(:one)), params: { user: { role: users(:one).role, nickname: "小李" } }
@@ -221,7 +221,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_empty AuditLog.where(action_name: "user.update_role")
   end
 
-  test "人员列表显示昵称，邮箱仍然保留" do
+  test "shows the nickname in the user list while keeping the email" do
     users(:one).update!(nickname: "老王")
     sign_in_as users(:two)
 
@@ -231,7 +231,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "one@example.com"
   end
 
-  test "改角色写审计" do
+  test "writes an audit log when changing the role" do
     sign_in_as users(:two)
 
     patch user_path(users(:one)), params: { user: { role: "developer" } }
@@ -240,7 +240,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, AuditLog.where(action_name: "user.update_role").count
   end
 
-  test "指派成员：勾选应用即成为该应用的成员，并写审计" do
+  test "assigning members: checking an app makes the user a member of it and writes an audit log" do
     sign_in_as users(:two)
 
     patch user_path(users(:three)), params: { user: { role: "developer" },
@@ -252,7 +252,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal users(:three), log.target_user
   end
 
-  test "取消勾选即解除成员关系，并写审计" do
+  test "unchecking removes the membership and writes an audit log" do
     AppMembership.create!(user: users(:three), managed_app: @managed_app)
     sign_in_as users(:two)
 
@@ -267,7 +267,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # The hidden field behind the "select none" checkbox in the form brings in an empty string. Its
   # to_i is 0, and no app with id 0 exists -- if it isn't filtered out, AppMembership.create! raises
   # a foreign key error.
-  test "表单里的空隐藏字段不会被当成一个应用" do
+  test "does not treat an empty hidden form field as an app" do
     sign_in_as users(:two)
 
     patch user_path(users(:three)), params: { user: { role: "developer" },
@@ -282,7 +282,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # means allowing changes to someone else's login name, and after that the public password-recovery
   # flow takes over that account -- and this path writes not even one audit line when role doesn't
   # change at the same time.
-  test "update 改不了别人的登录邮箱" do
+  test "does not let update change another user's login email" do
     sign_in_as users(:two)
 
     patch user_path(users(:one)), params: { user: { email_address: "hijack@example.com",
@@ -292,7 +292,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_nil User.find_by(email_address: "hijack@example.com")
   end
 
-  test "停用与启用都写审计" do
+  test "writes audit logs for both deactivation and activation" do
     sign_in_as users(:two)
 
     post deactivate_user_path(users(:one))
@@ -309,7 +309,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # credentials or onboard apps anymore
   # -- and recovering requires opening a rails console on the server. That's a one-way dead end, and it must be stopped
   # before it happens.
-  test "不能停用最后一个 admin" do
+  test "cannot deactivate the last admin" do
     sign_in_as users(:two)
 
     post deactivate_user_path(users(:two))
@@ -318,7 +318,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "不能停用最后一个 admin", flash[:alert]
   end
 
-  test "不能把最后一个 admin 降级" do
+  test "cannot downgrade the last admin" do
     sign_in_as users(:two)
 
     patch user_path(users(:two)), params: { user: { role: "ops" } }
@@ -330,7 +330,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # Email uniqueness used to be backstopped only by the database index: a duplicate email would
   # crash straight into RecordNotUnique (500), so the render :new branch in create and the error
   # list on the new page were never reachable.
-  test "空邮箱被拦下，不建用户也不写审计" do
+  test "blocks an empty email without creating a user or writing an audit log" do
     sign_in_as users(:two)
 
     assert_no_difference [ -> { User.count }, -> { AuditLog.count } ] do
@@ -341,7 +341,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "ul.errors li"
   end
 
-  test "重复邮箱被拦下，不建用户也不写审计，更不是 500" do
+  test "blocks a duplicate email without creating a user, writing an audit log, or returning 500" do
     sign_in_as users(:two)
 
     assert_no_difference [ -> { User.count }, -> { AuditLog.count } ] do
@@ -355,7 +355,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # Design 11 §2.2: admin and ops never go in the membership table. If the row is kept on demotion,
   # when they are later promoted back to developer, the apps under their name come back to life as
   # they were -- nobody made that decision.
-  test "developer 降成 ops 会清空成员行，并为每个应用写一条 remove_member" do
+  test "demoting a developer to ops clears membership rows and writes a remove_member audit log per app" do
     other = ManagedApp.create!(name: "shop",
                        config_yaml: file_fixture("simple_deploy.yml").read,
                        destination: "production")
@@ -372,7 +372,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ users(:three) ], AuditLog.where(action_name: "app.remove_member").map(&:target_user).uniq
   end
 
-  test "给 ops 勾应用不会建出任何成员行" do
+  test "assigning apps to an ops user creates no membership rows" do
     sign_in_as users(:two)
 
     patch user_path(users(:one)), params: { user: { role: "ops" },

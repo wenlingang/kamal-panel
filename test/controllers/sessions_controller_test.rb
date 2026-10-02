@@ -40,12 +40,12 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_empty cookies[:session_id]
   end
 
-  test "未登录访问总览会跳到登录页" do
+  test "redirects to the sign-in page when visiting the overview while signed out" do
     get root_path
     assert_redirected_to new_session_path
   end
 
-  test "登录后可访问总览" do
+  test "allows visiting the overview after signing in" do
     User.create!(email_address: "login-check@example.com", password: "secret123456")
     post session_path, params: { email_address: "login-check@example.com", password: "secret123456" }
 
@@ -53,7 +53,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "停用的用户无法登录" do
+  test "a deactivated user cannot sign in" do
     user = User.create!(email_address: "gone@example.com", password: "secret123456", role: "ops")
     user.deactivate!
 
@@ -61,10 +61,10 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_equal "邮箱地址或密码不正确。", flash[:alert],
-      "不要告诉对方「这个账号被停用了」——那等于向未认证的人确认这个邮箱存在"
+      "do not tell them 'this account is deactivated' -- that would confirm to an unauthenticated person that the email exists"
   end
 
-  test "已登录的用户被停用后，下一次请求就失效" do
+  test "a signed-in user is signed out on the next request after being deactivated" do
     user = User.create!(email_address: "gone@example.com", password: "secret123456", role: "ops")
     sign_in_as user
     get root_path
@@ -81,14 +81,14 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   # -- so on login failure the same sentence appears twice: once stuck at the very top of the page, left-aligned,
   # full-width (that style is meant for the wide container of inner pages, and is completely out of
   # place on a centered card), and once inside the card.
-  test "登录失败的提示只出现一次，且在卡片里" do
+  test "the sign-in failure notice appears only once, inside the card" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
     assert_select ".flash-alert", count: 1
     assert_select ".auth-card .flash-alert"
   end
 
-  test "未登录页面不渲染 layout 那一份 flash" do
+  test "signed-out pages do not render the layout's copy of the flash" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
     assert_select "main.page > .flash", count: 0
@@ -96,7 +96,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
   # The redirect path still exists (rate limiting), and it also must not show two copies of the
   # flash.
-  test "被限流时提示也只出现一次" do
+  test "the rate-limit notice also appears only once" do
     11.times { post session_path, params: { email_address: "me@example.com", password: "wrong" } }
     follow_redirect!
 
@@ -108,14 +108,14 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   # punishment, and what's wrong is usually just the password. The view already has value:
   # params[:email_address], but create redirects, so the params are gone by the redirect and that
   # line has always been dead.
-  test "登录失败保留已填的邮箱地址" do
+  test "a failed sign-in keeps the email address that was entered" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
     assert_response :unprocessable_entity
     assert_select "input[name=email_address][value=?]", "me@example.com"
   end
 
-  test "登录失败仍然给出提示" do
+  test "a failed sign-in still shows a notice" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
     assert_select ".auth-card .flash-alert", text: /邮箱地址或密码不正确/
@@ -124,7 +124,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
 
   # The password isn't refilled: the browser's password manager fills it itself, and rendering it
   # into HTML means it would appear in the page source and anywhere that captures this response.
-  test "登录失败不回填密码" do
+  test "a failed sign-in does not refill the password" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
     assert_select "input[name=password][value]", count: 0

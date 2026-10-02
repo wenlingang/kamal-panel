@@ -31,19 +31,19 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     end
   end
 
-  test "用 deploy.yml 里声明的 user 和 port 连上真实主机" do
+  test "connects to the real host using the user and port declared in deploy.yml" do
     session = Collectors::SshSession.new(managed_app)
 
     assert_equal "deploy", session.capture("127.0.0.1", "whoami").strip
   end
 
-  test "能在目标主机上执行 docker" do
+  test "can run docker on the target host" do
     session = Collectors::SshSession.new(managed_app)
 
     assert_match(/Server:/, session.capture("127.0.0.1", "docker version"))
   end
 
-  test "capture_many 把每台主机的失败单独装起来，不影响其他主机" do
+  test "capture_many isolates each host's failure without affecting other hosts" do
     session = Collectors::SshSession.new(managed_app)
 
     results = session.capture_many([ "127.0.0.1" ]) { "echo hello" }
@@ -58,7 +58,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
   # capture has an independent execution-phase deadline
   # -- rather than blocking forever. execution_timeout is given a very short value only so this
   # test itself doesn't slow down the whole suite; production uses the EXECUTION_TIMEOUT constant.
-  test "capture 对连上之后卡住不返回的主机有执行期截止时间，而不是无限阻塞" do
+  test "capture has an execution deadline for hosts that hang after connecting instead of blocking forever" do
     session = Collectors::SshSession.new(managed_app, execution_timeout: 2)
 
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -67,11 +67,11 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     end
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
 
-    assert_operator elapsed, :<, 10, "capture 应该在 execution_timeout 附近返回，而不是等满 30 秒的 sleep"
+    assert_operator elapsed, :<, 10, "capture should return near execution_timeout instead of waiting out the full 30 second sleep"
     assert_match(/execution expired/, error.message)
   end
 
-  test "capture_many 里同样受执行期截止时间约束，卡住的主机变成 Result#error 而不是整批挂起" do
+  test "capture_many is bound by the same execution deadline; a hung host becomes Result#error instead of hanging the whole batch" do
     session = Collectors::SshSession.new(managed_app, execution_timeout: 2)
 
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -83,7 +83,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     assert_match(/Timeout::Error/, results["127.0.0.1"].error)
   end
 
-  test "capture_many 遇到非连通性异常（程序缺陷）时仍然隔离到单台主机，但会记录到日志而不是伪装成主机不可达" do
+  test "capture_many isolates a non-connectivity error (a bug) to one host and logs it instead of masquerading as unreachable" do
     session = Collectors::SshSession.new(managed_app)
     bug = Class.new(StandardError)
 
@@ -100,7 +100,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     assert_match(/模拟的编程错误/, results["127.0.0.1"].error)
 
     logged = log_output.string
-    assert logged.present?, "非连通性异常应该被记录到日志，不能只悄悄装进 Result 里"
+    assert logged.present?, "a non-connectivity error should be logged, not just quietly tucked into the Result"
     assert_match(/疑似程序缺陷/, logged)
   ensure
     Rails.logger = original_logger
@@ -113,7 +113,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
   # like that (troublesome to build), and instead temporarily swap Net::SSH.start itself for a fake
   # that sleeps, verifying the Timeout wrapped around #connect really takes effect -- this tests
   # this class's own fallback mechanism, not net-ssh.
-  test "connect 阶段（连接 + 认证）整体有截止时间，不只是逐包超时" do
+  test "the connect phase (connection + auth) has an overall deadline, not just per-packet timeouts" do
     session = Collectors::SshSession.new(managed_app, connect_timeout: 2)
 
     original_start = Net::SSH.method(:start)
@@ -123,7 +123,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     error = assert_raises(Timeout::Error) { session.capture("127.0.0.1", "whoami") }
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
 
-    assert_operator elapsed, :<, 10, "capture 应该在 connect_timeout 附近返回，而不是等满 30 秒"
+    assert_operator elapsed, :<, 10, "capture should return near connect_timeout instead of waiting the full 30 seconds"
   ensure
     Net::SSH.define_singleton_method(:start, original_start)
   end
@@ -136,7 +136,7 @@ class Collectors::SshSessionTest < ExecutionLayerTest
   # effect above. Here we call the private close_session directly (rather than building a whole real
   # jump host connection), using a "hangs forever" fake session to verify this fallback layer itself
   # works.
-  test "关闭阶段本身也有截止时间：即使 shutdown! 卡住（比如代理场景下 IO.popen 的 #close 要等子进程退出），capture 也不会被拖住" do
+  test "the close phase has its own deadline so capture is not held up even when shutdown! hangs" do
     session = Collectors::SshSession.new(managed_app, close_timeout: 1)
     wedged_session = Object.new
     wedged_session.define_singleton_method(:shutdown!) { sleep 30 }
@@ -145,6 +145,6 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     session.send(:close_session, wedged_session)
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0
 
-    assert_operator elapsed, :<, 10, "close_session 应该在 close_timeout 附近放弃，而不是等满 30 秒"
+    assert_operator elapsed, :<, 10, "close_session should give up near close_timeout instead of waiting the full 30 seconds"
   end
 end

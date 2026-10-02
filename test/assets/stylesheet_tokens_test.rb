@@ -52,33 +52,33 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     "transform: translateY(-3.4px)"               # 3 logo
   ].freeze
 
-  test "白名单之外的声明都用了 token" do
+  test "uses tokens for every declaration outside the allowlist" do
     extra = offenders - ALLOWED
 
     assert_empty extra,
-                 "这些声明写死了字面量，请改用 var(--…)：\n#{extra.join("\n")}"
+                 "These declarations hardcode literals; use var(--…) instead:\n#{extra.join("\n")}"
   end
 
-  test "白名单里没有已经清理干净的条目" do
+  test "has no allowlist entries that are already cleaned up" do
     stale = ALLOWED - offenders
 
     assert_empty stale,
-                 "这些字面量已经不在样式表里了，请从 ALLOWED 里删掉：\n#{stale.join("\n")}"
+                 "These literals are no longer in the stylesheet; remove them from ALLOWED:\n#{stale.join("\n")}"
   end
 
 
-  test ":root 之外不出现 px 字面量" do
+  test "has no px literals outside :root" do
     extra = px_offenders - PX_ALLOWED
 
     assert_empty extra,
-                 "这些声明在 :root 之外写死了 px（spec §5）。px 不跟随 rem 缩放轴——用户调大字号时它们不动，层级在缩放后塌掉。改用 rem 或 token；确属四类例外之一的，加进 PX_ALLOWED 并注明类别：\n#{extra.join("\n")}"
+                 "These declarations hardcode px outside :root (spec §5). px does not follow the rem scaling axis: when users enlarge the font size they stay put and the hierarchy collapses after scaling. Use rem or a token; if it truly falls into one of the four exception categories, add it to PX_ALLOWED and note the category:\n#{extra.join("\n")}"
   end
 
-  test "px 白名单里没有已经清理干净的条目" do
+  test "has no px allowlist entries that are already cleaned up" do
     stale = PX_ALLOWED - px_offenders
 
     assert_empty stale,
-                 "这些 px 已经不在样式表里了，请从 PX_ALLOWED 里删掉：\n#{stale.join("\n")}"
+                 "These px values are no longer in the stylesheet; remove them from PX_ALLOWED:\n#{stale.join("\n")}"
   end
 
   private

@@ -5,7 +5,7 @@ require "test_helper"
 # -- if it were a field of UsersController#update, developers and ops could never
 # change their own language, and they are exactly the largest group of users.
 class LocalesControllerTest < ActionDispatch::IntegrationTest
-  test "任何已登录角色都能改自己的语言" do
+  test "lets any signed-in role change their own locale" do
     [ users(:one), users(:two), users(:three) ].each do |user|
       sign_in_as user
 
@@ -16,7 +16,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "未登录改不了" do
+  test "rejects locale changes when signed out" do
     patch locale_path, params: { locale: "en" }
 
     assert_redirected_to new_session_path
@@ -24,7 +24,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
 
   # There is no "change someone else's language" path: the controller doesn't take a user id at all,
   # so what's asserted here is that passing an extra id param can't affect anyone else.
-  test "只改得了自己" do
+  test "only lets a user change their own locale" do
     sign_in_as users(:one)
 
     patch locale_path, params: { locale: "en", user_id: users(:two).id, id: users(:two).id }
@@ -33,7 +33,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_nil users(:two).reload.locale
   end
 
-  test "不可用的语言被拒，原来的偏好不变" do
+  test "rejects an unavailable locale and keeps the previous preference" do
     users(:one).update!(locale: "zh-CN")
     sign_in_as users(:one)
 
@@ -42,7 +42,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "zh-CN", users(:one).reload.locale
   end
 
-  test "改完回到来的那一页" do
+  test "redirects back to the originating page after the change" do
     sign_in_as users(:one)
 
     patch locale_path, params: { locale: "en" }, headers: { "HTTP_REFERER" => users_path }
@@ -54,7 +54,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
   # and the header wouldn't render at all -- that assertion would be a false green, passing whether
   # or not the switcher is right. So each case first asserts that the header is actually there, then
   # asserts the switcher.
-  test "页头的切换器是个下拉，每种可选语言一个选项" do
+  test "renders the header switcher as a dropdown with one option per available locale" do
     sign_in_as users(:one)
 
     get root_path
@@ -64,7 +64,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
                   count: User::SELECTABLE_LOCALES.size
   end
 
-  test "下拉里选中的是当前语言" do
+  test "selects the current locale in the dropdown" do
     users(:one).update!(locale: "en")
     sign_in_as users(:one)
 
@@ -75,7 +75,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
 
   # It must also work without JS: the select doesn't submit the form by itself. With JS this button
   # is hidden by the auto-submit controller, replaced by "go as soon as you pick".
-  test "下拉旁边有一个真的提交按钮，作为没有 JS 时的退路" do
+  test "puts a real submit button next to the dropdown as a no-JS fallback" do
     sign_in_as users(:one)
 
     get root_path
@@ -87,7 +87,7 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
   # With only one selectable language, render nothing: a switcher with a single option would make
   # people think there are other choices. The first four batches of design 13 live in exactly this
   # state -- the mechanism is testable, the entry point isn't exposed.
-  test "只有一种可选语言时页头不出现切换器" do
+  test "hides the header switcher when only one locale is available" do
     with_selectable_locales(%w[zh-CN]) do
       sign_in_as users(:one)
 

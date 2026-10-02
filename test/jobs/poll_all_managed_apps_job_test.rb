@@ -11,14 +11,14 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
     )
   end
 
-  test "两次紧挨着的调度只入队一次——认领槽位是原子的" do
+  test "enqueues only once for two back-to-back schedules because slot claiming is atomic" do
     assert_enqueued_jobs 1, only: PollManagedAppJob do
       PollAllManagedAppsJob.perform_now
       PollAllManagedAppsJob.perform_now
     end
   end
 
-  test "真正并发地认领同一个应用的槽位，也只有一个线程能认领成功" do
+  test "only one thread wins when claiming the same app's slot truly concurrently" do
     job = PollAllManagedAppsJob.new
     thread_count = 20
     start = Queue.new
@@ -36,7 +36,7 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
     assert_equal 1, winners
   end
 
-  test "认领过期（到了下一个节奏周期）后，调度会重新入队" do
+  test "re-enqueues after the claim expires (next cadence period)" do
     PollAllManagedAppsJob.perform_now
     assert_enqueued_jobs 1, only: PollManagedAppJob
 
@@ -47,7 +47,7 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
     assert_enqueued_jobs 2, only: PollManagedAppJob
   end
 
-  test "认领槽位被缓存驱逐等价于从没跑过——必须立刻能重新认领，而不是永远认领不到" do
+  test "treats a cache-evicted claim as never run and can be reclaimed immediately" do
     PollAllManagedAppsJob.perform_now
     assert_enqueued_jobs 1, only: PollManagedAppJob
 
@@ -59,7 +59,7 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
 
   # The app in setup is alive, so here we [cannot] assert "nothing was enqueued" -- that would test
   # something else. What to assert: the disabled one doesn't appear in the enqueued arguments.
-  test "停用的应用不再被枚举采集" do
+  test "no longer polls deactivated apps" do
     gone = ManagedApp.create!(name: "gone-#{SecureRandom.hex(4)}",
                               config_yaml: file_fixture("simple_deploy.yml").read,
                               destination: "production")
@@ -71,7 +71,7 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
                           .flat_map { |job| job["arguments"] }
                           .filter_map { |arg| arg.is_a?(Hash) ? arg["_aj_globalid"] : nil }
 
-    assert polled.any? { |gid| gid.include?("ManagedApp/#{@app.id}") }, "活着的应用应该照常入队"
-    refute polled.any? { |gid| gid.include?("ManagedApp/#{gone.id}") }, "停用的应用不该入队"
+    assert polled.any? { |gid| gid.include?("ManagedApp/#{@app.id}") }, "An active app should be enqueued as usual"
+    refute polled.any? { |gid| gid.include?("ManagedApp/#{gone.id}") }, "A deactivated app must not be enqueued"
   end
 end

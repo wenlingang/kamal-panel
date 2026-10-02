@@ -10,31 +10,31 @@ class Actions::VersionEnforcementTest < ActiveSupport::TestCase
                   destination: "production")
   end
 
-  test "restart（app boot）在没有 target_version 时拒绝生成命令" do
+  test "restart (app boot) refuses to build a command without target_version" do
     action = Actions::Restart.new(build_app, target_version: nil)
 
     assert_raises(ArgumentError) { action.cli_args }
   end
 
-  test "restart 在有 target_version 时把 --version 显式带上" do
+  test "restart passes --version explicitly when target_version is present" do
     action = Actions::Restart.new(build_app, target_version: "abc1234")
 
     assert_equal [ "app", "boot", "--version", "abc1234" ], action.cli_args
   end
 
-  test "rollback 在没有 target_version 时拒绝生成命令" do
+  test "rollback refuses to build a command without target_version" do
     action = Actions::Rollback.new(build_app, target_version: nil)
 
     assert_raises(ArgumentError) { action.cli_args }
   end
 
-  test "rollback 在有 target_version 时把版本号带上" do
+  test "rollback includes the version when target_version is present" do
     action = Actions::Rollback.new(build_app, target_version: "abc1234")
 
     assert_equal [ "rollback", "abc1234" ], action.cli_args
   end
 
-  test "stop/start 不强制要求 target_version（它们不需要真实版本号，只是占位以绕开 Kamal 的锁审计文案）" do
+  test "stop/start do not require target_version (placeholder only, to avoid Kamal's lock audit text)" do
     assert_nothing_raised { Actions::Stop.new(build_app, target_version: nil).cli_args }
     assert_nothing_raised { Actions::Start.new(build_app, target_version: nil).cli_args }
   end

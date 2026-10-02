@@ -10,20 +10,20 @@ class Api::DeploysIsolationTest < ActionDispatch::IntegrationTest
     @token = @managed_app.regenerate_hook_token!
   end
 
-  test "带 shell 元字符的 version 直接被拒，不落库" do
+  test "rejects a version containing shell metacharacters without persisting it" do
     [ "a; rm -rf /", "$(whoami)", "`id`", "../../etc/passwd", "a b" ].each do |bad|
       post "/api/deploys",
            params: { phase: "succeeded", service: "blog", destination: "production",
                      version: bad, performer: "ci", command: "deploy" },
            headers: { "Authorization" => "Bearer #{@token}" }
 
-      assert_response :unprocessable_entity, "#{bad.inspect} 不该被接受"
+      assert_response :unprocessable_entity, "#{bad.inspect} should not be accepted"
     end
 
     assert_equal 0, DeployEvent.count
   end
 
-  test "上报里的 version 不会进入任何动作的 cli_args" do
+  test "a reported version never ends up in any action's cli_args" do
     post "/api/deploys",
          params: { phase: "succeeded", service: "blog", destination: "production",
                    version: "aaaaaaa", performer: "ci", command: "deploy" },

@@ -27,15 +27,15 @@ class Actions::ForceUnlockTest < ExecutionLayerTest
                                                        name: "#{app_name} 的 SSH 私钥"))
   end
 
-  test "强制解锁本身不需要先拿到锁" do
+  test "force unlock itself does not need to acquire the lock first" do
     refute Actions::ForceUnlock.requires_lock?
   end
 
-  test "强制解锁需要手输应用名" do
+  test "force unlock requires typing the app name" do
     assert Actions::ForceUnlock.confirm_by_name?
   end
 
-  test "解锁后锁状态变为未锁定" do
+  test "lock status becomes unlocked after unlocking" do
     app = build_app
     lock_dir = ".kamal/lock-blog-production"
     FakeHost.ssh("node-1", "mkdir -p #{lock_dir} && printf 'stale' | base64 > #{lock_dir}/details")
@@ -53,7 +53,7 @@ class Actions::ForceUnlockTest < ExecutionLayerTest
     FakeHost.ssh("node-1", "rm -rf .kamal/lock-blog-production")
   end
 
-  test "强制解锁在审计中带独立标记" do
+  test "force unlock carries a distinct marker in the audit" do
     app = build_app
     user = User.create!(email_address: "op2@example.com", password: "secret123456", role: "admin")
     log = AuditLog.start!(user: user, managed_app: app, action_name: "force_unlock",

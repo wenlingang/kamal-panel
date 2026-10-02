@@ -34,7 +34,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
     )
   end
 
-  test "一次轮询同时写入容器观测与路由快照" do
+  test "a poll writes both container observations and the routing snapshot" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     FakeHost.proxy_deploy(node: "node-1", service: "blog-web-production",
@@ -50,7 +50,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_match(/blog-web-production-aaaaaaa/, target.target)
   end
 
-  test "采集器抛异常时任务不崩溃，并留下 unreachable 痕迹" do
+  test "does not crash when the collector raises and leaves an unreachable trace" do
     app = build_app
     app.update_column(:config_yaml, app.config_yaml.sub("127.0.0.1", "192.0.2.1"))
     app.reload
@@ -66,7 +66,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
   # if the stream name or target id is mistyped, the page quietly stops updating while
   # every test stays green. This pins down the server half: the broadcast really happens,
   # goes to the right stream, and replaces the right DOM node.
-  test "deploy.yml 解析不了时，把原因记在 ManagedApp 上，而不只是留一行日志" do
+  test "records the reason on the ManagedApp when deploy.yml cannot be parsed, not just a log line" do
     app = build_app
     # Break config_yaml so it no longer parses -- while making sure the destination validation
     # doesn't block first (config_yaml_must_parse is skipped when destination already has an error).
@@ -79,11 +79,11 @@ class PollManagedAppJobTest < ExecutionLayerTest
     app.reload
 
     assert_predicate app.last_poll_error, :present?,
-      "配置解析不了必须留痕在 ManagedApp 上，UI 才能显示出来（见 final review I4）"
+      "An unparseable config must leave a trace on ManagedApp so the UI can show it (see final review I4)"
     assert_predicate app.last_poll_error_at, :present?
   end
 
-  test "连续失败时 first_poll_error_at 保持首次失败的时间" do
+  test "keeps first_poll_error_at at the first failure time across consecutive failures" do
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production")
     app.update_column(:config_yaml, "不是配置")
@@ -107,14 +107,14 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_operator app.last_poll_error_at, :>, first
   end
 
-  test "配置恢复可解析后，下一轮轮询会清掉之前记录的解析错误" do
+  test "clears the previously recorded parse error on the next poll once the config is parseable again" do
     app = build_app
     app.update_columns(last_poll_error: "之前记录的错误", last_poll_error_at: 1.hour.ago)
 
     PollManagedAppJob.perform_now(app)
     app.reload
 
-    assert_nil app.last_poll_error, "配置解析恢复正常后，旧的错误痕迹不该继续挂着"
+    assert_nil app.last_poll_error, "Once the config parses again, the old error trace should not linger"
     assert_nil app.last_poll_error_at
   end
 
@@ -123,7 +123,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
   # filtering by what; rendering a full grid and swapping it in would quietly replace a
   # filtering user's results with everything. A refresh makes each browser come back with
   # its own current URL (i.e. its own filters) and re-request, and the page merges with morph.
-  test "轮询完成后向 overview 频道广播一次 refresh，而不是渲染好的网格" do
+  test "broadcasts one refresh to the overview channel after polling, not a rendered grid" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     FakeHost.proxy_deploy(node: "node-1", service: "blog-web-production",
@@ -136,10 +136,10 @@ class PollManagedAppJobTest < ExecutionLayerTest
     message = ActiveSupport::JSON.decode(broadcasts("overview").last)
     assert_includes message, 'action="refresh"'
     refute_includes message, 'target="overview-grid"',
-      "服务端不该再替谁渲染网格——它不知道对方正在筛什么"
+      "The server must not render the grid for anyone; it does not know what they are filtering"
   end
 
-  test "采集后也往该应用自己的流广播一次，详情页才会自己活" do
+  test "also broadcasts once to the app's own stream after polling so the detail page stays live" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     app = build_app
@@ -150,9 +150,9 @@ class PollManagedAppJobTest < ExecutionLayerTest
     message = ActiveSupport::JSON.decode(broadcasts(stream).last)
     assert_includes message, 'action="replace"'
     assert_includes message, 'target="host-status"',
-      "替换目标必须是 #host-status——改了这个 id，详情页会一直停在旧数据上"
+      "The replace target must be #host-status; if this id changes, the detail page stays stuck on stale data"
     assert_includes message, "aaaaaaa",
-      "广播的内容应该是重绘后的机器状态，能看到刚采集到的版本"
+      "The broadcast should carry the re-rendered host status, showing the version just collected"
   end
 
   # Broadcast failure -- only the "delivery" step (Solid Cable hiccups, serialization
@@ -168,7 +168,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
   # exactly this: rendering (ManagedAppStatus, partial) and delivery are now two separate
   # stages, and only delivery is covered by the safety net. If the method stubbed here
   # covered both stages, the two tests couldn't tell which half the safety net protects.
-  test "广播投递失败不影响采集结果落库，任务本身不因此失败" do
+  test "a failed broadcast delivery does not affect persisting results and does not fail the job" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
 
@@ -187,7 +187,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
   # degradation" safety net, otherwise a real code bug would degrade into "the overview
   # page quietly stops updating, with only a log line" while all tests stay green, which
   # is exactly the regression this review wants to block.
-  test "渲染阶段异常必须让任务失败，不会被广播的兜底吞掉" do
+  test "a rendering error fails the job and is not swallowed by the broadcast rescue" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
 
@@ -203,7 +203,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_equal "aaaaaaa", Observation.latest_for(app).first.version
   end
 
-  test "一轮轮询会建立收敛基线，第二轮换版本后推断出一条部署" do
+  test "the first poll sets a convergence baseline and the second poll with a new version infers a deploy" do
     app = build_app
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -211,7 +211,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
     PollManagedAppJob.perform_now(app)
 
     assert_equal "aaaaaaa", app.reload.last_converged_version
-    assert_equal 0, app.deploy_events.count, "首次收敛只建基线"
+    assert_equal 0, app.deploy_events.count, "The first convergence only sets the baseline"
 
     FakeHost.reset!("node-1")
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
@@ -222,10 +222,10 @@ class PollManagedAppJobTest < ExecutionLayerTest
     event = app.deploy_events.sole
     assert_equal "bbbbbbb", event.version
     assert_equal "inferred", event.source
-    assert_empty DeployAlerts.new(app).list, "推断行本身已被观测背书，不该触发告警"
+    assert_empty DeployAlerts.new(app).list, "The inferred row is already backed by observation and must not trigger an alert"
   end
 
-  test "一轮轮询会回填 observed_at" do
+  test "a poll backfills observed_at" do
     app = build_app
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -249,7 +249,7 @@ class PollManagedAppJobTest < ExecutionLayerTest
   # A collection round may already be queued when the app is disabled. It shouldn't revive
   # the app and collect it again -- that would pile up one more failed observation after
   # disabling (the credentials have already been released).
-  test "已经入队的采集遇到已停用的应用时直接放弃" do
+  test "an already-enqueued poll gives up when it meets a deactivated app" do
     app = build_app
     app.deactivate!
 

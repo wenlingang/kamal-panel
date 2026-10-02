@@ -12,21 +12,21 @@ class AuditLogTest < ActiveSupport::TestCase
   # the old name"). That fallback also masks "added a new action but forgot the
   # translation" -- so here we check coverage head-on, rather than hoping someone spots
   # an English key popping up on the page.
-  test "每个会被写进审计的动作名都有中英文译文" do
+  test "every action name written to the audit log has Chinese and English translations" do
     AuditLog.all_action_names.each do |name|
       %i[zh-CN en].each do |locale|
         assert I18n.exists?("audit.actions.#{name}", locale),
-               "动作 #{name} 缺 #{locale} 译文"
+               "action #{name} is missing its #{locale} translation"
       end
     end
   end
 
-  test "动作名清单同时覆盖部署动作与权限动作" do
+  test "the action name list covers both deploy actions and permission actions" do
     assert_includes AuditLog.all_action_names, "rollback"
     assert_includes AuditLog.all_action_names, "user.create"
   end
 
-  test "detail_args 存成 JSON，取出来还是原来的结构" do
+  test "detail_args is stored as JSON and reads back with the original structure" do
     log = AuditLog.record_access!(user: @user, action_name: "app.update",
                                   managed_app: @app,
                                   detail_key: "app.update_fields",
@@ -35,7 +35,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_equal %w[name kamal_secrets], log.reload.detail_args["fields"]
   end
 
-  test "start! 先落一条 pending" do
+  test "start! first records a pending entry" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "rollback",
                           target_version: "aaaaaaa", hosts: [ "10.0.0.1" ])
 
@@ -43,7 +43,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_nil log.finished_at
   end
 
-  test "finish! 更新结果与耗时" do
+  test "finish! updates the result and duration" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "restart",
                           target_version: nil, hosts: [ "10.0.0.1" ])
     log.finish!(result: "success", command: "kamal app restart", output_digest: "ok", duration_ms: 1234)
@@ -53,28 +53,28 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_not_nil log.finished_at
   end
 
-  test "审计日志不可删除" do
+  test "audit logs cannot be destroyed" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
     assert_raises(ActiveRecord::ReadOnlyRecord) { log.destroy }
   end
 
-  test "审计日志也不能用 delete 绕过" do
+  test "audit logs cannot be bypassed with delete either" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
     assert_raises(ActiveRecord::ReadOnlyRecord) { log.delete }
   end
 
-  test "中途崩溃留下的 pending 记录仍可查" do
+  test "pending records left behind by a mid-run crash can still be queried" do
     AuditLog.start!(user: @user, managed_app: @app, action_name: "rollback",
                     target_version: "aaaaaaa", hosts: [ "10.0.0.1" ])
 
     assert_equal 1, AuditLog.where(result: "pending").count
   end
 
-  test "销毁 ManagedApp 不会连带删除它的审计日志" do
+  test "destroying a ManagedApp does not delete its audit logs" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -82,7 +82,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "销毁 User 不会连带删除它的审计日志" do
+  test "destroying a User does not delete their audit logs" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -90,7 +90,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "AuditLog.delete_all 绕不过守卫" do
+  test "AuditLog.delete_all cannot bypass the guard" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -98,7 +98,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "relation.delete_all 绕不过守卫" do
+  test "relation.delete_all cannot bypass the guard" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -106,7 +106,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "AuditLog.delete(id) 绕不过守卫" do
+  test "AuditLog.delete(id) cannot bypass the guard" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -114,7 +114,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "AuditLog.delete_by 绕不过守卫" do
+  test "AuditLog.delete_by cannot bypass the guard" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "stop",
                           target_version: nil, hosts: [])
 
@@ -122,7 +122,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert AuditLog.exists?(log.id)
   end
 
-  test "finish! 拒绝非法的 result，不留下半更新的行" do
+  test "finish! rejects an invalid result without leaving a half-updated row" do
     log = AuditLog.start!(user: @user, managed_app: @app, action_name: "restart",
                           target_version: nil, hosts: [])
 
@@ -136,17 +136,17 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_nil log.duration_ms
   end
 
-  test "权限变更记成不属于任何应用的一条审计" do
+  test "a permission change is recorded as an audit entry that belongs to no app" do
     log = AuditLog.record_access!(user: users(:two), action_name: "user.update_role",
                                   target_user: users(:one))
 
     assert_nil log.managed_app
     assert_equal users(:one), log.target_user
     assert_equal "success", log.result
-    assert_not_nil log.finished_at, "权限变更是当场完成的，不该留在 pending"
+    assert_not_nil log.finished_at, "a permission change completes on the spot and should not stay pending"
   end
 
-  test "成员变更同时带应用与被操作的人" do
+  test "a member change carries both the app and the affected person" do
     log = AuditLog.record_access!(user: users(:two), action_name: "app.add_member",
                                   target_user: users(:three), managed_app: @app)
 
@@ -154,7 +154,7 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_equal users(:three), log.target_user
   end
 
-  test "权限变更的记录一样删不掉" do
+  test "permission change records cannot be deleted either" do
     log = AuditLog.record_access!(user: users(:two), action_name: "user.deactivate",
                                   target_user: users(:one))
 

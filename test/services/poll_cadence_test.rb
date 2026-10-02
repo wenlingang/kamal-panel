@@ -9,23 +9,23 @@ class PollCadenceTest < ActiveSupport::TestCase
     Rails.cache.clear
   end
 
-  test "默认无人查看时 60 秒" do
+  test "60 seconds by default when nobody is viewing" do
     assert_equal 60.seconds, PollCadence.interval_for(@app)
   end
 
-  test "有人正在查看时 10 秒" do
+  test "10 seconds when someone is viewing" do
     PollCadence.mark_viewed!(@app)
 
     assert_equal 10.seconds, PollCadence.interval_for(@app)
   end
 
-  test "burst 期间 2 秒" do
+  test "2 seconds during a burst" do
     PollCadence.mark_burst!(@app)
 
     assert_equal 2.seconds, PollCadence.interval_for(@app)
   end
 
-  test "burst 90 秒后回落" do
+  test "falls back 90 seconds after a burst" do
     PollCadence.mark_burst!(@app)
 
     travel 91.seconds do
@@ -33,7 +33,7 @@ class PollCadenceTest < ActiveSupport::TestCase
     end
   end
 
-  test "burst 优先于 viewing" do
+  test "burst takes priority over viewing" do
     PollCadence.mark_viewed!(@app)
     PollCadence.mark_burst!(@app)
 

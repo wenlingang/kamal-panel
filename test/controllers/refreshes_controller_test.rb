@@ -8,7 +8,7 @@ class RefreshesControllerTest < ActionDispatch::IntegrationTest
                                       destination: "production")
   end
 
-  test "点刷新会把节奏顶到 burst 并入队一次采集" do
+  test "clicking refresh bumps the cadence to burst and enqueues one collection" do
     sign_in_as users(:two)   # admin
 
     assert_enqueued_with(job: PollManagedAppJob) do
@@ -18,7 +18,7 @@ class RefreshesControllerTest < ActionDispatch::IntegrationTest
     assert_equal PollCadence::BURST, PollCadence.interval_for(@managed_app)
   end
 
-  test "ops 也能刷新——采集是读动作，不改变线上任何状态" do
+  test "lets ops refresh too, since collection is a read action that changes no production state" do
     sign_in_as users(:one)   # ops
 
     assert_enqueued_with(job: PollManagedAppJob) do
@@ -28,13 +28,13 @@ class RefreshesControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
-  test "未登录不能刷新" do
+  test "does not allow refreshing when signed out" do
     post managed_app_refreshes_path(@managed_app)
 
     assert_redirected_to new_session_path
   end
 
-  test "三档角色都能手动刷新——它是读动作" do
+  test "lets all three roles refresh manually since it is a read action" do
     [ users(:one), users(:two), users(:three) ].each do |user|
       sign_in_as user
 

@@ -22,18 +22,18 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     HOSTS.each { |host| observe(host: host, version: version, at: at) }
   end
 
-  test "首次收敛只写基线，不产生事件" do
+  test "the first convergence only writes a baseline and creates no event" do
     converge(version: "aaaaaaa")
 
     DeployEvents::Inferrer.call(@managed_app)
 
     assert_equal 0, @managed_app.deploy_events.count,
-                 "刚接入的应用早就在跑这一版了，它不是今天部署的"
+                 "a newly onboarded app has long been running this version; it was not deployed today"
     assert_equal "aaaaaaa", @managed_app.reload.last_converged_version
     assert_predicate @managed_app.last_converged_at, :present?
   end
 
-  test "收敛版本变化时记一条 inferred" do
+  test "records an inferred event when the converged version changes" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -52,7 +52,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_equal "bbbbbbb", @managed_app.reload.last_converged_version
   end
 
-  test "混合版本不算收敛：不记事件也不动状态" do
+  test "mixed versions are not convergence: no event and no state change" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -65,7 +65,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_equal "aaaaaaa", @managed_app.reload.last_converged_version
   end
 
-  test "有机器失联不算收敛" do
+  test "an unreachable host prevents convergence" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -74,11 +74,11 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     DeployEvents::Inferrer.call(@managed_app)
 
     assert_equal 0, @managed_app.deploy_events.count,
-                 "那台失联的机器可能还跑着旧版，面板并不知道"
+                 "the unreachable host may still run the old version and the panel cannot know"
     assert_equal "aaaaaaa", @managed_app.reload.last_converged_version
   end
 
-  test "没有任何 running 观测不算收敛" do
+  test "no running observation at all is not convergence" do
     HOSTS.each { |host| observe(host: host, version: "aaaaaaa", status: "exited") }
 
     DeployEvents::Inferrer.call(@managed_app)
@@ -87,7 +87,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_nil @managed_app.reload.last_converged_version
   end
 
-  test "同一版本连续多轮是幂等的" do
+  test "repeated rounds of the same version are idempotent" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
     converge(version: "bbbbbbb", at: 5.minutes.ago)
@@ -95,10 +95,10 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     3.times { DeployEvents::Inferrer.call(@managed_app) }
 
     assert_equal 1, @managed_app.deploy_events.count,
-                 "轮询在 burst 期是 2 秒一轮，不幂等的话历史会被同一次部署刷屏"
+                 "polling runs every 2 seconds during a burst; without idempotency the same deploy would flood the history"
   end
 
-  test "回滚到很久以前的版本仍然记一条" do
+  test "a rollback to a much older version is still recorded" do
     # That version was deployed three months ago, and an old hook event is sitting in the DB
     old_event = DeployEvent.create!(managed_app: @managed_app, version: "aaaaaaa",
                                     source: "hook", succeeded_at: 3.months.ago,
@@ -112,11 +112,11 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
 
     inferred = @managed_app.deploy_events.where(source: "inferred", version: "aaaaaaa")
     assert_equal 1, inferred.count,
-                 "只按 version 去重会把这次回滚吞掉——它明明是一次真实的部署"
+                 "deduplicating by version alone would swallow this rollback -- it is a real deploy"
     refute_equal old_event.id, inferred.sole.id
   end
 
-  test "配置外机器留下的旧观测不会永久阻断收敛" do
+  test "stale observations from hosts outside the config do not block convergence permanently" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -132,7 +132,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_equal "bbbbbbb", @managed_app.reload.last_converged_version
   end
 
-  test "同一台机器上不同角色版本不一致不算收敛" do
+  test "differing versions across roles on one host are not convergence" do
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -146,7 +146,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_equal "aaaaaaa", @managed_app.reload.last_converged_version
   end
 
-  test "收敛期内已有同版本 hook 事件时让位，但状态照样更新" do
+  test "yields to an existing same-version hook event in the convergence window, but still updates state" do
     converge(version: "aaaaaaa", at: 30.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -158,6 +158,6 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
 
     assert_equal 0, @managed_app.deploy_events.where(source: "inferred").count
     assert_equal "bbbbbbb", @managed_app.reload.last_converged_version,
-                 "让位不记事件，但状态必须更新，否则下一次变更会拿错误的时间边界去比"
+                 "yielding records no event, but state must still update, otherwise the next change is compared against the wrong time boundary"
   end
 end

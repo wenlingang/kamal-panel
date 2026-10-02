@@ -14,12 +14,12 @@ class FilterParameterLoggingTest < ActiveSupport::TestCase
   # contains the symbol :value. An assertion like `assert_includes ..., :value` is green when this
   # file runs alone and red in the full suite -- what it actually guards is execution order, not
   # "the private key won't end up in the log".
-  test "凭据表单提交的密文在日志里被遮蔽，而不是留下明文" do
+  test "secrets submitted via the credential form are masked in logs instead of left in plaintext" do
     filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
 
     filtered = filter.filter("credential" => { "name" => "生产集群", "value" => "-----BEGIN OPENSSH PRIVATE KEY-----" })
     assert_equal "[FILTERED]", filtered["credential"]["value"]
-    assert_equal "生产集群", filtered["credential"]["name"], "只该遮蔽密文，不该把整个表单糊掉"
+    assert_equal "生产集群", filtered["credential"]["name"], "only the secret should be masked, not the whole form"
 
     filtered = filter.filter("registry_credential" => { "name" => "Docker Hub", "value" => "s3cr3t" })
     assert_equal "[FILTERED]", filtered["registry_credential"]["value"]

@@ -7,25 +7,25 @@ class Actions::LogsTest < ActiveSupport::TestCase
                               destination: "production")
   end
 
-  test "在封闭动作集里" do
+  test "is in the closed action set" do
     assert_equal Actions::Logs, Actions::Base.find("logs")
   end
 
-  test "不取部署锁——看日志不改变线上状态，不该跟一次正在进行的部署抢锁" do
+  test "does not take the deploy lock, since viewing logs does not mutate production" do
     refute_predicate Actions::Logs, :requires_lock?
   end
 
-  test "不是改变线上状态的动作" do
+  test "is not an action that mutates production state" do
     refute_predicate Actions::Logs, :mutating?
   end
 
-  test "其余动作默认都是改变线上状态的" do
+  test "all other actions are mutating by default" do
     (Actions::Base.all - [ Actions::Logs ]).each do |klass|
-      assert_predicate klass, :mutating?, "#{klass} 必须显式表态自己会不会改线上状态"
+      assert_predicate klass, :mutating?, "#{klass} must explicitly declare whether it mutates production state"
     end
   end
 
-  test "命令是 kamal app logs，带行数上限" do
+  test "command is kamal app logs with a line limit" do
     assert_equal [ "app", "logs", "--lines", "200" ], Actions::Logs.new(@app).cli_args
   end
 end

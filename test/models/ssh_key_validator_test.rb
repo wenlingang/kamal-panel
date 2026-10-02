@@ -60,7 +60,7 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     KEY
   end
 
-  test "真实私钥被判定可用，并给出指纹" do
+  test "accepts a real private key and returns its fingerprint" do
     result = SshKeyValidator.call(real_key)
 
     assert result.ok?
@@ -68,7 +68,7 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     assert_match(/\ASHA256:/, result.fingerprint)
   end
 
-  test "真实带密码的私钥被判定为 encrypted，且判断很快（默认 16 轮 bcrypt，不是攻击输入）" do
+  test "flags a real passphrase-protected key as encrypted, quickly (default 16 bcrypt rounds, not attack input)" do
     elapsed = monotonic_seconds { @result = SshKeyValidator.call(real_encrypted_key) }
 
     refute @result.ok?
@@ -76,14 +76,14 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     assert_operator elapsed, :<, 1.0
   end
 
-  test "声明未知 key 类型的私钥被判定为不可用，而不是抛异常" do
+  test "marks a key declaring an unknown key type as unusable instead of raising" do
     result = SshKeyValidator.call(openssh_key(type_name: "ssh-dss"))
 
     refute result.ok?
     refute result.encrypted?
   end
 
-  test "攻击者构造的超大 bcrypt rounds 私钥在硬超时内被杀掉，而不是真的跑完" do
+  test "kills an attacker-crafted huge-bcrypt-rounds key within the hard timeout" do
     # cipher=aes256-ctr / kdf=bcrypt, rounds is the uint32 max: if it really ran to
     # completion, the time needed is estimated in the "real bcrypt per-round cost" test
     # below (about 250 CPU-days). Here we give only a 0.3 second timeout and assert the
@@ -101,11 +101,11 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
 
     refute @result.ok?
     assert_equal "timed_out", @result.error_class
-    assert_operator elapsed, :<, 2.0, "应该在超时附近被杀掉，而不是真的跑完"
+    assert_operator elapsed, :<, 2.0, "Should be killed near the timeout instead of actually running to completion"
     assert_operator elapsed, :>=, 0.3
   end
 
-  test "同一个超大 rounds 攻击，换成每行加 -----前缀的编码，依然在硬超时内被杀掉" do
+  test "still kills the same huge-rounds attack within the hard timeout when each line is prefixed with -----" do
     # This is the real bypass that was reproduced: the home-made OpenSSH header reader
     # filtered out lines starting with "-----", saw an empty body for this input, and
     # misjudged it as "not an OpenSSH private key" and let it through; while net-ssh
@@ -129,20 +129,20 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
 
     refute @result.ok?
     assert_equal "timed_out", @result.error_class
-    assert_operator elapsed, :<, 2.0, "每行加 -----前缀不应该绕过硬超时"
+    assert_operator elapsed, :<, 2.0, "A ----- prefix on each line must not bypass the hard timeout"
   end
 
-  test "攻击者构造的超大 iteration 的 PKCS#8 私钥在硬超时内被杀掉" do
+  test "kills an attacker-crafted PKCS#8 key with a huge iteration count within the hard timeout" do
     hostile = hostile_pkcs8(iterations: 200_000_000)
 
     elapsed = monotonic_seconds { with_safety_net { @result = SshKeyValidator.call(hostile, timeout: 0.3) } }
 
     refute @result.ok?
     assert_equal "timed_out", @result.error_class
-    assert_operator elapsed, :<, 2.0, "应该在超时附近被杀掉，而不是真的跑完 PBKDF2"
+    assert_operator elapsed, :<, 2.0, "Should be killed near the timeout instead of actually running the whole PBKDF2"
   end
 
-  test "真实 bcrypt 单轮耗时（用来对照上面两条测试确实没有真的跑完 KDF）" do
+  test "real single-round bcrypt cost (to confirm the two tests above did not actually run the KDF to completion)" do
     require "bcrypt_pbkdf"
     elapsed = monotonic_seconds { BCryptPbkdf.key("x", "saltsaltsaltsalt", 48, 100) }
     per_round = elapsed / 100
@@ -150,23 +150,23 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     # 4294967295 rounds * per-round cost should far exceed the 2 seconds the two timeout
     # tests above allow -- that is, without the hard timeout those two tests would hang
     # for a very, very long time (about 250 CPU-days) instead of returning within 2 seconds.
-    assert_operator per_round * 4_294_967_295, :>, 3600 * 24, "真实 KDF 應该比超时门槛慢好几个数量级"
+    assert_operator per_round * 4_294_967_295, :>, 3600 * 24, "A real KDF should be several orders of magnitude slower than the timeout threshold"
   end
 
-  test "畸形编码不会造成假拒绝：真实私钥换成不同的换行宽度/首尾空白依然能通过" do
+  test "accepts a real key re-wrapped with different line widths or surrounding whitespace" do
     variants = {
-      "无结尾换行" => real_key.chomp,
-      "首尾多余空白" => "\n\n  #{real_key}  \n\n",
-      "不规则换行宽度（每 40 字符换一行）" => rewrap(real_key, 40)
+      "no trailing newline" => real_key.chomp,
+      "extra surrounding whitespace" => "\n\n  #{real_key}  \n\n",
+      "irregular line width (wrapped every 40 chars)" => rewrap(real_key, 40)
     }
 
     variants.each do |label, variant|
       result = SshKeyValidator.call(variant)
-      assert result.ok?, "#{label}：应该仍然被判定为可用的私钥，实际 encrypted=#{result.encrypted?}"
+      assert result.ok?, "#{label}: should still be accepted as a usable key, got encrypted=#{result.encrypted?}"
     end
   end
 
-  test "CRLF 行结尾的私钥被干净拒绝——这是 net-ssh 自身的行为（它的 BEGIN 标记严格匹配 \\n），不是本类引入的假拒绝" do
+  test "cleanly rejects a key with CRLF line endings (net-ssh behavior, not a false rejection by this class)" do
     result = SshKeyValidator.call(real_key.gsub("\n", "\r\n"))
 
     refute result.ok?
@@ -180,7 +180,7 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     "\x01" * (16 * 1024)
   end
 
-  test "父进程写 stdin 也受硬超时保护：子进程从不读 stdin 时，父进程不会被写操作卡住" do
+  test "hard timeout also covers writing to stdin when the child never reads it" do
     validator = NeverReadsStdin.new(huge_value, 0.5)
 
     elapsed = monotonic_seconds { with_safety_net { @result = validator.call } }
@@ -189,10 +189,10 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     assert_equal "timed_out", @result.error_class
     # Before this fix, what was measured here was 117.85 seconds (the parent really got stuck on
     # stdin.write and the hard timeout never took effect). Now it should land near the timeout.
-    assert_operator elapsed, :<, 5.0, "stdin.write 应该跟别的 IO 一样受硬超时保护，不应该让父进程卡住"
+    assert_operator elapsed, :<, 5.0, "stdin.write should be covered by the hard timeout like any other IO and must not leave the parent stuck"
   end
 
-  test "子进程提前退出（完全不读 stdin）时，父进程写 stdin 不会抛出未处理的 Errno::EPIPE" do
+  test "does not raise an unhandled Errno::EPIPE when the child exits early without reading stdin" do
     validator = ExitsImmediately.new(huge_value, 3.0)
 
     result = nil
@@ -203,7 +203,7 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     refute result.ok?
   end
 
-  test "校验结果不会把子进程内部的异常信息透出" do
+  test "does not leak the child process's internal exception details in the result" do
     poison = openssh_key(type_name: "ssh-attacker-poison-marker")
 
     result = SshKeyValidator.call(poison)
@@ -233,7 +233,7 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     def with_safety_net(seconds = 5)
       Timeout.timeout(seconds) { yield }
     rescue Timeout::Error
-      flunk "硬超时看起来失效了：这次调用没有在 #{seconds} 秒安全网内返回"
+      flunk "The hard timeout appears to have failed: the call did not return within the #{seconds}-second safety net"
     end
 
     def rewrap(pem, width)

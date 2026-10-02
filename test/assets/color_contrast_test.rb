@@ -53,40 +53,40 @@ class ColorContrastTest < ActiveSupport::TestCase
     %w[--mark-gold --mark-tile]
   ].freeze
 
-  test "浅色主题下每一对前景背景都达到 WCAG AA" do
-    assert_all_pairs_pass palette(:light), "浅色"
+  test "every foreground/background pair in the light theme meets WCAG AA" do
+    assert_all_pairs_pass palette(:light), "light"
   end
 
-  test "深色主题下每一对前景背景都达到 WCAG AA" do
-    assert_all_pairs_pass palette(:dark), "深色"
+  test "every foreground/background pair in the dark theme meets WCAG AA" do
+    assert_all_pairs_pass palette(:dark), "dark"
   end
 
-  test "浅色主题下站标的图形元素达到 WCAG 非文本对比" do
-    assert_all_graphic_pairs_pass palette(:light), "浅色"
+  test "logo graphic elements in the light theme meet WCAG non-text contrast" do
+    assert_all_graphic_pairs_pass palette(:light), "light"
   end
 
-  test "深色主题下站标的图形元素达到 WCAG 非文本对比" do
-    assert_all_graphic_pairs_pass palette(:dark), "深色"
+  test "logo graphic elements in the dark theme meet WCAG non-text contrast" do
+    assert_all_graphic_pairs_pass palette(:dark), "dark"
   end
 
   # The tests above go through palette(), which only recognizes six-digit hex; tokens
   # written as rgba() (--ring, --shadow-md and the like) fall outside its regex, so
   # forgetting one on either side would not turn anything red. This one compares only
   # the set of variable names.
-  test "两套调色板的变量名集合必须相等" do
+  test "both palettes must define the same set of variable names" do
     assert_equal palette_names(:light), palette_names(:dark),
-                 "浅色块和深色块必须定义同一组变量名，否则深色下会有 token 静默" \
-                 "沿用浅色值（例如 rgba()/hsl() 写的阴影，不受上一条 palette() 断言保护）"
+                 "The light and dark blocks must define the same variable names, otherwise some token silently " \
+                 "keeps its light value in dark mode (e.g. shadows written as rgba()/hsl() are not covered by the palette() assertions above)"
   end
 
-  test "与主题无关的 token 不会被深色块重定义" do
+  test "theme-independent tokens are not redefined by the dark block" do
     # The three :root blocks in the file are, in order: light palette, dark @media,
     # theme-independent tokens (typography/shape). The third block [comes after the dark
     # block], so if a same-named token is written in both, the later third block overrides
     # the dark value: dark mode silently breaks and no test goes red.
     # The criterion is simple: a token name in the third block must not appear in the dark block.
     blocks = STYLESHEET.read.scan(/:root\s*\{(.*?)\}/m).flatten
-    assert_equal 3, blocks.length, "样式表里应该正好有三个 :root 块"
+    assert_equal 3, blocks.length, "the stylesheet should have exactly three :root blocks"
 
     dark_block, neutral_block = blocks[1], blocks[2]
 
@@ -95,9 +95,9 @@ class ColorContrastTest < ActiveSupport::TestCase
     clobbered     = neutral_names & dark_names
 
     assert_empty clobbered,
-                 "这些 token 同时定义在「与主题无关」的块和深色块里，深色值会被" \
-                 "后出现的那块覆盖掉：#{clobbered.join(', ')}。主题相关的 token " \
-                 "请放进两个调色板块。"
+                 "These tokens are defined in both the theme-independent block and the dark block; the dark values will be " \
+                 "overridden by the later block: #{clobbered.join(', ')}. Put theme-dependent tokens " \
+                 "in the two palette blocks instead."
   end
 
   private
@@ -109,7 +109,7 @@ class ColorContrastTest < ActiveSupport::TestCase
       when :dark  then css[/@media\s*\(prefers-color-scheme:\s*dark\).*?:root\s*\{(.*?)\}/m, 1]
       end
 
-      assert block.present?, "样式表里找不到#{theme}主题的 :root 块"
+      assert block.present?, "could not find the :root block for the #{theme} theme in the stylesheet"
       block.scan(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/).to_h
     end
 
@@ -121,31 +121,31 @@ class ColorContrastTest < ActiveSupport::TestCase
       when :dark  then css[/@media\s*\(prefers-color-scheme:\s*dark\).*?:root\s*\{(.*?)\}/m, 1]
       end
 
-      assert block.present?, "样式表里找不到#{theme}主题的 :root 块"
+      assert block.present?, "could not find the :root block for the #{theme} theme in the stylesheet"
       block.scan(/(--[\w-]+):/).flatten.sort
     end
 
     def assert_all_pairs_pass(colors, theme_name)
       PAIRS.each do |fg_var, bg_var|
-        fg = colors.fetch(fg_var) { flunk "#{theme_name}主题缺少变量 #{fg_var}" }
-        bg = colors.fetch(bg_var) { flunk "#{theme_name}主题缺少变量 #{bg_var}" }
+        fg = colors.fetch(fg_var) { flunk "#{theme_name} theme is missing variable #{fg_var}" }
+        bg = colors.fetch(bg_var) { flunk "#{theme_name} theme is missing variable #{bg_var}" }
         ratio = contrast_ratio(fg, bg)
 
         assert_operator ratio, :>=, AA_NORMAL_TEXT,
-                        "#{theme_name}主题：#{fg_var}(#{fg}) 配 #{bg_var}(#{bg}) 只有 " \
-                        "#{ratio.round(2)}:1，低于 AA 要求的 #{AA_NORMAL_TEXT}:1"
+                        "#{theme_name} theme: #{fg_var}(#{fg}) on #{bg_var}(#{bg}) is only " \
+                        "#{ratio.round(2)}:1, below the AA requirement of #{AA_NORMAL_TEXT}:1"
       end
     end
 
     def assert_all_graphic_pairs_pass(colors, theme_name)
       GRAPHIC_PAIRS.each do |fg_var, bg_var|
-        fg = colors.fetch(fg_var) { flunk "#{theme_name}主题缺少变量 #{fg_var}" }
-        bg = colors.fetch(bg_var) { flunk "#{theme_name}主题缺少变量 #{bg_var}" }
+        fg = colors.fetch(fg_var) { flunk "#{theme_name} theme is missing variable #{fg_var}" }
+        bg = colors.fetch(bg_var) { flunk "#{theme_name} theme is missing variable #{bg_var}" }
         ratio = contrast_ratio(fg, bg)
 
         assert_operator ratio, :>=, AA_GRAPHIC,
-                        "#{theme_name}主题：站标的 #{fg_var}(#{fg}) 压在 #{bg_var}(#{bg}) 上只有 " \
-                        "#{ratio.round(2)}:1，低于非文本对比要求的 #{AA_GRAPHIC}:1"
+                        "#{theme_name} theme: logo #{fg_var}(#{fg}) on #{bg_var}(#{bg}) is only " \
+                        "#{ratio.round(2)}:1, below the non-text contrast requirement of #{AA_GRAPHIC}:1"
       end
     end
 

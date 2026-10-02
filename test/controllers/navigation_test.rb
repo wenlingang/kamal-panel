@@ -19,11 +19,11 @@ class NavigationTest < ActionDispatch::IntegrationTest
     get path
     assert_response :success
     assert_select "nav.chrome-nav a.is-current", count: 1 do |links|
-      assert_equal label, links.first.text.strip, "#{path} 应该高亮「#{label}」"
+      assert_equal label, links.first.text.strip, "#{path} should highlight #{label}"
     end
   end
 
-  test "版块首页高亮自己那一栏" do
+  test "highlights its own tab on each section's home page" do
     assert_current_nav "总览", root_path
     assert_current_nav "应用", managed_apps_path
     assert_current_nav "审计", audit_logs_path
@@ -31,20 +31,20 @@ class NavigationTest < ActionDispatch::IntegrationTest
     assert_current_nav "凭据", credentials_path
   end
 
-  test "应用的子页面仍然高亮「应用」" do
+  test "keeps the Apps tab highlighted on app sub-pages" do
     assert_current_nav "应用", new_managed_app_path
     assert_current_nav "应用", managed_app_path(@managed_app)
     assert_current_nav "应用", edit_managed_app_path(@managed_app)
   end
 
-  test "人员的子页面仍然高亮「人员」" do
+  test "keeps the Users tab highlighted on user sub-pages" do
     assert_current_nav "人员", new_user_path
     assert_current_nav "人员", edit_user_path(users(:one))
   end
 
   # Registry credentials are a different controller, but live under /credentials/registry, and to
   # the user they are things under the "Credentials" section.
-  test "凭据的子页面仍然高亮「凭据」" do
+  test "keeps the Credentials tab highlighted on credential sub-pages" do
     assert_current_nav "凭据", new_credential_path
     assert_current_nav "凭据", edit_credential_path(@credential)
     assert_current_nav "凭据", new_registry_credential_path

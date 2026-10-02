@@ -24,7 +24,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
   # test output.
   def value_digest(record) = Digest::SHA256.hexdigest(record.value)
 
-  test "非 admin 一个动作都进不去" do
+  test "denies non-admins every action" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     digest_before = value_digest(credential)
 
@@ -58,7 +58,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "admin 看得到列表，以及每条正被哪些应用引用" do
+  test "lets admin see the list and which apps reference each credential" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     @managed_app.update!(ssh_credential: credential)
     sign_in_as users(:two)
@@ -73,7 +73,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
   # Credentials are write-only. These three guard the same thing: the form page must [never] render
   # the private key plaintext back into HTML. Remove `value: nil` from the view and these three go
   # red -- form.text_area by default renders the persisted record's current value as the tag body.
-  test "列表页不含私钥明文" do
+  test "keeps the private key plaintext out of the index page" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     @managed_app.update!(ssh_credential: credential)
     sign_in_as users(:two)
@@ -84,7 +84,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, FakeHost.private_key
   end
 
-  test "新建页与替换页都不回显私钥明文" do
+  test "does not echo the private key plaintext on the new or replace pages" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     sign_in_as users(:two)
 
@@ -97,7 +97,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, FakeHost.private_key
   end
 
-  test "创建失败重渲表单时也不回显私钥明文" do
+  test "does not echo the private key plaintext when re-rendering the form after a failed create" do
     Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     sign_in_as users(:two)
 
@@ -108,7 +108,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     refute_includes @response.body, FakeHost.private_key
   end
 
-  test "新建写审计，且审计里记得住是哪条凭据" do
+  test "writes an audit log on create that records which credential it was" do
     sign_in_as users(:two)
 
     assert_difference -> { Credential.count }, 1 do
@@ -120,7 +120,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_nil log.managed_app
   end
 
-  test "轮换真的换掉了 value，名字不变，并写审计" do
+  test "rotation replaces the value, keeps the name, and writes an audit log" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     digest_before = value_digest(credential)
     sign_in_as users(:two)
@@ -133,7 +133,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, AuditLog.where(action_name: "credential.rotate").count
   end
 
-  test "被引用的凭据删不掉，页面给出理由" do
+  test "refuses to delete a referenced credential and shows the reason" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     @managed_app.update!(ssh_credential: credential)
     sign_in_as users(:two)
@@ -154,7 +154,7 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, AuditLog.where(action_name: "credential.delete").count
   end
 
-  test "没被引用的凭据可以删，并写审计" do
+  test "deletes an unreferenced credential and writes an audit log" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "闲置的")
     sign_in_as users(:two)
 

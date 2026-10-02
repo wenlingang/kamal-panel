@@ -16,19 +16,19 @@ class ManagedAppStatusUnparseableTest < ActiveSupport::TestCase
     @host = @managed_app.cached_app_hosts.first
   end
 
-  test "采集器产出的解析失败错误被认出来" do
+  test "recognizes the parse-failure error produced by the collector" do
     observe(error: Collectors::ContainerCollector.unparseable_output_error(3))
 
     assert row[:unparseable_output]
   end
 
-  test "普通的失联错误不算解析失败" do
+  test "an ordinary unreachable error is not a parse failure" do
     observe(error: "Net::SSH::ConnectionTimeout")
 
     refute row[:unparseable_output]
   end
 
-  test "没有错误时不算解析失败" do
+  test "no error is not a parse failure" do
     observe(error: nil, reachable: true)
 
     refute row[:unparseable_output]

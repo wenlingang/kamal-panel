@@ -15,28 +15,28 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     post session_path, params: { email_address: "#{role}@example.com", password: "secret123456" }
   end
 
-  test "ops 不能发起动作" do
+  test "ops cannot trigger actions" do
     sign_in("ops")
     assert_no_difference("AuditLog.count") do
       post managed_app_actions_path(@managed_app), params: { name: "restart" }
     end
   end
 
-  test "未知动作名被拒绝且不落审计" do
+  test "rejects an unknown action name without writing an audit entry" do
     sign_in("admin")
     assert_no_difference("AuditLog.count") do
       post managed_app_actions_path(@managed_app), params: { name: "exec" }
     end
   end
 
-  test "需要手输应用名的动作，名字不对则不执行" do
+  test "does not execute an action requiring a typed app name when the name is wrong" do
     sign_in("admin")
     assert_no_difference("AuditLog.count") do
       post managed_app_actions_path(@managed_app), params: { name: "stop", confirm_name: "wrong" }
     end
   end
 
-  test "admin 发起 restart 会落一条 pending 审计" do
+  test "admin triggering restart records a pending audit entry" do
     sign_in("admin")
     assert_difference("AuditLog.count", 1) do
       post managed_app_actions_path(@managed_app), params: { name: "restart" }
@@ -44,7 +44,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "pending", AuditLog.last.result
   end
 
-  test "developer 能对名下应用发起动作" do
+  test "developer can trigger actions on an app they own" do
     AppMembership.create!(user: users(:three), managed_app: @managed_app)
     sign_in_as users(:three)
 
@@ -53,7 +53,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, AuditLog.where(managed_app: @managed_app).count
   end
 
-  test "developer 不能对别人的应用发起动作" do
+  test "developer cannot trigger actions on someone else's app" do
     sign_in_as users(:three)
 
     post managed_app_actions_path(@managed_app), params: { name: "start" }
@@ -61,7 +61,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to managed_app_path(@managed_app)
     assert_equal "没有权限执行该操作", flash[:alert]
     assert_equal 0, AuditLog.where(managed_app: @managed_app).count,
-      "被拒的动作绝不能留下审计记录——那会让审计里出现从未发生过的操作"
+      "A rejected action must never leave an audit record; it would show operations that never happened in the audit log"
   end
 
   # The title says "any", so actually run through every registered write action -- testing only
@@ -70,20 +70,20 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
   # name, yet must still be rejected as "no permission" -- the permission check comes before the
   # confirmation check, and this order is itself pinned by this case (the reverse would tell someone
   # with no right to act that "you mistyped the name").
-  test "ops 不能发起任何会改变线上状态的动作" do
+  test "ops cannot trigger any action that mutates production state" do
     sign_in_as users(:one)
 
     %w[ start restart stop rollback force_unlock ].each do |name|
       post managed_app_actions_path(@managed_app), params: { name: }
 
       assert_redirected_to managed_app_path(@managed_app)
-      assert_equal "没有权限执行该操作", flash[:alert], "#{name} 应该以「没有权限」被拒"
+      assert_equal "没有权限执行该操作", flash[:alert], "#{name} should be rejected as unauthorized"
       assert_equal 0, AuditLog.where(managed_app: @managed_app).count,
-        "被拒的 #{name} 不该留下任何审计记录"
+        "rejected #{name} must not leave any audit record"
     end
   end
 
-  test "ops 能看日志——这是它唯一能发起的动作" do
+  test "ops can view logs, the only action it can trigger" do
     sign_in_as users(:one)
 
     post managed_app_actions_path(@managed_app), params: { name: "logs" }
@@ -93,7 +93,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to managed_app_action_path(@managed_app, log)
   end
 
-  test "developer 不能看别人应用的日志" do
+  test "developer cannot view logs of someone else's app" do
     sign_in_as users(:three)
 
     post managed_app_actions_path(@managed_app), params: { name: "logs" }
@@ -111,7 +111,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
                      hosts: [ "10.0.0.1" ], result: "success", output_digest: output)
   end
 
-  test "非名下的 developer 打不开别人应用的 logs 执行页" do
+  test "developer cannot open the logs execution page of an app they do not own" do
     log = logs_entry
     sign_in_as users(:three)
 
@@ -122,7 +122,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     refute_includes response.body.to_s, "绝密日志一行"
   end
 
-  test "ops 能打开 logs 执行页" do
+  test "ops can open the logs execution page" do
     log = logs_entry
     sign_in_as users(:one)
 
@@ -132,7 +132,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "绝密日志一行"
   end
 
-  test "admin 能打开 logs 执行页" do
+  test "admin can open the logs execution page" do
     log = logs_entry
     sign_in_as users(:two)
 
@@ -142,7 +142,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "绝密日志一行"
   end
 
-  test "名下的 developer 能打开自己应用的 logs 执行页" do
+  test "developer can open the logs execution page of their own app" do
     log = logs_entry
     AppMembership.create!(user: users(:three), managed_app: @managed_app)
     sign_in_as users(:three)
@@ -156,7 +156,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
   # If audit records aren't scoped to the app, /apps/<A>/actions/<B's id> renders B's execution
   # output under A's breadcrumb -- the authorization check asks about A, but what is read belongs to
   # B.
-  test "别的应用的审计 id 不能挂在这个应用下渲染" do
+  test "does not render another app's audit id under this app" do
     other = ManagedApp.create!(name: "shop",
                        config_yaml: file_fixture("simple_deploy.yml").read,
                        destination: "production")
@@ -183,7 +183,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
   # scoping step can't stop them, and Actions::Base.find doesn't recognize such action_names. This
   # used to become a 500 reachable just by typing a URL; they belong to the audit list, not the
   # execution page.
-  test "权限审计行的执行页被拒绝，而不是 500" do
+  test "denies the execution page for a permission audit row instead of returning 500" do
     membership_log = AuditLog.record_access!(user: users(:two), action_name: "app.add_member",
                                              target_user: users(:three),
                                              managed_app_id: @managed_app.id)

@@ -5,7 +5,7 @@ class CredentialTest < ActiveSupport::TestCase
     File.read(Rails.root.join("test/fake_host/id_ed25519"))
   end
 
-  test "私钥在数据库中是密文" do
+  test "stores the private key encrypted in the database" do
     credential = Credential.create!(kind: "ssh_key", value: key, name: "私钥在数据库中是密文")
 
     raw = Credential.connection.select_value(
@@ -16,14 +16,14 @@ class CredentialTest < ActiveSupport::TestCase
     assert_equal key, credential.reload.value
   end
 
-  test "指纹可安全展示，且不含私钥内容" do
+  test "fingerprint is safe to display and contains no private key content" do
     credential = Credential.create!(kind: "ssh_key", value: key, name: "指纹可安全展示")
 
     assert_match(/\ASHA256:/, credential.fingerprint)
     refute_includes credential.fingerprint, "PRIVATE KEY"
   end
 
-  test "拒绝不像私钥的内容" do
+  test "rejects content that does not look like a private key" do
     credential = Credential.new(kind: "ssh_key", value: "hello", name: "拒绝不像私钥的内容")
 
     refute credential.valid?
@@ -39,7 +39,7 @@ class CredentialTest < ActiveSupport::TestCase
   # validation errors, memoizing correctly, and not leaking the raw bytes.
   # -------------------------------------------------------
 
-  test "声明未知 key 类型的私钥被干净拒绝，而不是变成一次异常/500" do
+  test "cleanly rejects a private key declaring an unknown key type instead of raising or returning 500" do
     credential = Credential.new(kind: "ssh_key", value: openssh_key(type_name: "ssh-dss"),
                                  name: "声明未知 key 类型的私钥")
 
@@ -47,7 +47,7 @@ class CredentialTest < ActiveSupport::TestCase
     assert_includes credential.errors[:value].join, "不是可用的 SSH 私钥"
   end
 
-  test "超过大小上限的私钥在被解析之前就被拒绝（不会触发子进程）" do
+  test "rejects an oversized private key before parsing it (no subprocess is spawned)" do
     oversized = "-----BEGIN OPENSSH PRIVATE KEY-----\n" +
                 ("A" * (Credential::MAX_VALUE_BYTES + 1)) +
                 "\n-----END OPENSSH PRIVATE KEY-----"
@@ -67,10 +67,10 @@ class CredentialTest < ActiveSupport::TestCase
     end
 
     assert_includes credential.errors[:value].join, "过长"
-    refute called, "超过大小上限应该在调用 SshKeyValidator 之前就被拒绝"
+    refute called, "an oversized value must be rejected before SshKeyValidator is called"
   end
 
-  test "畸形私钥的错误信息里不包含任何提交的原始字节" do
+  test "keeps submitted raw bytes out of the error message for a malformed private key" do
     poison = openssh_key(type_name: "ssh-attacker-poison-marker")
     credential = Credential.new(kind: "ssh_key", value: poison, name: "畸形私钥")
 
@@ -79,7 +79,7 @@ class CredentialTest < ActiveSupport::TestCase
     refute_includes credential.errors.full_messages.join, poison
   end
 
-  test "fingerprint 在保存时算好存进列，读取时不再触发子进程" do
+  test "computes the fingerprint on save into a column so reading spawns no subprocess" do
     credential = Credential.create!(kind: "ssh_key", value: key, name: "fingerprint 保存时算好")
 
     called = false
@@ -98,10 +98,10 @@ class CredentialTest < ActiveSupport::TestCase
     end
 
     assert_match(/\ASHA256:/, fingerprint)
-    refute called, "fingerprint 已经在保存时算好、存进列了，读取不应该再调用 SshKeyValidator"
+    refute called, "the fingerprint was already computed and stored on save; reading must not call SshKeyValidator again"
   end
 
-  test "fingerprint 列在这条记录存在之前就是空的（旧记录）时，读取会现算一次并回填，而不是报错" do
+  test "computes and backfills the fingerprint on read for legacy records with an empty column instead of raising" do
     credential = Credential.create!(kind: "ssh_key", value: key, name: "fingerprint 列曾经为空")
     credential.update_column(:fingerprint, nil) # simulate an old record that existed before this column was added
 
@@ -116,7 +116,7 @@ class CredentialTest < ActiveSupport::TestCase
     assert_equal fingerprint, Credential.find(credential.id).read_attribute(:fingerprint)
   end
 
-  test "同一个实例里，校验和 fingerprint 共享同一次子进程校验结果（不会重复解析）" do
+  test "validation and fingerprint share one subprocess check within an instance (no repeated parsing)" do
     credential = Credential.new(kind: "ssh_key", value: key, name: "共享同一次校验结果")
     calls = 0
     original = SshKeyValidator.method(:call)
@@ -134,10 +134,10 @@ class CredentialTest < ActiveSupport::TestCase
       SshKeyValidator.define_singleton_method(:call, original)
     end
 
-    assert_equal 1, calls, "同一个 value 应该只触发一次子进程校验"
+    assert_equal 1, calls, "the same value should trigger only one subprocess check"
   end
 
-  test "名字必填且唯一" do
+  test "requires a unique name" do
     key = FakeHost.private_key
 
     assert_predicate Credential.new(kind: "ssh_key", value: key), :invalid?
@@ -151,7 +151,7 @@ class CredentialTest < ActiveSupport::TestCase
   # #inspect is already filtered by Active Record encryption, but the serialization path
   # is outside its jurisdiction. This defense used to exist only on Credential; after
   # extracting it into a concern, both credential types need it.
-  test "序列化时永远不带出 value" do
+  test "never includes value when serialized" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
 
     refute_includes credential.to_json, "PRIVATE KEY"
@@ -161,7 +161,7 @@ class CredentialTest < ActiveSupport::TestCase
   # In a shared pool, one deletion can break the collection and deployment of several apps
   # at once, and the person doing it sees no warning. So when referenced it must be
   # undeletable, rather than deleted with the references nulled out.
-  test "还被应用引用时删不掉" do
+  test "cannot be deleted while still referenced by apps" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production", ssh_credential: credential)

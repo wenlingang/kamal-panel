@@ -8,7 +8,7 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     )
   end
 
-  test "删除超过保留期的观测" do
+  test "deletes observations older than the retention period" do
     Observation.create!(managed_app: @app, host: "10.0.0.1",
                         docker_status: "running", observed_at: 20.days.ago)
     Observation.create!(managed_app: @app, host: "10.0.0.1",
@@ -19,7 +19,7 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     assert_equal 1, Observation.where(managed_app: @app).count
   end
 
-  test "即使全部超期，也保留每台主机最近一条——否则界面会变空白" do
+  test "keeps each host's latest row even when all are expired so the UI does not go blank" do
     Observation.create!(managed_app: @app, host: "10.0.0.1",
                         docker_status: "running", observed_at: 100.days.ago)
     Observation.create!(managed_app: @app, host: "10.0.0.1",
@@ -39,7 +39,7 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
   # (otherwise it would contradict itself). So create two here, and verify that the one that is
   # truly expired and already superseded by a newer record is deleted, while the most recent one is
   # kept.
-  test "同样清理 ProxyTarget" do
+  test "prunes ProxyTarget the same way" do
     ProxyTarget.create!(managed_app: @app, host: "10.0.0.1",
                         service_name: "blog-web-production", observed_at: 20.days.ago)
     ProxyTarget.create!(managed_app: @app, host: "10.0.0.1",
@@ -74,7 +74,7 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
   # each other), the scenario of "only some hosts expired" in a multi-host app is the one
   # most likely to expose it: a wrong grouping either deletes hosts that haven't expired
   # or keeps hosts that should be deleted.
-  test "一个应用多台主机，只清理其中过期的那些，各自独立判断" do
+  test "with multiple hosts per app, prunes only the expired rows, judging each host independently" do
     Observation.create!(managed_app: @app, host: "10.0.0.1",
                         docker_status: "running", observed_at: 20.days.ago)
     Observation.create!(managed_app: @app, host: "10.0.0.1",
@@ -95,14 +95,14 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
 
     host_1 = remaining.find { |o| o.host == "10.0.0.1" }
     assert_in_delta 1.day.ago.to_i, host_1.observed_at.to_i, 60,
-      "过期的那条应该被删掉，只留最近一条"
+      "The expired row should be deleted, keeping only the latest"
 
     host_3 = remaining.find { |o| o.host == "10.0.0.3" }
     assert_in_delta 30.days.ago.to_i, host_3.observed_at.to_i, 60,
-      "唯一一条即使超期也要保留，不能因为分组混进了别的主机而被误删"
+      "The only row must be kept even when expired and not deleted by mistake because another host got mixed into the group"
   end
 
-  test "prune 的保留条件必须对齐回退真正读取的条件——可达但没有容器的行不能顶替带容器的那一行" do
+  test "prune keeps the row the fallback reads; a reachable row without containers cannot displace one with containers" do
     # D0: the machine is running containers normally (oldest)
     # D1: the container was removed, the machine is still reachable (newer than D0)
     # D2: the machine is fully offline (newest)
@@ -123,17 +123,17 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     PruneObservationsJob.perform_now
 
     assert Observation.exists?(d0.id),
-      "回退真正会用到的那一条（最新一条可达且带容器）不能被 prune 删掉"
+      "The row the fallback will actually use (latest reachable with containers) must not be deleted by prune"
 
     status = ManagedAppStatus.new(@app)
     row = status.last_known_rows.find { |r| r[:host] == "127.0.0.1" }
 
     assert_equal "aaaaaaa", row[:version],
-      "prune 之后回退仍然必须能找到落点，而不是\"无可用的历史状态\""
+      "After prune the fallback must still find a landing point, rather than \"no usable historical state\""
     assert_not_nil row[:stale_since]
   end
 
-  test "主机失联超过保留期后，prune 仍保留其最近一次可达观测，故障回退不失效" do
+  test "keeps the last reachable observation after a host is unreachable beyond retention so fallback still works" do
     Observation.create!(managed_app: @app, host: "127.0.0.1", role: "web",
                         container_name: "blog-web-production-aaaaaaa", version: "aaaaaaa",
                         docker_status: "running", reachable: true, observed_at: 100.days.ago)
@@ -146,7 +146,7 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     row = status.last_known_rows.find { |r| r[:host] == "127.0.0.1" }
 
     assert_equal "aaaaaaa", row[:version],
-      "prune 不能把唯一能回退到的可达历史观测删掉，否则失联最久的机器最先失去历史"
-    assert_not_nil row[:stale_since], "回退状态必须带上它有多旧，不能悄悄变回一个没有时间戳的行"
+      "prune must not delete the only reachable historical observation available for fallback, or the longest-unreachable host loses its history first"
+    assert_not_nil row[:stale_since], "The fallback state must carry how old it is and must not silently turn back into a row without a timestamp"
   end
 end

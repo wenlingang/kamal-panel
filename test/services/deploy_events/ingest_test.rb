@@ -15,7 +15,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     )
   end
 
-  test "pre-deploy 建行，只填 started_at" do
+  test "pre-deploy creates a row and sets only started_at" do
     result = ingest("started")
 
     assert result[:changed]
@@ -24,7 +24,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal "hook", result[:event].source
   end
 
-  test "post-deploy 补上同一次尝试，而不是另建一行" do
+  test "post-deploy completes the same attempt instead of creating a new row" do
     started = ingest("started")[:event]
     result = ingest("succeeded")
 
@@ -34,22 +34,22 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal 1, DeployEvent.count
   end
 
-  test "pre 丢包、post 先到时建出只有 succeeded_at 的行" do
+  test "when pre is lost and post arrives first, creates a row with only succeeded_at" do
     result = ingest("succeeded")
 
     assert_nil result[:event].started_at
     assert_predicate result[:event].succeeded_at, :present?
   end
 
-  test "重复的 pre-deploy 不建新行，也不算状态变化" do
+  test "a duplicate pre-deploy creates no new row and is not a state change" do
     ingest("started")
     result = ingest("started")
 
     assert_equal 1, DeployEvent.count
-    refute result[:changed], "重复上报不应再撬动一次 burst 轮询"
+    refute result[:changed], "a duplicate report should not trigger another burst poll"
   end
 
-  test "同一版本被重复部署是两行" do
+  test "deploying the same version twice yields two rows" do
     ingest("started")
     ingest("succeeded")
     ingest("started")
@@ -57,7 +57,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal 2, DeployEvent.count
   end
 
-  test "配对不跨应用" do
+  test "pairing does not cross apps" do
     other = ManagedApp.create!(name: "other", config_yaml: file_fixture("simple_deploy.yml").read,
                                destination: "production")
     DeployEvents::Ingest.call(managed_app: other, phase: "started",
@@ -70,16 +70,16 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_nil other.deploy_events.sole.succeeded_at
   end
 
-  test "重复的 post-deploy 不建新行，也不算状态变化" do
+  test "a duplicate post-deploy creates no new row and is not a state change" do
     ingest("started")
     ingest("succeeded")
     result = ingest("succeeded")
 
     assert_equal 1, DeployEvent.count
-    refute result[:changed], "重复的 succeeded 上报不应再撬动一次 burst 轮询"
+    refute result[:changed], "a duplicate succeeded report should not trigger another burst poll"
   end
 
-  test "超出去重窗口的同版本 post 仍然建新行" do
+  test "a same-version post outside the dedup window still creates a new row" do
     ingest("started")
     first = ingest("succeeded")[:event]
     # Move the previous row's succeeded_at outside the window, simulating "a retry that arrives much
@@ -94,7 +94,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     refute_equal first.id, result[:event].id
   end
 
-  test "3 小时前的未收尾同版本行早已不像同一次部署，新的 pre 不会认领它" do
+  test "an unfinished same-version row from 3 hours ago no longer looks like the same deploy, so a new pre skips it" do
     stale = ingest("started")[:event]
     stale.update!(started_at: 3.hours.ago)
 
@@ -105,7 +105,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal 2, DeployEvent.count
   end
 
-  test "一次缓慢但正常的部署——pre 之后 16 分钟才到的 succeeded 仍配到同一行" do
+  test "a slow but normal deploy -- a succeeded arriving 16 minutes after pre still pairs with the same row" do
     started = ingest("started")[:event]
     started.update!(started_at: 16.minutes.ago)
 
@@ -117,7 +117,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal 1, DeployEvent.count
   end
 
-  test "推断行不会把随后到达的 post-deploy 上报吞成重复" do
+  test "an inferred row does not swallow a later post-deploy report as a duplicate" do
     DeployEvent.create!(managed_app: @app, version: "aaaaaaa", source: "inferred",
                         succeeded_at: 10.seconds.ago, observed_at: 10.seconds.ago)
 
@@ -129,7 +129,7 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_equal "hook", result[:event].source
   end
 
-  test "recorded_at 照存不误，但 started_at 用服务端时刻" do
+  test "recorded_at is stored as given, but started_at uses the server time" do
     lie = 1.hour.from_now
     event = ingest("started", recorded_at: lie)[:event]
 

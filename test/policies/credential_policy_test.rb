@@ -1,7 +1,7 @@
 require "test_helper"
 
 class CredentialPolicyTest < ActiveSupport::TestCase
-  test "只有 admin 能管凭据" do
+  test "only admin can manage credentials" do
     assert_predicate CredentialPolicy.new(users(:two), nil), :manage?
     refute_predicate CredentialPolicy.new(users(:three), nil), :manage?
     refute_predicate CredentialPolicy.new(users(:one), nil), :manage?

@@ -9,7 +9,7 @@ class ObservationTest < ActiveSupport::TestCase
     )
   end
 
-  test "Observation 不可更新" do
+  test "Observation cannot be updated" do
     observation = Observation.create!(
       managed_app: @app, host: "10.0.0.1", docker_status: "running",
       observed_at: Time.current
@@ -20,7 +20,7 @@ class ObservationTest < ActiveSupport::TestCase
     end
   end
 
-  test "latest_for 只返回每台主机最近一轮" do
+  test "latest_for returns only the most recent round per host" do
     old_time = 10.minutes.ago
     new_time = Time.current
 

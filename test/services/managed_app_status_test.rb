@@ -35,7 +35,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     observe(host: host, version: nil, docker_status: nil, reachable: reachable)
   end
 
-  test "所有机器版本一致且运行中 → ok" do
+  test "is ok when all hosts agree on version and are running" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "aaaaaaa")
 
@@ -45,7 +45,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     refute status.drift?
   end
 
-  test "不同机器版本不一致 → drift，且优先级最高" do
+  test "is drift when hosts differ in version, with the highest priority" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "bbbbbbb")
 
@@ -56,14 +56,14 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal %w[aaaaaaa bbbbbbb], status.versions.sort
   end
 
-  test "版本漂移优先于容器异常" do
+  test "version drift takes priority over container anomalies" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "bbbbbbb", docker_status: "exited")
 
     assert_equal :drift, ManagedAppStatus.new(@app).level
   end
 
-  test "已停止的旧版本不算进漂移判断" do
+  test "stopped old versions do not count toward drift detection" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.1", version: "0000000", docker_status: "exited")
     observe(host: "10.0.0.2", version: "aaaaaaa")
@@ -71,7 +71,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal :ok, ManagedAppStatus.new(@app).level
   end
 
-  test "同一台机器上的多个角色版本一致时不算漂移" do
+  test "multiple roles on the same host with the same version do not count as drift" do
     observe(host: "10.0.0.1", role: "web", version: "aaaaaaa")
     observe(host: "10.0.0.1", role: "worker", version: "aaaaaaa")
     observe(host: "10.0.0.2", role: "web", version: "aaaaaaa")
@@ -80,14 +80,14 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal :ok, ManagedAppStatus.new(@app).level
   end
 
-  test "容器 unhealthy → unhealthy" do
+  test "unhealthy container yields unhealthy" do
     observe(host: "10.0.0.1", version: "aaaaaaa", health: "unhealthy")
     observe(host: "10.0.0.2", version: "aaaaaaa")
 
     assert_equal :unhealthy, ManagedAppStatus.new(@app).level
   end
 
-  test "有机器失联 → unreachable" do
+  test "a lost host yields unreachable" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", reachable: false)
 
@@ -97,14 +97,14 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # Critical: if a reachable machine matched no container at all (never deployed, or the container
   # was deleted entirely), it must not fall to :ok -- that looks exactly like "everything is fine",
   # while in reality it is "this machine isn't serving at all".
-  test "可达但没有匹配到任何容器的机器 → unhealthy，而不是正常" do
+  test "a reachable host with no matching container is unhealthy, not ok" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe_no_containers(host: "10.0.0.2")
 
     assert_equal :unhealthy, ManagedAppStatus.new(@app).level
   end
 
-  test "所有机器都可达但都没有匹配到容器时，同样是 unhealthy" do
+  test "is also unhealthy when all hosts are reachable but none match a container" do
     observe_no_containers(host: "10.0.0.1")
     observe_no_containers(host: "10.0.0.2")
 
@@ -114,7 +114,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # Important: a machine configured in deploy.yml but with no Observation ever must not be quietly
   # ignored by the status computation -- that is "never looked at" being treated as "looked at, no
   # problem".
-  test "配置里存在但从未采集过的机器 → 不算正常，视为机器失联" do
+  test "a host in the config that was never polled is not ok and counts as a lost host" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     # 10.0.0.2 is configured in two_host_deploy.yml, but here we deliberately write no
     # Observation for it -- simulating "a newly added machine whose turn to be collected hasn't
@@ -123,7 +123,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal :unreachable, ManagedAppStatus.new(@app).level
   end
 
-  test "数据过期时不能显示正常——3 秒扫视的那个徽章不能把「我没能看」渲染成「一切正常」" do
+  test "never shows ok when data is stale: the 3-second-glance badge must not render 'I could not look' as 'all good'" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now - 1.hour)
     observe(host: "10.0.0.2", version: "aaaaaaa", observed_at: @now - 1.hour)
 
@@ -131,16 +131,16 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
 
     assert status.stale?
     refute_equal :ok, status.level,
-      "所有观测都是 1 小时前时，level 不能是 :ok——采集停摆必须能在总览页的徽章上看出来（见 final review C1）"
+      "When all observations are 1 hour old, level must not be :ok; a polling stall must be visible on the overview badge (see final review C1)"
     assert_equal :unreachable, status.level,
-      "过期与失联共享同一个黄色档位，不新增第六态（见 ManagedAppStatus#level 注释）"
+      "Stale and unreachable share the same yellow tier; no sixth state is added (see ManagedAppStatus#level comment)"
   end
 
-  test "从未采集过 → unknown" do
+  test "unknown when never polled" do
     assert_equal :unknown, ManagedAppStatus.new(@app).level
   end
 
-  test "每个状态都有文字标识，不只靠颜色" do
+  test "every status has a text label, not just color" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "aaaaaaa")
 
@@ -151,7 +151,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # latest collection in the database is right now" -- otherwise polling would produce the
   # self-contradiction of "the data age shown on the page is newer than the actual time of the other
   # data on the page".
-  test "数据年龄来自已经加载的这批观测，而不是重新查询出的更新时间" do
+  test "data age comes from the already-loaded observations, not from a re-queried updated time" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "aaaaaaa")
     status = ManagedAppStatus.new(@app)
@@ -170,22 +170,22 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # older than N". If we took the latest machine's time, a machine not collected for 3 hours would
   # be masked by the timestamp of a machine collected 12 seconds ago -- exactly the one direction in
   # which the data-age indicator must never lie: making people think the whole page's data is fresh.
-  test "数据年龄取最旧的一台机器，而不是最新的一台" do
+  test "data age uses the oldest host, not the newest" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now - 3.hours)
     observe(host: "10.0.0.2", version: "aaaaaaa", observed_at: @now)
 
     status = ManagedAppStatus.new(@app)
 
     assert_equal (@now - 3.hours).to_i, status.observed_at.to_i,
-      "必须报告最旧一台的年龄，取最新的会把"\
-      "「3 小时没采到」藏在「12 秒前」背后"
+      "Must report the age of the oldest host; using the newest would hide "\
+      "'not polled for 3 hours' behind '12 seconds ago'"
   end
 
   # Important (review round 2): if an unreachable machine has no "reachable" historical observation
   # at all, last_known_rows has no "last time" to fall back to -- this is the branch most likely to
   # let a blank row slip onto the UI, and it must be verified to honestly stay "unreachable, no
   # history", rather than quietly inventing a version, or clearing the whole row.
-  test "失联但从来没有过可达的观测 → 保留失联状态，不编造历史版本" do
+  test "an unreachable host that never had a reachable observation stays unreachable and no historical version is invented" do
     observe(host: "10.0.0.1", reachable: false, version: nil, docker_status: nil)
     observe(host: "10.0.0.2", version: "aaaaaaa")
 
@@ -193,15 +193,15 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     row = status.last_known_rows.find { |r| r[:host] == "10.0.0.1" }
 
     assert_equal false, row[:reachable]
-    assert_nil row[:version], "没有可回落的历史状态时不能编造版本号"
-    assert_nil row[:stale_since], "没有历史状态就不该出现一个假的\"上次\"时间戳"
+    assert_nil row[:version], "A version number must not be invented when there is no historical state to fall back on"
+    assert_nil row[:stale_since], "A fake \"last seen\" timestamp must not appear when there is no historical state"
   end
 
   # Important (review round 2): when both machines have appeared and one is unreachable, the
   # fallback must use only its own history. If the fallback logic missed the host filter, it would
   # read "the most recent globally reachable observation" -- possibly another machine's version, and
   # the panel would show B's version under A's name, which is more dangerous than blank.
-  test "失联主机的回退状态只用它自己的历史记录，不会串到另一台机器" do
+  test "an unreachable host's fallback state uses only its own history and does not leak from another host" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now)
     observe(host: "10.0.0.2", version: "bbbbbbb", observed_at: @now)
 
@@ -213,7 +213,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     row = status.last_known_rows.find { |r| r[:host] == "10.0.0.1" }
 
     assert_equal "aaaaaaa", row[:version],
-      "失联主机的回退必须用它自己上一次可达的记录，不能读到另一台机器的版本"
+      "An unreachable host's fallback must use its own last reachable record and must not read another host's version"
     refute_equal "bbbbbbb", row[:version]
   end
 
@@ -222,7 +222,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # "it once existed"), but it must never keep showing "ok" unconditionally, which would be the
   # panel vouching for a machine that no longer belongs to this app. This verifies host_rows can
   # distinguish "still in the config" from "removed from the config".
-  test "曾经采集过、但已从当前配置移除的机器：仍出现在 host_rows 里，但标记为不在配置中" do
+  test "a host polled before but removed from the current config still appears in host_rows, marked as not in config" do
     app = ManagedApp.create!(
       name: "blog-#{SecureRandom.hex(4)}", config_yaml: file_fixture("simple_deploy.yml").read,
       destination: "production"
@@ -242,7 +242,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
 
     assert rows["127.0.0.1"][:configured]
     refute rows["10.9.9.9"][:configured],
-      "已经不在 deploy.yml 里的机器不能被当成\"仍属于这个应用\"的普通一行"
+      "A host no longer in deploy.yml must not be treated as an ordinary row that \"still belongs to this app\""
   end
 
   # Important (review round 3, underestimate): if data age looks only at the oldest value among the
@@ -250,15 +250,15 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # invisible -- it contributes no timestamp to the "data age" computation, so the indicator may say
   # "just collected", while actually there is a machine the panel never looked at at all. A machine
   # never looked at is "oldest", not "nonexistent".
-  test "配置里有一台从未采集过的机器时，数据年龄指示器不能显示新鲜" do
+  test "the data-age indicator must not show fresh when a configured host was never polled" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now)
     # 10.0.0.2 is configured in two_host_deploy.yml, but we deliberately write no Observation.
 
     status = ManagedAppStatus.new(@app)
 
     assert status.stale?,
-      "有配置的机器一条观测都没有时，指示器不能显示「新鲜」——它对这台机器一无所知，" \
-      "这跟「所有机器都很新」是完全不同的两件事"
+      "When a configured host has no observation at all, the indicator must not show 'fresh'; nothing is known about this host, " \
+      "which is a completely different thing from 'all hosts are recent'"
   end
 
   # Important (review round 3, overestimate): if data age isn't filtered by "which machines are in
@@ -266,7 +266,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
   # drag its old timestamp along (Observations are append-only and don't vanish when config
   # changes), pinning the whole app at "stale" -- a "cry wolf" regression: the indicator is always
   # red, and operators learn to stop looking at it.
-  test "唯一拖累新鲜度的是已经不在配置里的机器时，数据年龄指示器不能显示过期" do
+  test "the data-age indicator must not show stale when the only laggard is a host no longer in the config" do
     app = ManagedApp.create!(
       name: "blog-#{SecureRandom.hex(4)}", config_yaml: file_fixture("simple_deploy.yml").read,
       destination: "production"
@@ -284,13 +284,13 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     status = ManagedAppStatus.new(app)
 
     refute status.stale?,
-      "唯一超龄的贡献者是一台已经不在配置里的机器时，指示器不该显示「已过期」——" \
-      "它已经被下线横幅单独标注了，不该再拖累这个全局数字"
+      "When the only over-age contributor is a host no longer in the config, the indicator must not show 'expired'; " \
+      "it is already called out by the decommission banner and should not drag down this global number"
   end
 
   # Regression guard: when all configured machines' data is fresh, it must still show fresh -- to
   # prevent the two fixes above from overcorrecting and blocking the "fresh" path too.
-  test "读不到 proxy 状态时，接流量必须是未知（nil），不能编造成「否」" do
+  test "when the proxy status cannot be read, takes traffic must be unknown (nil), not invented as 'no'" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     # No ProxyTarget was created for this machine -- the panel never asked about proxy status at
     # all.
@@ -299,10 +299,10 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     row = status.host_rows.find { |r| r[:host] == "10.0.0.1" }
 
     assert_nil row[:routed],
-      "面板没问到 kamal-proxy 时，「接流量」必须是未知，不能渲染成确定的「否」（见 final review I2）"
+      "When the panel could not ask kamal-proxy, 'takes traffic' must be unknown and not rendered as a definite 'no' (see final review I2)"
   end
 
-  test "该机器最新一条 ProxyTarget 是 unreachable 时，接流量同样是未知" do
+  test "takes traffic is likewise unknown when the host's latest ProxyTarget is unreachable" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     ProxyTarget.create!(managed_app: @app, host: "10.0.0.1", reachable: false,
       error: "连接被拒绝", observed_at: @now)
@@ -313,7 +313,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_nil row[:routed]
   end
 
-  test "确实拿到路由表时，接流量给出确定的 true/false" do
+  test "takes traffic is a definite true/false when a route table is actually obtained" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     ProxyTarget.create!(managed_app: @app, host: "10.0.0.1", service_name: "blog-web-production",
       target: "blog-web-production-aaaaaaa:80", observed_at: @now)
@@ -324,11 +324,11 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal true, row[:routed]
   end
 
-  test "陈旧阈值等于空闲轮询间隔的三倍，而不是硬编码的常量" do
+  test "stale threshold equals three times the idle polling interval, not a hardcoded constant" do
     assert_equal PollCadence::IDLE * 3, ManagedAppStatus.stale_threshold
   end
 
-  test "陈旧阈值随 PollCadence::IDLE 变化，证明它是推导出来的而不是写死的" do
+  test "stale threshold follows PollCadence::IDLE, proving it is derived and not hardcoded" do
     original = PollCadence::IDLE
     silence_warnings { PollCadence.const_set(:IDLE, 10.minutes) }
 
@@ -337,7 +337,7 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     silence_warnings { PollCadence.const_set(:IDLE, original) }
   end
 
-  test "所有配置的机器数据都新鲜时，数据年龄指示器应显示新鲜" do
+  test "data-age indicator shows fresh when all configured hosts have fresh data" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now)
     observe(host: "10.0.0.2", version: "aaaaaaa", observed_at: @now)
 

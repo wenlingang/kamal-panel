@@ -8,7 +8,7 @@ class AppMembershipTest < ActiveSupport::TestCase
     @user = users(:three) # developer
   end
 
-  test "成员关系双向可读" do
+  test "membership is readable from both sides" do
     AppMembership.create!(user: @user, managed_app: @app)
 
     assert_includes @app.members, @user
@@ -16,7 +16,7 @@ class AppMembershipTest < ActiveSupport::TestCase
     assert_includes @app.member_ids, @user.id
   end
 
-  test "同一个人在同一个应用上不能重复成为成员" do
+  test "the same person cannot be a member of the same app twice" do
     AppMembership.create!(user: @user, managed_app: @app)
 
     assert_raises(ActiveRecord::RecordNotUnique) do
@@ -24,7 +24,7 @@ class AppMembershipTest < ActiveSupport::TestCase
     end
   end
 
-  test "应用被删时成员行跟着消失" do
+  test "membership rows disappear when the app is deleted" do
     AppMembership.create!(user: @user, managed_app: @app)
 
     @app.destroy
@@ -32,7 +32,7 @@ class AppMembershipTest < ActiveSupport::TestCase
     assert_equal 0, AppMembership.where(managed_app_id: @app.id).count
   end
 
-  test "用户被停用不影响成员行——停用不是删除" do
+  test "deactivating a user does not affect membership rows, since deactivation is not deletion" do
     AppMembership.create!(user: @user, managed_app: @app)
 
     @user.deactivate!
