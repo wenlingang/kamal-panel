@@ -1,4 +1,4 @@
-# 一个 ManagedApp = 一份 deploy.yml + 一个 destination（spec 5.5）。
+# One ManagedApp = one deploy.yml + one destination (spec 5.5).
 class ManagedApp < ApplicationRecord
   belongs_to :ssh_credential, class_name: "Credential", optional: true
   belongs_to :registry_credential, optional: true
@@ -20,29 +20,32 @@ class ManagedApp < ApplicationRecord
   validate :kamal_hooks_must_be_valid
   validate :registry_secret_must_not_collide
 
-  # Kamal 2.12.0 中 run_hook 的全部调用点（lib/kamal/cli/**）。
+  # All call sites of run_hook in Kamal 2.12.0 (lib/kamal/cli/**).
   KAMAL_HOOK_NAMES = %w[
     docker-setup pre-build pre-connect pre-deploy post-deploy
     pre-app-boot post-app-boot pre-proxy-reboot post-proxy-reboot
   ].freeze
 
-  # 面板永不接触源码，所以除了它自己把这两样写进临时目录，没别的办法让它们可达。
+  # The panel never touches the source code, so apart from it writing these two into the temp
+  # directory itself, there is no other way to make them reachable.
   encrypts :kamal_secrets
   encrypts :kamal_hooks
 
   def deactivated? = deactivated_at.present?
 
-  # 停用与释放凭据必须同生共死：只置空不停用，应用会继续被采集却没有钥匙；
+  # Deactivating and releasing credentials must live and die together: only nulling without
+  # deactivating would leave the app still being collected but without a key;
   def deactivate!
     transaction do
       update!(deactivated_at: Time.current, ssh_credential: nil, registry_credential: nil)
     end
   end
 
-  # 钥匙，而不是把一个可能已经被删掉的引用悄悄找回来。
+  # key, rather than quietly recovering a reference that may already have been deleted.
   def reactivate! = update!(deactivated_at: nil)
 
-  # {"pre-connect" => "#!/bin/sh\n..."}。这里做的是"读的一侧要宽容"：内容坏了
+  # {"pre-connect" => "#!/bin/sh\n..."}. What is done here is "be tolerant on the reading side":
+  # when the content is corrupt
   def kamal_hooks_scripts
     parsed = JSON.parse(kamal_hooks.to_s)
     return {} unless parsed.is_a?(Hash)
@@ -52,7 +55,7 @@ class ManagedApp < ApplicationRecord
     {}
   end
 
-  # 上报 token 只存摘要（spec 03 第 3 节）。
+  # The report token is stored as a digest only (spec 03 §3).
   def regenerate_hook_token!
     token = SecureRandom.urlsafe_base64(32)
     update_columns(hook_token_digest: self.class.hook_token_digest_for(token), updated_at: Time.current)
@@ -100,7 +103,7 @@ class ManagedApp < ApplicationRecord
     Rails.cache.fetch(app_hosts_cache_key) { app_hosts }
   end
 
-  # 失效，否则会拿旧解析结果去连新机器。
+  # invalidate, otherwise the old parse result would be used to connect to the new machine.
   def config_yaml=(value)
     @parsed_config = nil
     super
@@ -124,11 +127,12 @@ class ManagedApp < ApplicationRecord
   private
     def config_yaml_must_parse
       return if config_yaml.blank?
-      return if errors[:destination].any? # destination 已经不合法，不必再触发一次解析
+      return if errors[:destination].any? # destination is already invalid; no need to trigger another parse
 
       parsed_config
     rescue Kamal::ConfigParser::ParseError => e
-      # （持久化列），按设计 13 §2.1 那种内容一律保持原样。只翻前缀。
+      # (persisted column); content like that in design 13 §2.1 is always kept as-is. Only the
+      # prefix is translated.
       errors.add(:config_yaml, :unparseable, reason: e.message)
     end
 
@@ -169,7 +173,10 @@ class ManagedApp < ApplicationRecord
     end
 
     def app_hosts_cache_key
-      # 用 NUL 分隔而不是空格：三段内容本身可能任意长且包含任意空白，用一个在 YAML/标识符里几乎不可能出现的分隔符，避免"字段边界挪动但拼接结果凑巧相同"导致缓存键碰撞。
+      # Separate with NUL rather than a space: the three segments may themselves be arbitrarily long
+      # and contain arbitrary whitespace, so use a separator almost impossible to appear in
+      # YAML/identifiers, to avoid cache-key collisions where "a field boundary shifts but the
+      # concatenated result happens to be identical".
       digest = Digest::SHA256.hexdigest(
         [ config_yaml, destination, destination_config_yaml ].join("\u0000")
       )

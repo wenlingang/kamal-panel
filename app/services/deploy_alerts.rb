@@ -1,7 +1,9 @@
-# 两套数据源的矛盾（spec 03 第 5 节）。
+# The contradiction between the two data sources (spec 03 §5).
 class DeployAlerts
-  # 告警是「现在需要有人看一眼」的东西：三天前的矛盾属于历史，历史区自己会显示。
-  # 只看最近这个窗口内（按 created_at）的事件，避免早已不成立的旧矛盾永久占着告警位。
+  # An alert is something that "needs someone to take a look right now": a contradiction from three
+  # days ago is history, and the history section shows it itself. Only look at events within this
+  # recent window (by created_at), so that old contradictions that no longer hold do not occupy the
+  # alert slot forever.
   RECENT_WINDOW = 24.hours
 
   def initialize(managed_app)
@@ -59,7 +61,8 @@ class DeployAlerts
       end
     end
 
-    # 旧的矛盾不再需要有人看——历史区仍然留着这行事件本身作为痕迹。
+    # Old contradictions no longer need anyone to look at them — the history section still keeps the
+    # event row itself as a trace.
     def not_superseded(scope)
       cutoff = managed_app.deploy_events.where.not(observed_at: nil).maximum(:created_at)
       return scope unless cutoff

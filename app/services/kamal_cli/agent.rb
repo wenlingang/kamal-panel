@@ -2,14 +2,15 @@ require "open3"
 require "fileutils"
 
 module KamalCli
-  # 每次调用独立的 ssh-agent。密钥经 stdin 注入（ssh-add -），【绝不落盘】。
+  # A separate ssh-agent for every invocation. The key is injected via stdin (ssh-add -) and is
+  # [never written to disk].
   class Agent
     class StartFailed < StandardError; end
 
     ADD_KEY_TIMEOUT = 10
     STOP_GRACE = 3
 
-    # 再加一点余量，而不是一个大得没有意义的值。
+    # plus a little margin, rather than a meaninglessly large value.
     def self.with(private_key, lifetime:)
       agent = new
       agent.start!
@@ -28,8 +29,8 @@ module KamalCli
       @auth_sock = out[/SSH_AUTH_SOCK=([^;]+);/, 1]
       @pid       = out[/SSH_AGENT_PID=(\d+);/, 1]
       raise StartFailed, "无法从 ssh-agent 输出中解析 socket" if @auth_sock.blank?
-      # socket 解析出来但 pid 没有 = 我们启动了一个自己杀不掉的 agent。
-      # 这时候必须报错，而不是让 stop! 的 `return if pid.blank?` 悄悄泄漏它。
+      # socket parsed but no pid = we started an agent we cannot kill.
+      # We must raise here, instead of letting the `return if pid.blank?` in stop! quietly leak it.
       raise StartFailed, "无法从 ssh-agent 输出中解析 pid" if @pid.blank?
     end
 
@@ -39,7 +40,8 @@ module KamalCli
       status = nil
 
       Open3.popen2e(env, "ssh-add", "-t", lifetime.to_i.to_s, "-") do |stdin, out, wait_thread|
-        # （计划 01 的教训：只给子进程执行加超时，没给这次写加超时）。
+        # (lesson from plan 01: only the subprocess execution got a timeout, and this write did
+        # not).
         writer = Thread.new do
           stdin.write(private_key)
         rescue Errno::EPIPE
@@ -54,7 +56,7 @@ module KamalCli
             Process.kill("KILL", wait_thread.pid)
           rescue Errno::ESRCH
           end
-          # 还在往 output 里写的线程比这次调用活得更久。
+          # a thread still writing into output would outlive this call.
           [ writer, reader ].each { |t| t.kill; t.join }
           raise StartFailed, "ssh-add 超时"
         end
@@ -66,7 +68,7 @@ module KamalCli
       raise StartFailed, "ssh-add 失败：#{output.lines.first}" unless status.success?
     end
 
-    # TERM → 确认 → KILL，然后清掉 agent 自己的 socket 目录。
+    # TERM -> confirm -> KILL, then clean up the agent's own socket directory.
     def stop!
       return if pid.blank?
 
@@ -103,8 +105,9 @@ module KamalCli
         end
       end
 
-      # ssh-agent 正常退出时会自己删掉 $TMPDIR/ssh-XXXXXX/；被 KILL 时不会。
-      # 只删形状对得上的目录（basename 以 "ssh-" 开头），不做任何递归通配。
+      # When ssh-agent exits normally it deletes $TMPDIR/ssh-XXXXXX/ itself; when KILLed it does
+      # not. Only delete directories whose shape matches (basename starts with "ssh-"), with no
+      # recursive globbing of any kind.
       def cleanup_socket_dir
         return if auth_sock.blank?
 

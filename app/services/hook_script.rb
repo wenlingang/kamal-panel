@@ -1,5 +1,6 @@
-# 面板生成、用户自愿放进自己项目的 .kamal/hooks/ 的两段脚本（spec 03 第 6 节）。
-# --max-time 5 与结尾的 || true 是硬性的：面板挂掉或变慢绝不能让用户的部署失败。
+# Two scripts the panel generates and the user voluntarily puts into their own project's
+# .kamal/hooks/ (spec 03 §6).
+# --max-time 5 and the trailing || true are mandatory: the panel being down or slow must never make the user's deploy fail.
 class HookScript
   def initialize(managed_app, base_url:, token:)
     @managed_app = managed_app

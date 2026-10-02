@@ -16,11 +16,13 @@ class ManagedAppPolicy
 
   def assign_credentials? = user.admin?
 
-  # 停用会释放凭据绑定，而凭据是 admin 独占管理的（设计 12）。
+  # Deactivating releases the credential binding, and credentials are managed exclusively by admin
+  # (design 12).
   def deactivate? = user.admin?
   def manage_members? = user.admin?
 
-  # 一旦写回动作类，授权规则就同时活在两个地方了。
+  # once it is written back into the action class, the authorization rule lives in two places at
+  # once.
   def run?(action_class) = action_class.mutating? ? act? : view_logs?
 
   private

@@ -29,13 +29,15 @@ class CredentialTest < ActiveSupport::TestCase
     refute credential.valid?
   end
 
-  # --- 下面这组测试把「校验一个提交上来的私钥」当成一次攻击来测，而不是
-  # happy path：value 目前是在未认证的路由上被校验的（创建 ManagedApp 不
-  # 需要登录），提交者可以是任何人，字节可以是精心构造的。对 net-ssh 解析
-  # 行为本身的攻击面测试（畸形编码、超大 KDF 参数、硬超时）在
-  # test/models/ssh_key_validator_test.rb 里；这里只测 Credential 这一层
-  # 自己的职责：把 SshKeyValidator 的结果正确翻译成校验错误、正确记忆化、
-  # 不泄露原始字节。-------------------------------------------------------
+  # --- The tests below treat "validating a submitted private key" as an attack rather
+  # than the happy path: value is currently validated on an unauthenticated route
+  # (creating a ManagedApp doesn't require login), so the submitter can be anyone and the
+  # bytes can be carefully crafted. Attack-surface tests for net-ssh's parsing behavior
+  # itself (malformed encodings, huge KDF parameters, hard timeout) are in
+  # test/models/ssh_key_validator_test.rb; here we only test what the Credential layer
+  # itself is responsible for: correctly translating SshKeyValidator's result into
+  # validation errors, memoizing correctly, and not leaking the raw bytes.
+  # -------------------------------------------------------
 
   test "声明未知 key 类型的私钥被干净拒绝，而不是变成一次异常/500" do
     credential = Credential.new(kind: "ssh_key", value: openssh_key(type_name: "ssh-dss"),
@@ -87,7 +89,7 @@ class CredentialTest < ActiveSupport::TestCase
       original.call(*args, **kwargs)
     end
 
-    fresh = Credential.find(credential.id) # 全新实例，没有任何记忆化状态
+    fresh = Credential.find(credential.id) # a brand-new instance with no memoized state
     fingerprint = nil
     begin
       fingerprint = fresh.fingerprint
@@ -101,7 +103,7 @@ class CredentialTest < ActiveSupport::TestCase
 
   test "fingerprint 列在这条记录存在之前就是空的（旧记录）时，读取会现算一次并回填，而不是报错" do
     credential = Credential.create!(kind: "ssh_key", value: key, name: "fingerprint 列曾经为空")
-    credential.update_column(:fingerprint, nil) # 模拟这一列加上去之前就存在的旧记录
+    credential.update_column(:fingerprint, nil) # simulate an old record that existed before this column was added
 
     fresh = Credential.find(credential.id)
     assert_nil fresh.read_attribute(:fingerprint)
@@ -109,7 +111,8 @@ class CredentialTest < ActiveSupport::TestCase
     fingerprint = fresh.fingerprint
     assert_match(/\ASHA256:/, fingerprint)
 
-    # 回填之后，这一行就该跟正常保存的记录没区别——下一次读，列里已经有值了。
+    # After the backfill, this row should be no different from a normally saved record -- the next
+    # read finds the column already populated.
     assert_equal fingerprint, Credential.find(credential.id).read_attribute(:fingerprint)
   end
 
@@ -145,8 +148,9 @@ class CredentialTest < ActiveSupport::TestCase
     refute_predicate dup, :valid?
   end
 
-  # #inspect 已由 Active Record encryption 过滤，但序列化路径不受它管辖。
-  # 这条防线此前只在 Credential 上，抽进 concern 之后两种凭据都要有。
+  # #inspect is already filtered by Active Record encryption, but the serialization path
+  # is outside its jurisdiction. This defense used to exist only on Credential; after
+  # extracting it into a concern, both credential types need it.
   test "序列化时永远不带出 value" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
 
@@ -154,8 +158,9 @@ class CredentialTest < ActiveSupport::TestCase
     refute_includes credential.as_json.keys, "value"
   end
 
-  # 共享池里一次删除可以同时搞断好几个应用的采集与部署，而操作的人看不到
-  # 任何提示。所以被引用时必须删不掉，不是删完把引用置空。
+  # In a shared pool, one deletion can break the collection and deployment of several apps
+  # at once, and the person doing it sees no warning. So when referenced it must be
+  # undeletable, rather than deleted with the references nulled out.
   test "还被应用引用时删不掉" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -170,12 +175,12 @@ class CredentialTest < ActiveSupport::TestCase
   end
 
   private
-    # 构造一个符合 openssh-key-v1 二进制格式的私钥字符串，用于把「解析这个
-    # 输入会不会出问题」当作攻击面来测，而不依赖 ssh-keygen 生成真实密钥
-    # （这样测试在任何 CI 环境下都能跑，不需要外部命令）。跟
-    # SshKeyValidatorTest 里的同名 helper 逻辑一致；这里只需要"能触发一次
-    # 真正的解析尝试"，不需要覆盖 KDF/超时相关的场景（那些在
-    # SshKeyValidatorTest 里）。
+    # Build a private key string that fits the openssh-key-v1 binary format, to test "does
+    # parsing this input cause problems" as an attack surface without relying on ssh-keygen
+    # to generate a real key (so the test runs in any CI environment, with no external
+    # command). Same logic as the helper of the same name in SshKeyValidatorTest; here we
+    # only need to "trigger one real parse attempt", not cover KDF/timeout scenarios
+    # (those are in SshKeyValidatorTest).
     def openssh_key(type_name:)
       magic = "openssh-key-v1\0"
       check = "\x01\x02\x03\x04"

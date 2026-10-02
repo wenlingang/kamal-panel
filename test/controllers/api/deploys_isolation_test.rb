@@ -1,7 +1,8 @@
 require "test_helper"
 
-# 上报字段与写操作参数完全隔离：动作的 cli_args 由封闭动作集自己生成。
-# 这条要显式钉住，而不是靠"我知道它们没连着"。
+# Reported fields are fully isolated from write-action parameters: an action's cli_args is generated
+# by the closed action set itself. This must be pinned explicitly, rather than relying on "I know
+# they aren't connected".
 class Api::DeploysIsolationTest < ActionDispatch::IntegrationTest
   setup do
     @managed_app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -29,7 +30,8 @@ class Api::DeploysIsolationTest < ActionDispatch::IntegrationTest
          headers: { "Authorization" => "Bearer #{@token}" }
     assert_response :no_content
 
-    # 动作的版本号来自调用方显式传入的 target_version，与上报无关
+    # The action's version comes from the target_version explicitly passed by the caller, unrelated
+    # to the report
     args = Actions::Restart.new(@managed_app, target_version: "bbbbbbb").cli_args
 
     assert_includes args, "bbbbbbb"

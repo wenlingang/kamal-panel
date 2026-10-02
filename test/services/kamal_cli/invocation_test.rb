@@ -19,9 +19,10 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       port: #{FakeHost::NODES.fetch("node-1")}
   YAML
 
-  # 只把 registry 密码引用的变量名换成一个非默认值——这正是这组新测试要
-  # 钉住的地方：一个写死 KAMAL_REGISTRY_PASSWORD 的实现会在这里当场变红。
-  # 端口沿用 BASE_YAML 的，否则连不上 FakeHost。
+  # Only change the variable name the registry password references to a non-default value -- this is
+  # exactly what this new group of tests is meant to pin: an implementation that hard-codes
+  # KAMAL_REGISTRY_PASSWORD goes red right here. The port follows BASE_YAML's, otherwise FakeHost
+  # can't be reached.
   CUSTOM_REGISTRY_ENV_YAML = BASE_YAML.sub("KAMAL_REGISTRY_PASSWORD", "MY_OWN_REGISTRY_TOKEN")
 
   def build_app(**attrs)
@@ -36,9 +37,9 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     )
   end
 
-  # 一个把自己被调用这件事写到盘上的 hook。写的是 `env`：一份 dump 同时能
-  # 回答三个问题——hook 到底跑了没有、`.kamal/secrets` 到底可达没有、
-  # 子进程到底看得见面板的哪些环境变量。
+  # A hook that writes the fact of its own invocation to disk. It writes `env`: one dump can answer
+  # three questions at once -- did the hook actually run, is `.kamal/secrets` actually reachable,
+  # and which of the panel's environment variables the subprocess can actually see.
   def env_dumping_app(marker_path, hook: "pre-connect", **attrs)
     build_app(
       kamal_hooks: { hook => "#!/bin/sh\nenv > #{marker_path}\n" }.to_json,
@@ -47,14 +48,14 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   test "能对真实主机跑通一条只读的 kamal 命令——且认证确实只靠 ssh-agent" do
-    # 这条测试的承重断言不是"有输出"，而是"输出里有那个只能通过 SSH +
-    # docker 才能看到的容器名"。
+    # The load-bearing assertion of this test isn't "there is output" but "the output has that
+    # container name that can only be seen via SSH + docker".
     #
-    # 没有这个断言时，一次【认证失败】也会让测试通过：不给 agent 时
-    # `kamal app details` 打印 "deploy@127.0.0.1's password:" 加一条
-    # SSHKit::Runner::ExecuteError，照样是"若干行输出 + 一个 Integer 退出码"。
-    # 而"只靠 agent、不落盘、不给 ssh -i 也能认证"是整个计划的承重前提，
-    # 它必须有一条会因为它不成立而变红的测试。
+    # Without this assertion, an [authentication failure] would also let the test pass: without an
+    # agent `kamal app details` prints "deploy@127.0.0.1's password:" plus an
+    # SSHKit::Runner::ExecuteError, which is still "some lines of output + an Integer exit code".
+    # And "authenticating with only the agent, nothing on disk, and no ssh -i" is the load-bearing
+    # premise of the whole plan, so it must have a test that goes red when it doesn't hold.
     container = FakeHost.seed_container(
       node: "node-1", service: "blog", role: "web", destination: "production", version: "v1"
     )
@@ -75,13 +76,14 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     leaked = []
     before = snapshot_paths
 
-    # 必须在 run 的块内、tempdir 被清理之前读取文件内容——run 返回之后
-    # Dir.mktmpdir 已经删掉了整个目录，这时再读只会读到 ENOENT。
+    # File contents must be read inside run's block, before the tempdir is cleaned up -- after run
+    # returns Dir.mktmpdir has already deleted the whole directory, and reading then only gets
+    # ENOENT.
     #
-    # 扫的范围刻意比"面板自己的临时目录"大：$TMPDIR 全树（含点文件）
-    # 加上 ~/.ssh。只盯 kamal-panel-*/**/* 的话，一个写到 $TMPDIR 根下的
-    # Tempfile、或者一个写成 .ssh/id_ed25519 的点文件（Dir.glob 的 **/*
-    # 默认不匹配点文件）都是看不见的。
+    # The scan scope is deliberately wider than "the panel's own temp dir": the whole $TMPDIR tree
+    # (including dotfiles) plus ~/.ssh. Watching only kamal-panel-*/**/* would miss a Tempfile
+    # written to the $TMPDIR root, or a dotfile written as .ssh/id_ed25519 (Dir.glob's **/* doesn't
+    # match dotfiles by default).
     scanned = false
 
     KamalCli::Invocation.new(app).run(%w[app details]) do |_line|
@@ -116,8 +118,9 @@ class KamalCli::InvocationTest < ExecutionLayerTest
 
     assert_equal before, Dir.glob("#{Dir.tmpdir}/#{KamalCli::Invocation::TMPDIR_PREFIX}*").size
 
-    # 目录数不变不能证明 agent 死了——「文件系统里没有密钥，但解密后的密钥
-    # 仍然通过一个 socket 可达」正是这里最坏的泄漏形状，而它跟目录计数无关。
+    # An unchanged directory count can't prove the agent is dead -- "no key in the filesystem, but
+    # the decrypted key is still reachable through a socket" is exactly the worst leak shape here,
+    # and it has nothing to do with the directory count.
     agent = invocation.agent
     assert_not_nil agent&.pid
     assert_raises(Errno::ESRCH, "ssh-agent 应已退出") { Process.kill(0, agent.pid.to_i) }
@@ -125,16 +128,17 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   test "超时会杀掉整个进程组并返回 124" do
-    # 老测试用 `app logs --follow`，指望它「不会自己退出」。它其实会：临时
-    # 目录里没有 git 仓库，kamal 算不出 version，几百毫秒内就带着 123 退出了，
-    # 而 `refute_equal 0, status` 对 123 一样通过——超时分支从来没跑过。
+    # The old test used `app logs --follow`, expecting it to "never exit on its own". It actually
+    # does: the temp dir has no git repo, kamal can't compute version, and exits with 123 within a
+    # few hundred milliseconds, and `refute_equal 0, status` passes for 123 too -- the timeout
+    # branch never ran.
     #
-    # 这里改成用一个 hook 制造一次【真的】挂起：hook 先把自己的 pid 写下来，
-    # 再 sleep。它是 kamal 的孙子进程，于是这条测试同时钉住两件事：
-    #   1. 超时分支真的跑了（124 + 那句提示 + 时间上界）；
-    #   2. 被杀掉的是整个进程组，不只是 kamal 自己——没有 pgroup 的话这个
-    #      sleep 会在面板显示「已终止」之后继续活着（真实场景里它是一条正在
-    #      对用户生产机器动手的 ssh/docker）。
+    # This changes it to use a hook to cause a [real] hang: the hook first writes down its own pid,
+    # then sleeps. It is kamal's grandchild process, so this test pins two things at once:
+    #   1. the timeout branch really ran (124 + that message + a time upper bound);
+    #   2. what gets killed is the whole process group, not just kamal itself -- without pgroup this
+    #      sleep would keep living after the panel shows "terminated" (in a real scenario it's an ssh/docker
+    #      acting on the user's production machine).
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       pidfile = File.join(probe, "hook.pid")
       app = build_app(kamal_hooks: {
@@ -152,26 +156,27 @@ class KamalCli::InvocationTest < ExecutionLayerTest
       hook_pid = File.read(pidfile).to_i
       assert_operator hook_pid, :>, 0, "hook 应该真的跑起来过（否则这次并没有挂在 hook 上）"
       assert_raises(Errno::ESRCH, "kamal 的孙子进程也必须随超时一起死掉") do
-        # 给内核一点时间收尸
+        # Give the kernel a moment to reap
         20.times { Process.kill(0, hook_pid); sleep 0.1 }
       end
     end
   end
 
   test "kamal 真的加载了 deploy.<destination>.yml 覆盖文件" do
-    # 这个项目已经两次修过"连错机器"，而 write_project_files 里一个文件名
-    # 打错（deploy-production.yml）不会有任何报错：kamal 只加载基础配置、
-    # 照常对【错误的主机】动手，四条老测试全绿。所以这里让覆盖文件里的
-    # 主机是一个基础配置里根本没有的地址，再问 kamal 自己算出来的 hosts
-    # 是哪一个。`kamal config` 只在本地跑（main.rb:127-132），不连主机。
+    # This project has already fixed "connected to the wrong machine" twice, and a filename typo in
+    # write_project_files (deploy-production.yml) produces no error at all: kamal loads only the
+    # base config and acts on the [wrong host] as usual, with all four old tests green. So here the
+    # host in the override file is an address that isn't in the base config at all, and then we ask
+    # which hosts kamal itself computes. `kamal config` runs only locally (main.rb:127-132) and
+    # doesn't connect to hosts.
     app = build_app(destination_config_yaml: <<~YAML)
       servers:
         web:
           - 10.77.77.77
     YAML
 
-    # 临时目录里没有 git 仓库（面板永不接触源码），所以需要 version 的命令
-    # 必须显式传 --version，否则 kamal 报 "no git repository found"。
+    # The temp dir has no git repo (the panel never touches source code), so commands that need a
+    # version must pass --version explicitly, otherwise kamal reports "no git repository found".
     result = KamalCli::Invocation.new(app).run(%w[config --version v1]) { |_| }
 
     assert_equal 0, result[:status], result[:output]
@@ -180,15 +185,16 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   test "用户自己的 pre/post-deploy hook 确实会被触发" do
-    # 「调 CLI 而不是自己拼命令」的全部理由就是让用户的 hook 照常触发。
-    # 在这条测试存在之前，那句话只是 invocation.rb 头部注释里的一个断言，
-    # 而实现（chdir 进一个空目录）让它必然为假。
+    # The entire reason for "calling the CLI rather than assembling commands ourselves" is to let
+    # users' hooks fire as usual. Before this test existed, that sentence was just an assertion in
+    # the header comment of invocation.rb, and the implementation (chdir into an empty directory)
+    # made it necessarily false.
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       app = env_dumping_app(marker)
 
-      # 一旦有 hook，kamal 就必须算出 config.version（KAMAL_VERSION 这个 tag），
-      # 而临时目录里没有 git 仓库——所以带 hook 的命令必须显式传 --version。
+      # Once there is a hook, kamal must compute config.version (the KAMAL_VERSION tag),
+      # and the temp dir has no git repo -- so commands with hooks must pass --version explicitly.
       result = KamalCli::Invocation.new(app).run(%w[app details --version v1]) { |_| }
 
       assert File.exist?(marker), "pre-connect hook 应被执行。kamal 输出：\n#{result[:output]}"
@@ -198,11 +204,11 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   test "kamal 能读到 .kamal/secrets——数组式密码写法可用" do
-    # `registry.password: [KAMAL_REGISTRY_PASSWORD]` 是 Kamal 2 的标准写法，
-    # 也是这个 fixture 用的写法。secrets 文件不可达时它在 app boot /
-    # rollback（Task 7 的目标）上直接抛 ConfigurationError。
-    # kamal 自己解析 secrets 文件的最便宜的一条路径就是 run_hook(secrets: true)：
-    # 它把 config.secrets.to_h 合并进 hook 的环境。
+    # `registry.password: [KAMAL_REGISTRY_PASSWORD]` is Kamal 2's standard form, and also the form
+    # this fixture uses. When the secrets file is unreachable it raises ConfigurationError directly
+    # in app boot / rollback (Task 7's target). The cheapest path for kamal to parse the secrets
+    # file itself is run_hook(secrets: true): it merges config.secrets.to_h into the hook's
+    # environment.
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       app = env_dumping_app(marker, kamal_secrets: "KAMAL_REGISTRY_PASSWORD=s3cr3t-from-panel\n")
@@ -214,8 +220,9 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     end
   end
 
-  # 变量名取自应用自己的 deploy.yml（CUSTOM_REGISTRY_ENV_YAML 里那个
-  # 名字不是 KAMAL_REGISTRY_PASSWORD——写死常量的实现会在这里当场变红）。
+  # The variable name comes from the app's own deploy.yml (the name in CUSTOM_REGISTRY_ENV_YAML
+  # isn't KAMAL_REGISTRY_PASSWORD -- an implementation with a hard-coded constant goes red right
+  # here).
   test "选了 registry 凭据时，密码按配置引用的变量名写进 secrets-common" do
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
@@ -230,14 +237,16 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     end
   end
 
-  # 用 env-dump 标记文件抓不住这条：kamal 把 secrets 合并进 hook 环境时，
-  # 一行末尾多没多一个 "\n" 并不影响 `env` 命令的输出。这里要验的是面板
-  # 写出的那个文件本身的字节，所以直接调用 write_project_files——它不连
-  # 主机，也不需要 kamal 参与，能直接读到 .kamal/secrets-common 的原始内容。
+  # The env-dump marker file can't catch this: when kamal merges secrets into the hook environment,
+  # whether a line ends with an extra "\n" doesn't affect the output of the `env` command. What's
+  # verified here is the bytes of the file the panel writes out, so we call write_project_files
+  # directly -- it doesn't connect to hosts and needs no kamal, and can read the raw content of
+  # .kamal/secrets-common directly.
   #
-  # kamal_secrets 故意不带尾换行：旧实现是 `File.write(..., kamal_secrets)`
-  # 原样写出；如果新实现在只有自由文本这一段时也去补一个分隔换行，这条就会
-  # 变红——这正是"未选 registry 凭据的应用逐字节不受影响"这个承诺的检验点。
+  # kamal_secrets deliberately has no trailing newline: the old implementation was `File.write(...,
+  # kamal_secrets)` writing it out verbatim; if the new implementation also adds a separator newline
+  # when there's only the free-text part, this would go red -- which is exactly the check point of
+  # the promise "apps that didn't pick a registry credential are unaffected byte for byte".
   test "没选 registry 凭据时，不带尾换行的 kamal_secrets 原样写出，一个字节都不多" do
     Dir.mktmpdir("kamal-panel-writetest-") do |dir|
       app = build_app(kamal_secrets: "RAILS_MASTER_KEY=abc")
@@ -263,11 +272,11 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     end
   end
 
-  # 这一条走完整条链路（面板写文件 → kamal 用 dotenv 解析 → hook 环境），
-  # 因为要钉住的不是"面板写出了什么字节"，而是"dotenv 最后交给 kamal 的是
-  # 不是原来那串密码"。不加引号时 dotenv 会在 # 处截断、剥掉行尾空白、
-  # 把 \s 反转义成 s、把 $HOME 插值掉，并且【真的去执行】 $(id)——
-  # 后者是在面板这台机器上执行，不是在目标主机上。
+  # This one goes through the whole chain (panel writes the file -> kamal parses with dotenv -> hook
+  # environment), because what needs pinning isn't "which bytes the panel wrote" but "whether what
+  # dotenv finally hands kamal is the original password". Without quotes dotenv would truncate at #,
+  # strip trailing whitespace, unescape \s into s, interpolate $HOME away, and [actually execute]
+  # $(id) -- and that executes on the panel's machine, not on the target host.
   test "密码里的 dotenv 元字符原样到达 kamal，$(...) 不会被当成命令执行" do
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
@@ -286,10 +295,10 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   test "子进程看不到面板的敏感环境变量" do
-    # kamal 会对用户的 deploy.yml 做 ERB 求值，也就是说这个子进程里可以跑
-    # 攻击者影响的代码。Open3 的 env 参数是合并进 ENV 的，不加
-    # unsetenv_others 的话它会拿到 RAILS_MASTER_KEY——一把能解密所有
-    # Credential 行（= 其他每个应用的私钥）的钥匙。
+    # kamal ERB-evaluates the user's deploy.yml, which means attacker-influenced code can run
+    # in this subprocess. Open3's env argument is merged into ENV, and without
+    # unsetenv_others it would get RAILS_MASTER_KEY -- a key that can decrypt every
+    # Credential row (= every other app's private key).
     Dir.mktmpdir("kamal-panel-hooktest-") do |probe|
       marker = File.join(probe, "hook-ran")
       app = env_dumping_app(marker)
@@ -318,16 +327,16 @@ class KamalCli::InvocationTest < ExecutionLayerTest
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
     assert_equal "行处理器炸了", error.message
-    # 原来的实现会让这个异常把 reader 线程杀掉、管道不再排空、kamal 卡死，
-    # 最后跑满整个 timeout 返回 status 124——Task 7 行处理器里的一个 bug
-    # 会被当成「kamal 挂了」报给运维。
+    # The original implementation let this exception kill the reader thread, the pipe was no longer
+    # drained, kamal hung, and it finally ran out the whole timeout and returned status 124 -- a bug
+    # in Task 7's line handler would be reported to ops as "kamal hung".
     assert_operator elapsed, :<, 60, "调用方块出错时应立即终止子进程，而不是等满超时"
   end
 
   test "被信号杀死的子进程也返回 Integer 退出码" do
-    # exitstatus 对被信号杀死的子进程是 nil，直接返回会破掉文档承诺的
-    # `status: Integer` 契约（调用方一个 result[:status].zero? 就是
-    # NoMethodError）。按 shell 惯例折算成 128 + signo。
+    # exitstatus is nil for a signal-killed child, and returning it directly would break the
+    # documented `status: Integer` contract (a caller's single result[:status].zero? is a
+    # NoMethodError). Converted to 128 + signo, following shell convention.
     pid = Process.spawn("sleep", "30", out: File::NULL, err: File::NULL)
     Process.kill("KILL", pid)
     _, process_status = Process.wait2(pid)
@@ -338,9 +347,10 @@ class KamalCli::InvocationTest < ExecutionLayerTest
   end
 
   private
-    # 手写遍历而不用 Dir.glob：$TMPDIR 下有 macOS 自己的 TemporaryItems 之类
-    # 当前用户读不了的目录，Dir.glob 撞上它会直接抛 EPERM，整条测试就变成
-    # 「因为环境噪音而报错」而不是「检查有没有泄漏」。
+    # Hand-written traversal instead of Dir.glob: $TMPDIR contains directories the current user
+    # can't read, such as macOS's own TemporaryItems, and Dir.glob raises EPERM when it hits one,
+    # turning the whole test into "an error from environment noise" rather than "checking for
+    # leaks".
     def snapshot_paths
       found = []
       [ Dir.tmpdir, File.join(Dir.home, ".ssh") ].each { |root| walk_paths(root, found, 0) }

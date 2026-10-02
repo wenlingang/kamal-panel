@@ -1,34 +1,38 @@
 require "test_helper"
 
-# 这套视觉语言的失效方式是可预见的：下一个功能照着旁边的写法，又写死一个
-# font-size、又抄一段 px，尺度就这样一行一行长回去。每次只多一行，人在
-# review 里数不出来，所以让测试来数。
+# The way this visual language fails is predictable: the next feature copies the style next to it
+# and hardcodes another font-size, copies another px value, and the scale creeps back one line at a
+# time. Each time it is only one line, which a human can't count in review, so let a test count.
 #
-# 白名单里只该剩永久例外。往里加一行，必须在旁边写清它为什么不能是 token。
+# The allowlist should only keep permanent exceptions. Adding a line requires writing next to it why
+# it cannot be a token.
 class StylesheetTokensTest < ActiveSupport::TestCase
-  # 字面量守卫（offenders）扫全部样式表：propshaft 下任何人都能再加一个
-  # .css 文件，只盯 application.css 会对新文件完全不设防。
+  # The literal guard (offenders) scans all stylesheets: under propshaft anyone can add
+  # another .css file, and watching only application.css would leave new files unguarded.
   STYLESHEETS = Dir[Rails.root.join("app/assets/stylesheets/*.css")].sort.map { |path| Pathname.new(path) }.freeze
 
-  # 排版尺度测试（third_root_block）只看这一个文件：它是唯一定义 token 的
-  # 文件，token 的定义天然是字面量，不该被自己的守卫扫到。
+  # The type-scale test (third_root_block) looks at this one file only: it is the only
+  # file that defines tokens, and token definitions are literals by nature, so its own
+  # guard should not catch them.
   STYLESHEET = Rails.root.join("app/assets/stylesheets/application.css")
 
   TOKENIZED_PROPERTIES = %w[font-size box-shadow border-radius].freeze
 
-  # 每加一行都必须在这里写清「它为什么不能是 token」。
+  # Every added line must say here "why it cannot be a token".
   ALLOWED = [
-    # code 要跟着父级字号缩放（表格里的等宽字比该行正文小一档），
-    # 换成 rem 会让它在小字环境里反而变大。这是永久例外。
+    # code must scale with the parent's font size (monospace in a table is one step
+    # smaller than that row's body text); switching to rem would make it larger in
+    # small-text contexts instead. This is a permanent exception.
     "font-size: 0.875em"
   ].freeze
 
-  # :root 之外允许出现的 px，四类（spec §5 修订后的表）：
-  #   1. 描边宽度——边框是分隔符不是内容，字号变大不该让分隔线变粗
-  #   2. 媒体查询断点——断点量的是设备，不是内容尺度（由 px_offenders_in 整段剔除）
-  #   3. 站标几何——必须匹配那张 24 画布
-  #   4. .visually-hidden 的裁剪——是一个隐藏技巧的固定配方，不是可见尺寸
-  # 往这里加一行之前，先确认它属于上面四类中的哪一类，并在行尾注明。
+  # px allowed outside :root, four categories (the table after the spec §5 revision):
+  #   1. Stroke width: a border is a separator, not content; a larger font size should not thicken dividers
+  #   2. Media query breakpoints: a breakpoint measures the device, not the content scale (px_offenders_in strips the whole clause)
+  #   3. Logo geometry: must match that 24 canvas
+  #   4. .visually-hidden clipping: a fixed recipe for hiding, not a visible size
+  # Before adding a line here, confirm which of the four categories it belongs to, and note it at
+  # the end of the line.
   PX_ALLOWED = [
     "border: 1px solid transparent",              # 1
     "border: 1px solid var(--btn-rule)",          # 1
@@ -39,13 +43,13 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     "border-bottom: 1px solid var(--rule)",       # 1
     "border-top: 1px solid var(--rule)",          # 1
     "outline: 2px solid var(--field-focus)",      # 1
-    "outline: 2px solid transparent",             # 1 高对比度模式的兜底描边
+    "outline: 2px solid transparent",             # 1 fallback outline for high-contrast mode
     "outline-offset: 2px",                        # 1
     "height: 1px",                                # 4 .visually-hidden
     "width: 1px",                                 # 4 .visually-hidden
     "margin: -1px",                               # 4 .visually-hidden
-    "transform-origin: 12px 16.6px",              # 3 站标
-    "transform: translateY(-3.4px)"               # 3 站标
+    "transform-origin: 12px 16.6px",              # 3 logo
+    "transform: translateY(-3.4px)"               # 3 logo
   ].freeze
 
   test "白名单之外的声明都用了 token" do
@@ -86,9 +90,9 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     def offenders_in(path)
       css = path.read.gsub(%r{/\*.*?\*/}m, "")
 
-      # 剥掉【全部】 :root 块：这张样式表里有浅色调色板、深色调色板（在
-      # @media 里）、排版与形状 token 三个 :root 块，token 的定义本身当然
-      # 是字面值，不该被算作违规。
+      # Strip [all] :root blocks: this stylesheet has three :root blocks (light palette,
+      # dark palette inside @media, typography and shape tokens), and the token
+      # definitions are of course literal values, so they must not count as violations.
       css = css.gsub(/:root\s*\{.*?\}/m, "")
 
       css.scan(/(#{Regexp.union(TOKENIZED_PROPERTIES)})\s*:\s*([^;}]+)/)
@@ -96,12 +100,13 @@ class StylesheetTokensTest < ActiveSupport::TestCase
          .map { |property, value| "#{property}: #{value.strip}" }
     end
 
-    # 整个值都必须由 var(--…) 与分隔符构成。只看开头是不够的——
-    # `box-shadow: var(--lift), 0 0 0 2px red` 是 var 打头却混着字面量，
-    # 旧写法会放行它，等于守卫在最容易出错的那种写法上失效。
+    # The whole value must consist of var(--…) and separators. Checking only the start is
+    # not enough: `box-shadow: var(--lift), 0 0 0 2px red` starts with var but mixes in a
+    # literal, which the old logic let through, meaning the guard failed on exactly the
+    # form most prone to error.
     #
-    # "0" 与 "none" 是【卸掉】一个样式，不是设定一个尺寸——quiet 级要把卡片的
-    # 圆角和阴影归零，那不该被当成「写死了字面量」。
+    # "0" and "none" [remove] a style rather than set a size: the quiet tier zeroes the
+    # card's radius and shadow, and that must not be treated as "hardcoded a literal".
     def tokenized?(value)
       return true if %w[inherit initial unset none 0].include?(value)
 
@@ -117,13 +122,14 @@ class StylesheetTokensTest < ActiveSupport::TestCase
 
       css = css.gsub(/:root\s*\{.*?\}/m, "")
 
-      # 媒体查询的条件部分不算——断点量的是设备，不是内容尺度
+      # The condition part of a media query doesn't count: a breakpoint measures the device, not the
+      # content scale
       css = css.gsub(/@media[^{]*\{/, "{")
 
       css.scan(/([\w-]+)\s*:\s*([^;{}]*\d+(?:\.\d+)?px[^;{}]*)/)
          .map { |property, value| "#{property}: #{value.strip}" }
     end
 
-  # 文件里第三个 :root 块：与主题无关的排版/形状 token（第一个是浅色调色板，
-  # 第二个是深色 @media 里那个）。
+  # The third :root block in the file: theme-independent typography/shape tokens (the
+  # first is the light palette, the second the one inside the dark @media).
 end

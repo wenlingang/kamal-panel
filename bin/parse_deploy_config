@@ -1,16 +1,16 @@
 #!/usr/bin/env ruby
-# 从 stdin 读 JSON: {"config_file": "/path/to/deploy.yml", "destination": "production"|null}
-# 向 stdout 写 JSON: {"ok": true, ...} 或 {"ok": false, "error": "..."}
+# Reads JSON from stdin: {"config_file": "/path/to/deploy.yml", "destination": "production"|null}
+# Writes JSON to stdout: {"ok": true, ...} or {"ok": false, "error": "..."}
 #
-# 本脚本在独立子进程中运行，因为 Kamal 解析 deploy.yml 时会做 ERB 求值
-# 与 YAML.unsafe_load，两者都是任意代码执行路径。见 spec 7.6。
+# This script runs in a separate subprocess because Kamal does ERB evaluation and YAML.unsafe_load
+# when parsing deploy.yml, both of which are arbitrary-code-execution paths. See spec 7.6.
 #
-# 本脚本本身不创建、不删除任何文件——config_file（以及同目录下 Kamal
-# 按 destination 约定去找的伴随文件，如果有的话）由父进程（Kamal::ConfigParser）
-# 写入一个临时目录并负责清理。原因：本脚本可能因解析超时被 SIGKILL，
-# SIGKILL 会跳过所有 ensure/at_exit，如果清理逻辑在这里，被杀时
-# 用户粘贴的 deploy.yml 内容就会以临时文件形式留在磁盘上。父进程永远
-# 不会被杀，所以清理必须由父进程持有和执行。
+# This script itself neither creates nor deletes any files: config_file (and the companion file in
+# the same directory that Kamal looks for by its destination convention, if any) is written to a
+# temp directory and cleaned up by the parent process (Kamal::ConfigParser). Reason: this script may
+# be SIGKILLed on a parse timeout, and SIGKILL skips every ensure/at_exit; if the cleanup logic
+# lived here, a kill would leave the user's pasted deploy.yml content on disk as a temp file. The
+# parent is never killed, so cleanup must be owned and carried out by the parent.
 
 require "json"
 require "pathname"
@@ -20,23 +20,23 @@ def emit(hash)
   $stdout.flush
 end
 
-# deploy.yml 里 `registry.password: [FOO]` 方括号里是一个【环境变量名】，
-# 可以叫任何名字。面板要按这个名字把密码写进 .kamal/secrets-common。
+# In deploy.yml, the brackets in `registry.password: [FOO]` hold an [environment variable name],
+# which can be anything. The panel has to write the password into .kamal/secrets-common under that
+# name.
 #
-# 【不能调 config.registry.password】：那个方法会去解析 secret，而解析阶段
-# .kamal/secrets 根本不存在，一份完全正常的 deploy.yml 会解析失败。所以读
-# 原始配置。
+# [Do not call config.registry.password]: that method resolves the secret, and at parse time
+# .kamal/secrets doesn't exist at all, so a perfectly valid deploy.yml would fail to parse. So read
+# the raw config instead.
 #
-# 两种情形：数组 → 取第一项；字面量字符串 → nil（配置里已有明文，面板没有
-# 可注入的位置）。
+# Two cases: array -> take the first item; literal string -> nil (the config already holds
+# plaintext, and the panel has no place to inject into).
 #
-# 没有 registry 段的第三种情形【在 Kamal 这里不可能发生】：哪怕整段不写
-# registry:，Kamal 自己的校验也会先报
-# `Kamal::ConfigurationError: registry/username: is required`，本方法根本
-# 走不到、上面这个 config 对象也从没成功构造出来过。下面那句
-# `return nil if registry.nil?` 因此是子进程边界上的廉价防御（万一 Kamal
-# 未来放宽这条必填校验），不是一条被测试覆盖、支持中的路径——不要据此以为
-# 面板支持没有 registry 段的应用。
+# The third case, no registry section, [cannot happen with Kamal]: even if the whole registry: block
+# is omitted, Kamal's own validation reports first `Kamal::ConfigurationError: registry/username: is
+# required`, so this method is never reached and the config object above was never successfully
+# built. The `return nil if registry.nil?` below is therefore cheap defense at the subprocess
+# boundary (in case Kamal relaxes that required-field validation someday), not a tested, supported
+# path; don't take it to mean the panel supports apps without a registry section.
 def registry_password_env(config)
   raw = config.raw_config
   registry = raw[:registry] || raw["registry"]
@@ -51,8 +51,9 @@ begin
 
   require "kamal"
 
-  # version 必须显式传入：否则 Kamal::Configuration#version 会回落到
-  # git_version，去 shell 调 git —— 面板环境里没有用户应用的 git 仓库。
+  # version must be passed explicitly: otherwise Kamal::Configuration#version falls back to
+  # git_version and shells out to git, and the panel's environment has no git repo for the user's
+  # app.
   config = Kamal::Configuration.create_from(
     config_file: Pathname.new(input.fetch("config_file")),
     destination: input["destination"],
@@ -70,14 +71,15 @@ begin
     primary_host: config.primary_host,
     registry_server: config.registry.server,
     registry_password_env: registry_password_env(config),
-    # 只把 ssh: 段里的原始字符串交出去，绝不在这里构造 Net::SSH::Proxy::Jump
-    # 之类的对象——本脚本的输出要穿过 JSON 边界回到父进程，任何对象都会被
-    # 隐式 #to_s 成 "#<Net::SSH::Proxy::Jump:0x...>" 这种没意义的字符串
-    # （Jump 没有定义有意义的 #to_s），父进程再把这段字符串原样交给
-    # Net::SSH.start 的 :proxy 选项，会在运行时炸成
-    # "NoMethodError: private method 'open' called for an instance of String"。
-    # 真正的对象构造和格式校验交给父进程（Kamal::ConfigParser#build_ssh_options）
-    # 在自己的进程里完成——那里不需要 ERB/YAML.unsafe_load，可以安全地做。
+    # Hand over only the raw string from the ssh: section; never construct objects such as
+    # Net::SSH::Proxy::Jump here. This script's output has to cross the JSON boundary back to the
+    # parent, and any object would be implicitly #to_s'd into a meaningless string like
+    # "#<Net::SSH::Proxy::Jump:0x...>" (Jump defines no meaningful #to_s); the parent would then
+    # pass that string as-is to the :proxy option of Net::SSH.start, which blows up at runtime with
+    # "NoMethodError: private method 'open' called for an instance of String". Actual object
+    # construction and format validation are left to the parent
+    # (Kamal::ConfigParser#build_ssh_options) in its own process, where ERB/YAML.unsafe_load aren't
+    # involved and it's safe to do.
     ssh_options: {
       user: config.ssh.user,
       port: config.ssh.port,

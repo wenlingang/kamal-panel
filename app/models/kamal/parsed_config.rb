@@ -1,5 +1,5 @@
-# Kamal 命名空间下的值对象。
-# 解析结果每次现算（spec 5.1）。
+# A value object under the Kamal namespace.
+# The parse result is computed fresh every time (spec 5.1).
 class Kamal::ParsedConfig
   attr_reader :service, :destination, :roles, :app_hosts, :primary_host,
               :registry_server, :registry_password_env, :ssh_options

@@ -30,9 +30,10 @@
 en:
   hello: "Hello world"
 
-  # 界面主语言是中文；这份英文是 i18n.fallbacks 的落点，也是将来做双语切换
-  # 时的起点。属性名在这里给全，否则 app.update 的字段名会退化成 Rails
-  # 自动 humanize 出来的 "Ssh credential id"。
+  # The UI's primary language is Chinese; this English file is where i18n.fallbacks lands, and also
+  # the starting point for bilingual switching later. Attribute names are listed in full here,
+  # otherwise the field names for app.update degrade to what Rails auto-humanizes, "Ssh credential
+  # id".
   activerecord:
     errors:
       models:
@@ -71,9 +72,9 @@ en:
         kamal_secrets: .kamal/secrets
         kamal_hooks: .kamal/hooks
 
-  # 角色的英文显示名。代码里的角色值仍是 admin/developer/ops，这里只是
-  # 给界面看的——zh-CN 那边早就有，en 这边一直缺，是 LocaleSmokeTest 头一次
-  # 跑就抓出来的。
+  # English display names for roles. The role values in code are still admin/developer/ops; this is
+  # only for the UI. zh-CN has had it all along while en lacked it; LocaleSmokeTest caught it the
+  # first time it ran.
   roles:
     admin: Admin
     developer: Developer

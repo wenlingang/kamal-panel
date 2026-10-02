@@ -1,7 +1,8 @@
 Rails.application.routes.draw do
   resource :session
-  # 改自己的界面语言。刻意【不】放在 resources :users 下面：那一组是 admin
-  # 独占的，而换语言人人都得能做（见 LocalesControllerTest 顶部的注释）。
+  # Change your own UI language. Deliberately [not] under resources :users: that group is
+  # admin-only, while changing language must be available to everyone (see the comment at the top of
+  # LocalesControllerTest).
   resource :locale, only: [ :update ]
   resources :passwords, param: :token
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
@@ -10,39 +11,41 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
-  # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
-  # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
+  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in
+  # application.html.erb) get "manifest" => "rails/pwa#manifest", as: :pwa_manifest get
+  # "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   resources :managed_apps, path: "apps", only: [ :index, :new, :create, :show, :edit, :update ] do
     resources :actions, only: [ :create, :show ]
     resource :hook_token, only: [ :create ]
-    # 锁状态与挂在它上面的操作区。单独一条路由是因为读锁要真的 SSH 上去，
-    # 让它在详情页里同步跑会把整页拖到 3 秒以上（见 show 里那个 frame 的注释）。
+    # Lock status and the action area attached to it. A separate route because reading the lock
+    # means a real SSH, and running that synchronously in the detail page would drag the whole page
+    # past 3 seconds (see the comment on that frame in show).
     resource :lock, only: [ :show ]
-    # 手动触发一次采集。是【读】动作：不取部署锁、不写审计、三档角色都能用
-    # ——它只是让一次本来就会自动发生的采集提前。
+    # Manually trigger one collection. A [read] action: takes no deploy lock, writes no audit,
+    # usable by all three roles (it only brings forward a collection that would happen automatically
+    # anyway).
     resources :refreshes, only: [ :create ]
-    # 停用而不是删除：audit_logs 有一条指向 managed_apps 的外键，而审计行是
-    # 设计上不可删除的。与"用户只停用不删除"同一个形状。
+    # Deactivate rather than delete: audit_logs has a foreign key to managed_apps, and audit rows
+    # are undeletable by design. Same shape as "users are only deactivated, never deleted".
     post :deactivate, on: :member
     post :reactivate, on: :member
   end
-  # hook 上报入口。客户端是 curl，不是浏览器——控制器因此继承
-  # ActionController::API（无 CSRF、无 cookie、无 allow_browser）。
+  # Entry point for hook reports. The client is curl, not a browser, so the controller inherits
+  # ActionController::API (no CSRF, no cookies, no allow_browser).
   namespace :api do
     resources :deploys, only: [ :create ]
   end
   resources :audit_logs, only: [ :index ]
 
-  # 人员管理。没有 destroy：用户只能停用不能删除（audit_logs.user_id 带外键，
-  # 而审计不可删除）。
+  # User management. No destroy: users can only be deactivated, not deleted (audit_logs.user_id has
+  # a foreign key, and audits are undeletable).
   resources :users, only: [ :index, :new, :create, :edit, :update ] do
     post :deactivate, on: :member
     post :reactivate, on: :member
   end
-  # 凭据只有 admin 能管（设计 12）。没有 show：凭据是只写不读的，没有"看一眼
-  # 内容"这回事。
+  # Credentials are admin-only (design 12). No show: credentials are write-only, there is no such
+  # thing as "taking a look at the contents".
   resources :credentials, only: [ :index, :new, :create, :edit, :update, :destroy ]
   resources :registry_credentials, only: [ :new, :create, :edit, :update, :destroy ],
             path: "credentials/registry"

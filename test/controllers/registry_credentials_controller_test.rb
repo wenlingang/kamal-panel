@@ -1,7 +1,8 @@
 require "test_helper"
 
 class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
-  # 一个好认的字面量：出现在 HTML 里一眼能看出来是泄漏，不会和别的字节撞上。
+  # An easily recognizable literal: seeing it in HTML makes a leak obvious at a glance, and it won't
+  # collide with other bytes.
   SECRET = "绝密registry密码-Zk7q".freeze
   OTHER_SECRET = "另一个绝密registry密码-Mx2v".freeze
 
@@ -43,7 +44,8 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Docker Hub", AuditLog.where(action_name: "registry_credential.create").sole.detail
   end
 
-  # 凭据只写不读：表单页任何时候都不能把密码明文渲染回 HTML。
+  # Credentials are write-only: the form page must never render the password plaintext back into
+  # HTML.
   test "新建页与替换页都不回显密码明文" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET,
                                             server: "registry.example.com")
@@ -62,7 +64,7 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     RegistryCredential.create!(name: "Docker Hub", value: SECRET)
     sign_in_as users(:two)
 
-    # 重名，创建必失败，走 render :new 那条重渲路径。
+    # Duplicate name, so creation must fail and take the render :new re-render path.
     post registry_credentials_path,
          params: { registry_credential: { name: "Docker Hub", value: SECRET } }
 
@@ -107,8 +109,9 @@ class RegistryCredentialsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "闲置的", AuditLog.where(action_name: "registry_credential.delete").sole.detail
   end
 
-  # 被引用时那条提示是这一页唯一会教人做事的文案，所以它说的必须是面板真能做到
-  # 的事：面板没有给已接入的应用改凭据的入口，能做的只有替换这条凭据的内容。
+  # When referenced, that hint is the only copy on this page that teaches people what to do, so what
+  # it says must be something the panel can really do: the panel has no entry point for changing
+  # credentials on an onboarded app; all it can do is replace this credential's content.
   test "被引用的凭据删不掉，提示点名了是哪个应用、也只让人做做得到的事" do
     credential = RegistryCredential.create!(name: "Docker Hub", value: SECRET)
     ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,

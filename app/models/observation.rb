@@ -1,4 +1,4 @@
-# 一条不可变的观测快照（spec 5.2）。
+# An immutable observation snapshot (spec 5.2).
 class Observation < ApplicationRecord
   include LatestPerHost
 

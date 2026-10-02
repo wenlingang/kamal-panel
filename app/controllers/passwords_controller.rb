@@ -22,7 +22,7 @@ class PasswordsController < ApplicationController
       @user.sessions.destroy_all
       redirect_to new_session_path, notice: t("flash.password.reset_done")
     else
-      # 反复重试是这类页面最常见的死循环。
+      # Retrying over and over is the most common dead loop on this kind of page.
       redirect_to edit_password_path(params[:token]),
                   alert: @user.errors.full_messages.to_sentence.presence || t("flash.password.mismatch")
     end

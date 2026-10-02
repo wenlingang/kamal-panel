@@ -1,4 +1,4 @@
-# 执行一个动作。
+# Run an action.
 class RunActionJob < ApplicationJob
   queue_as :default
 
@@ -24,7 +24,8 @@ class RunActionJob < ApplicationJob
                 duration_ms: ((Time.current - started) * 1000).round)
     broadcast_result(log)
 
-    # 不拿命令退出码当结论（spec 8.4）：触发 burst 轮询，用新的 Observation 确认。
+    # Do not take the command's exit code as the conclusion (spec 8.4): trigger burst polling and
+    # confirm with a new Observation.
     PollCadence.mark_burst!(app)
     PollManagedAppJob.perform_later(app)
   end
@@ -74,7 +75,7 @@ class RunActionJob < ApplicationJob
         html: ActionController::Base.helpers.tag.div(line, class: "output-line")
       )
     rescue StandardError => e
-      # 投递失败不得连累执行本身（计划 01 Task 12 的教训）
+      # A delivery failure must not drag down the execution itself (lesson from plan 01 Task 12)
       Rails.logger.error("[action] 广播失败: #{e.class}")
     end
 end

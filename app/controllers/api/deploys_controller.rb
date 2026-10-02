@@ -1,8 +1,8 @@
 module Api
-  # 唯一的上报入口（spec 03 第 4 节）。
+  # The only reporting entry point (spec 03 §4).
   class DeploysController < ActionController::API
-    # version 会进 UI、进告警文案、参与配对查询。
-    # 与"上报字段不进入任何 cli_args"是两道独立的防线。
+    # version goes into the UI, into alert text, and into the pairing query.
+    # This is a separate line of defense from "reported fields never enter any cli_args".
     VERSION_FORMAT = /\A[A-Za-z0-9._-]{1,128}\z/
     TEXT_LIMIT = 255
 
@@ -50,7 +50,7 @@ module Api
 
         result = DeployEvents::Ingest.call(managed_app: app, phase: params[:phase],
                                            attributes: ingest_attributes)
-        # 只在状态真的变化时才撬动一次扇出。
+        # Only kick off a fan-out when the status has actually changed.
         PollCadence.mark_burst!(app) if result[:changed]
 
         head :no_content
@@ -79,8 +79,8 @@ module Api
           recorded_at: parsed_recorded_at }
       end
 
-      # 机器上的原文，只用于展示。
-      # 也绝不用它做任何判定（那会让时钟漂移变成告警的开关）。
+      # The raw text from the machine, for display only.
+      # Never use it for any decision (that would make clock drift a switch for alerts).
       def parsed_recorded_at
         Time.zone.parse(params[:recorded_at].to_s)
       rescue ArgumentError, TypeError

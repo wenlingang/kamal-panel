@@ -1,11 +1,13 @@
 require "test_helper"
 
-# 邮件按【收件人】的语言渲染，不是按发信那一刻的 I18n.locale。
+# The mail is rendered in the [recipient's] language, not in the I18n.locale at the moment of
+# sending.
 #
-# 这条是独立于请求的路径：deliver_later 在后台任务里执行，那里没有请求上下文，
-# ApplicationController 的 around_action 完全帮不上忙。所以它必须自己负责，
-# 也必须自己有测试——否则一个 admin 在中文界面上给英文同事建号，对方收到的
-# 会是一封中文邮件，而没有任何测试会因此变红。
+# This path is independent of the request: deliver_later runs in a background job, where there is no
+# request context and ApplicationController's around_action can't help at all. So it must take care
+# of this itself, and must have its own test -- otherwise an admin on the Chinese UI creating an
+# account for an English-speaking colleague would have the colleague receive a Chinese email, and no
+# test would go red because of it.
 class PasswordsMailerTest < ActionMailer::TestCase
   test "按收件人的偏好渲染" do
     user = User.create!(email_address: "en@example.com", password: "secret123456", locale: "en")
@@ -24,7 +26,7 @@ class PasswordsMailerTest < ActionMailer::TestCase
     assert_equal "重置你的 Kamal Panel 密码", mail.subject
   end
 
-  # 发信那一刻界面是什么语言不影响收件人收到什么。
+  # What language the UI is in at the moment of sending doesn't affect what the recipient receives.
   test "不受发信时当前 locale 的影响" do
     user = User.create!(email_address: "en2@example.com", password: "secret123456", locale: "en")
 

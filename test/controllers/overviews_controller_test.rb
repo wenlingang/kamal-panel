@@ -2,14 +2,15 @@ require "test_helper"
 
 class OverviewsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    Rails.cache.clear # cached_app_hosts 缓存键含 id，SQLite 回滚后可能复用 id
+    Rails.cache.clear # cached_app_hosts cache key contains the id, and SQLite may reuse ids after rollback
 
-    # 只看总览是 ops 就能做的事，不需要 admin。
+    # Viewing the overview is something ops can do; admin isn't needed.
     sign_in_as users(:one)
   end
 
-  # 状态这一维不是数据库列，是 ManagedAppStatus 现算出来的。所以这些测试
-  # 不能直接塞一个 status 字段，只能把观测造成"会算出那个状态"的样子。
+  # Status is not a database column; it's computed on the fly by ManagedAppStatus. So these tests
+  # can't just stuff in a status field; they can only shape observations so they "compute to that
+  # status".
   def app_with(name:, versions:, docker_status: "running")
     app = ManagedApp.create!(name: name,
                              config_yaml: file_fixture("two_host_deploy.yml").read,
@@ -84,8 +85,8 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "healthy", count: 0
   end
 
-  # 「配置无法解析」不是 ManagedAppStatus 的一档 level，而是网格里另一条
-  # 独立的行分支。它恰恰是最该被筛出来的一类，所以下拉里必须有它。
+  # "Config can't be parsed" is not a level of ManagedAppStatus, but a separate row branch in the
+  # grid. It is exactly the kind that most needs to be filtered out, so the dropdown must have it.
   test "按状态筛选——配置无法解析的应用能被单独筛出来" do
     broken_app(name: "unparseable")
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
@@ -96,8 +97,9 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "healthy", count: 0
   end
 
-  # 配置解析不了的应用连 ManagedAppStatus 都算不出来（一算就再炸一次
-  # ParseError）。按别的状态筛选时，它既不能混进结果，更不能把整页搞崩。
+  # An app whose config can't be parsed can't even have ManagedAppStatus computed (computing it
+  # would blow up with ParseError again). When filtering by other statuses, it must neither leak
+  # into the results nor crash the whole page.
   test "按别的状态筛选时，配置无法解析的应用不出现也不报错" do
     broken_app(name: "unparseable")
     app_with(name: "healthy", versions: %w[aaaaaaa aaaaaaa])
@@ -139,7 +141,8 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /这里还是空的/
   end
 
-  # 参数是从 URL 来的，谁都能手改。未知的状态值当作没筛，不 500 也不给空页。
+  # Params come from the URL, and anyone can edit them by hand. An unknown status value is treated
+  # as no filter -- no 500, no empty page.
   test "未知的状态值当作没有筛选" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
 
@@ -149,8 +152,9 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table.overview-grid td", text: "blog"
   end
 
-  # 筛选是"我现在只想看这几行"，不是"其余的不用采了"。跟着筛选走会让人
-  # 一筛就把其他应用的采集悄悄降速，而那恰恰是出问题时最不该发生的事。
+  # Filtering means "I only want to see these rows right now", not "the rest needn't be collected".
+  # Following the filter would let people silently slow down collection for other apps just by
+  # filtering, and that is the last thing that should happen during an incident.
   test "筛选不影响采集节奏——被筛掉的应用一样标记为正在被查看" do
     visible = app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     hidden  = app_with(name: "shop", versions: %w[aaaaaaa aaaaaaa])

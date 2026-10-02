@@ -1,10 +1,12 @@
 class AddConvergenceTrackingToManagedApps < ActiveRecord::Migration[8.1]
   def change
-    # nil 表示"还没建立基线"：第一次收敛只写这两列、不产生事件。
-    # 一个早就在跑某一版的应用刚被接进面板，它不是"今天部署的"。
+    # nil means "no baseline established yet": the first convergence only writes these two columns
+    # and produces no event. An app that has long been running some version and has just been
+    # onboarded to the panel was not "deployed today".
     add_column :managed_apps, :last_converged_version, :string
-    # 存的是观测时刻（那批 running 观测里最早的 observed_at），不是 Time.current——
-    # 与 Reconciler 回填 observed_at 用观测时间是同一条理由。
+    # Stores the observation moment (the earliest observed_at among that batch of running
+    # observations), not Time.current; the same reason as the Reconciler backfilling observed_at
+    # with observation time.
     add_column :managed_apps, :last_converged_at, :datetime
   end
 end

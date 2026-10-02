@@ -1,9 +1,9 @@
-# 一个应用的一轮采集。
+# One collection round for one app.
 class PollManagedAppJob < ApplicationJob
   queue_as :default
 
   def perform(managed_app)
-    # 攒一条失败观测——直接放弃。
+    # accumulate one failure observation — just give up.
     return if managed_app.deactivated?
 
     error = nil
@@ -18,25 +18,28 @@ class PollManagedAppJob < ApplicationJob
     end
 
     begin
-      # 解析失败——两次失败多半同源，跑第二次只是浪费一次子进程。
+      # Parse failed — the two failures most likely share a source, and running the second one would
+      # only waste a subprocess.
       Collectors::ProxyCollector.call(managed_app) unless parse_error
     rescue Kamal::ConfigParser::ParseError => e
       parse_error ||= e
     rescue StandardError => e
-      # 两个都炸了：只能选一个抛出去。
+      # Both blew up: we can only pick one to raise.
       error ||= e
     end
 
     begin
-      # 回填放在采集之后：它读的就是这一轮刚写下的观测。
-      # 与两个采集器一样彼此隔离——它自己抛异常不能连累采集结果。
+      # Backfill goes after collection: what it reads is the observation just written this round.
+      # Isolated from the others, like the two collectors — if it raises, it must not drag down the
+      # collection results.
       DeployEvents::Reconciler.call(managed_app) unless parse_error
     rescue StandardError => e
       error ||= e
     end
 
     begin
-      # 看见"这一版刚被回填过"，从而让位不记重复的推断事件。
+      # sees "this version was just backfilled" and so yields, not recording a duplicate inferred
+      # event.
       DeployEvents::Inferrer.call(managed_app) unless parse_error
     rescue StandardError => e
       error ||= e
@@ -64,18 +67,20 @@ class PollManagedAppJob < ApplicationJob
 
     def record_poll_error(managed_app, error)
       attrs = { last_poll_error: error.message.to_s.truncate(2000), last_poll_error_at: Time.current }
-      # 每轮覆写会让坏了几天的应用永远显示「不到一分钟前」。
+      # overwriting on every round would make an app that has been broken for days forever show
+      # "less than a minute ago".
       attrs[:first_poll_error_at] = Time.current if managed_app.first_poll_error_at.nil?
 
       managed_app.update_columns(**attrs)
     end
 
-    # 总览页订阅 "overview"，每轮采集通知一次。
+    # The overview page subscribes to "overview"; notified once per collection round.
     def broadcast_overview_refresh
       deliver_overview_refresh
     end
 
-    # 详情页订阅 "managed_app_<id>"，每轮采集后整块替换 #host-status。
+    # The detail page subscribes to "managed_app_<id>"; #host-status is replaced as a whole after
+    # each collection round.
     def broadcast_host_status_refresh(managed_app)
       managed_app.reload
       status = ManagedAppStatus.new(managed_app)

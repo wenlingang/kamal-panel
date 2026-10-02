@@ -1,8 +1,8 @@
 require "digest"
 require "base64"
 
-# 加密存储的 SSH 私钥。
-# value 是不可信字节，解析耗时由攻击者可控的字段决定，所以交给 SshKeyValidator 的子进程 + 硬超时。
+# An encrypted SSH private key. value is untrusted bytes, and parse time is determined by
+# attacker-controllable fields, so it is handed to SshKeyValidator's subprocess + hard timeout.
 class Credential < ApplicationRecord
   include WriteOnlySecret
 
@@ -10,7 +10,8 @@ class Credential < ApplicationRecord
 
   MAX_VALUE_BYTES = 16 * 1024
 
-  # "没有私钥"，而操作的人看不到任何提示。要删就先把引用它的应用换掉。
+  # "no private key", with no hint shown to the person operating. To delete it, first switch the
+  # apps that reference it to another.
   has_many :managed_apps, foreign_key: :ssh_credential_id, dependent: :restrict_with_error,
            inverse_of: :ssh_credential
 
@@ -51,7 +52,7 @@ class Credential < ApplicationRecord
 
     def value_must_be_a_private_key
       return if value.blank?
-      return if value.bytesize > MAX_VALUE_BYTES # 已经在 value_within_size_limit 里报过错
+      return if value.bytesize > MAX_VALUE_BYTES # already reported in value_within_size_limit
 
       result = validation_result
       return if result&.ok?

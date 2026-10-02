@@ -1,5 +1,5 @@
-<%# 采集期间的占位。保留 #host-status 这个 id，否则采集完成后的广播
-    找不到替换目标，页面会一直停在"正在采集"。 %>
+<%# Placeholder during collection. Keep the #host-status id, otherwise the broadcast after collection finishes
+    finds no replacement target, and the page would stay on "collecting" forever. %>
 <div id="host-status">
   <p class="data-age data-age--reading">
     <%= render "shared/mark", size: "16px", reading: true %>

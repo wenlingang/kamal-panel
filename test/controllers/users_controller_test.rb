@@ -1,17 +1,18 @@
 require "test_helper"
 
 class UsersControllerTest < ActionDispatch::IntegrationTest
-  # 注意别把它叫 @app：ActionDispatch::IntegrationTest 用 @app 记住被测的
-  # Rack 应用，覆盖掉它，整个用例里所有的 *_path 助手都会消失。
+  # Careful not to call it @app: ActionDispatch::IntegrationTest uses @app to remember the app under
+  # test (the Rack app); overriding it makes every *_path helper in the whole case disappear.
   setup do
     @managed_app = ManagedApp.create!(name: "blog",
                               config_yaml: file_fixture("simple_deploy.yml").read,
                               destination: "production")
   end
 
-  # 只探 index 的话，这个标题断言的是一份并不存在的覆盖——而那正是这种缺口
-  # 能一直活下去的原因。所以每一个会改变状态的动作都要真的打一遍，并且断言
-  # 状态没变，不能只看重定向：重定向对了而写入照样发生过的控制器是存在的。
+  # If we only probed index, this title would assert coverage that doesn't exist -- and that is
+  # exactly why gaps like this can live on forever. So every state-changing action must actually be
+  # hit, and we assert the state is unchanged, not just the redirect: controllers exist that
+  # redirect correctly and still performed the write.
   test "非 admin 一个会改状态的动作都进不去" do
     [ users(:one), users(:three) ].each do |actor|
       victim = users(:two)
@@ -42,8 +43,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
       assert_redirected_to root_path
       refute_predicate users(:one).reload, :deactivated?
 
-      # 拿来试"启用"的人不能是 actor 自己：deactivate! 会顺手销毁他的会话，
-      # 后面的请求就变成"未登录"，测的就不再是权限了。
+      # The person used to test "activate" can't be the actor themselves: deactivate! destroys their
+      # sessions as a side effect, and the following request becomes "not logged in", so what's
+      # tested is no longer permissions.
       other = actor == users(:one) ? users(:three) : users(:one)
       other.deactivate!
       post reactivate_user_path(other)
@@ -70,7 +72,8 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "one@example.com"
   end
 
-  # 这两页只有集成测试会渲染到（系统测试不覆盖人员页），ERB 写错了就靠它们报警。
+  # Only integration tests render these two pages (system tests don't cover the users pages), so if
+  # the ERB is wrong, they're what raises the alarm.
   test "新建与编辑两页都能渲染" do
     sign_in_as users(:two)
 
@@ -84,8 +87,8 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=hidden][name='managed_app_ids[]']"
   end
 
-  # admin 不该知道别人的密码。新建用户只填邮箱与角色，密码由对方通过
-  # 现有的找回密码流程自己设置。
+  # admin shouldn't know other people's passwords. Creating a user takes only email and role; the
+  # password is set by the user through the existing password-recovery flow.
   test "新建用户不设密码，发一封设置密码的邮件" do
     sign_in_as users(:two)
 
@@ -99,9 +102,10 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "developer", created.role
   end
 
-  # 「发邮件」和「管理员直接设密码」两条路都要能用。默认仍是发邮件——
-  # 管理员不知道别人的密码依然是更好的默认值，直接设密码是给
-  # 「对方收不到邮件 / 内网无外发邮件」这类情况留的后门。
+  # Both the "send email" and "admin sets the password directly" paths must work. The default is
+  # still sending email -- admin not knowing other people's passwords remains the better default;
+  # setting the password directly is a back door left for cases like "the recipient can't receive
+  # email / intranet with no outbound mail".
   test "选择直接设置密码：不发邮件，且对方能用这个密码登录" do
     sign_in_as users(:two)
 
@@ -132,8 +136,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  # 退回表单时要记得把「直接设密码」这个选择带回去，否则管理员填错一次密码，
-  # 表单就悄悄弹回「发邮件」，他再点一次提交就得到一封自己没想发的邮件。
+  # When the form is sent back, remember to carry the "set password directly" choice along,
+  # otherwise after the admin mistypes a password once the form quietly snaps back to "send email",
+  # and submitting again yields an email they never meant to send.
   test "直接设置密码失败退回时，表单仍停在「直接设置密码」上" do
     sign_in_as users(:two)
 
@@ -157,7 +162,8 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  # 「管理员知道这个人的密码」是审计上值得留痕的事实，两条路要能在日志里分开。
+  # "The admin knows this person's password" is a fact worth leaving an audit trace of, and the two
+  # paths must be distinguishable in the log.
   test "两种设密码方式在审计日志里可区分" do
     sign_in_as users(:two)
 
@@ -167,8 +173,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
                                        password_confirmation: "secret123456" } }
     post users_path, params: { user: { email_address: "mailed@example.com", role: "ops" } }
 
-    # 存的是 key 不是中文：审计行只增不删，往里写中文等于把语言永久焊死在
-    # 数据里，将来换一种语言显示时这些历史行没有任何办法翻译。
+    # Store the key, not the Chinese text: audit rows are append-only, and writing Chinese into them
+    # welds the language permanently into the data, so when we later display in another language
+    # these historical rows can't be translated at all.
     by_target = AuditLog.where(action_name: "user.create").index_by { |l| l.target_user.email_address }
     assert_equal "user.password_by_admin", by_target["manual@example.com"].detail_key
     assert_equal "user.password_by_mail", by_target["mailed@example.com"].detail_key
@@ -202,8 +209,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "小李", users(:one).reload.nickname
   end
 
-  # role 没变就不该留下一条 user.update_role——审计里出现一次并不存在的角色
-  # 变更，比没有记录更糟：查的人会顺着它去找一个从没发生过的事。
+  # If role didn't change, no user.update_role should be left behind -- an audit entry for a role
+  # change that never happened is worse than no record: whoever investigates will follow it to look
+  # for something that never occurred.
   test "只改昵称不写改角色的审计" do
     sign_in_as users(:two)
 
@@ -256,8 +264,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal users(:three), log.target_user
   end
 
-  # 表单里那个"全不勾"用的隐藏字段会带来一个空字符串。它 to_i 是 0，
-  # 而不存在 id 为 0 的应用——不滤掉就会在 AppMembership.create! 上抛外键错误。
+  # The hidden field behind the "select none" checkbox in the form brings in an empty string. Its
+  # to_i is 0, and no app with id 0 exists -- if it isn't filtered out, AppMembership.create! raises
+  # a foreign key error.
   test "表单里的空隐藏字段不会被当成一个应用" do
     sign_in_as users(:two)
 
@@ -269,9 +278,10 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, AuditLog.where(action_name: "app.add_member").count
   end
 
-  # 编辑页只渲染角色与成员，但参数是可以伪造的。允许改邮箱等于允许改别人的
-  # 登录名，改完再走公开的找回密码流程就接管了那个账号——而这条路径在角色
-  # 没同时变化时连一行审计都不写。
+  # The edit page renders only role and membership, but params can be forged. Allowing email changes
+  # means allowing changes to someone else's login name, and after that the public password-recovery
+  # flow takes over that account -- and this path writes not even one audit line when role doesn't
+  # change at the same time.
   test "update 改不了别人的登录邮箱" do
     sign_in_as users(:two)
 
@@ -295,9 +305,10 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, AuditLog.where(action_name: "user.reactivate").count
   end
 
-  # 把最后一个 admin 停用或降级，面板就再也没有人能管人、管凭据、接入应用了
-  # ——而恢复它需要去服务器上开 rails console。这是一个单向的死局，必须在
-  # 发生之前拦住。
+  # If the last admin is deactivated or demoted, nobody in the panel can manage people, manage
+  # credentials or onboard apps anymore
+  # -- and recovering requires opening a rails console on the server. That's a one-way dead end, and it must be stopped
+  # before it happens.
   test "不能停用最后一个 admin" do
     sign_in_as users(:two)
 
@@ -316,8 +327,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "不能降级最后一个 admin", flash[:alert]
   end
 
-  # 邮箱唯一性此前只有数据库索引兜着：重复邮箱会直接撞成 RecordNotUnique（500），
-  # 于是 create 里那条 render :new 分支和新建页上的错误列表根本没人走得到。
+  # Email uniqueness used to be backstopped only by the database index: a duplicate email would
+  # crash straight into RecordNotUnique (500), so the render :new branch in create and the error
+  # list on the new page were never reachable.
   test "空邮箱被拦下，不建用户也不写审计" do
     sign_in_as users(:two)
 
@@ -340,8 +352,9 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "ul.errors li"
   end
 
-  # 设计 11 第 2.2 节：admin 与 ops 永远不进成员表。降级时若把行留着，日后再升回
-  # developer，他名下的那批应用会原样复活——没有人做过这个决定。
+  # Design 11 §2.2: admin and ops never go in the membership table. If the row is kept on demotion,
+  # when they are later promoted back to developer, the apps under their name come back to life as
+  # they were -- nobody made that decision.
   test "developer 降成 ops 会清空成员行，并为每个应用写一条 remove_member" do
     other = ManagedApp.create!(name: "shop",
                        config_yaml: file_fixture("simple_deploy.yml").read,

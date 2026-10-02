@@ -17,10 +17,11 @@ class ManagedAppTest < ActiveSupport::TestCase
     assert_match(/无法解析/, app.errors[:config_yaml].join)
   end
 
-  # --- destination 最终会被当成文件名的一部分去拼路径，见
-  # Kamal::ConfigParser 的同名注释；这里只测 ManagedApp 这一层的职责：
-  # 把不合法的 destination 挡在最外面，给出用户看得懂的中文报错，而不是
-  # 让请求走到 Kamal::ConfigParser、撞上一个文件系统异常或者更糟。------
+  # --- destination ends up as part of a filename used to build a path, see the same-named
+  # comment in Kamal::ConfigParser; here we only test ManagedApp's own responsibility:
+  # block invalid destinations at the outermost layer and give a user-readable error,
+  # instead of letting the request reach Kamal::ConfigParser and hit a filesystem
+  # exception or worse. ------
 
   test "destination 带路径穿越序列时被拒绝，给出解释而不是文件系统异常" do
     app = ManagedApp.new(name: "blog", config_yaml: valid_yaml, destination: "../../../../tmp/PWNED")
@@ -95,8 +96,9 @@ class ManagedAppTest < ActiveSupport::TestCase
     app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
     assert_equal [ "127.0.0.1" ], app.app_hosts
 
-    # 绕开 app 自己的 writer，直接改数据库里这一行——模拟另一个实例（例如后台
-    # 轮询任务）更新了这行记录之后，本实例 reload 出的新数据。
+    # Bypass the app's own writer and change this row directly in the database -- simulating
+    # another instance (e.g. a background polling job) having updated the record, and this
+    # instance reloading the new data.
     ManagedApp.find(app.id).update_column(:config_yaml, valid_yaml.gsub("127.0.0.1", "10.0.0.9"))
 
     app.reload
@@ -113,8 +115,9 @@ class ManagedAppTest < ActiveSupport::TestCase
     assert_equal [ "10.0.0.9" ], app.app_hosts
   end
 
-  # 两处都定义同一个变量时，无论让谁赢，都会在部署时安静地用错一个密码，
-  # 而失败现场（拉不动镜像）离原因很远。在人还能改的时候大声失败。
+  # When both places define the same variable, whichever one wins, deploy quietly uses the
+  # wrong password, and the failure scene (can't pull the image) is far from the cause.
+  # Fail loudly while a human can still fix it.
   test "kamal_secrets 与 registry 凭据撞同一个变量时保存被拒" do
     app = ManagedApp.new(name: "blog",
                          config_yaml: file_fixture("registry_env_deploy.yml").read,
@@ -134,11 +137,12 @@ class ManagedAppTest < ActiveSupport::TestCase
     assert_predicate app, :valid?
   end
 
-  # 这条挡的是一次真实的踩空：撞变量那条校验原先靠一个 rescue 兜住 ParseError。
-  # 去掉 rescue 时才发现它不是死代码——destination 不合法时 config_yaml_must_parse
-  # 直接返回、不去解析，errors[:config_yaml] 是空的，于是这条校验会去调解析，
-  # 而 ConfigParser 正是因为那个 destination 抛的异常。现在改成和 config_yaml_must_parse
-  # 同一个前提：destination 已经报过错就不再解析。
+  # This guards against a real misstep: the variable-collision validation used to rely on
+  # a rescue around ParseError. Only when the rescue was removed did we find it wasn't
+  # dead code -- when destination is invalid, config_yaml_must_parse returns without
+  # parsing and errors[:config_yaml] is empty, so this validation would call the parser,
+  # and ConfigParser raises precisely because of that destination. Now it shares the same
+  # precondition as config_yaml_must_parse: if destination already reported an error, don't parse.
   test "destination 不合法且选了 registry 凭据时，得到的是表单报错而不是一次异常" do
     app = ManagedApp.new(name: "blog",
                          config_yaml: "::: 这不是 YAML :::",
@@ -150,10 +154,11 @@ class ManagedAppTest < ActiveSupport::TestCase
     assert_predicate app.errors[:destination], :present?
   end
 
-  # ---- 停用（分支 app-deactivate）-----------------------------------------
+  # ---- Deactivation (branch app-deactivate) -----------------------------------
   #
-  # 真删除被审计挡住：audit_logs 有一条指向 managed_apps 的外键，而审计行
-  # 是设计上不可删除的。这和"用户只停用不删除"是同一个形状，答案也一样。
+  # Hard deletion is blocked by auditing: audit_logs has a foreign key pointing at
+  # managed_apps, and audit rows are by design undeletable. This is the same shape as
+  # "users only deactivate, never delete", and the answer is the same.
 
   def deactivatable_app
     ManagedApp.create!(
@@ -163,8 +168,9 @@ class ManagedAppTest < ActiveSupport::TestCase
     )
   end
 
-  # 这两件事必须同生共死：只置空不停用，应用会继续被采集却没有钥匙；
-  # 只停用不置空，凭据照样删不掉——最初那个问题就白解了。
+  # These two must live and die together: nulling without deactivating, the app keeps
+  # being collected but has no key; deactivating without nulling, the credential still
+  # can't be deleted -- and the original problem would have gone unsolved.
   test "停用会打时间戳并同时释放两个凭据绑定" do
     app = deactivatable_app
 
@@ -175,8 +181,9 @@ class ManagedAppTest < ActiveSupport::TestCase
     assert_nil app.registry_credential
   end
 
-  # 这条是整件事的验收：凭据进池共享之后被引用就删不掉，而"先把应用换成别的
-  # 凭据"在停用这个场景下没有意义——你要的是把它整个拿下线。
+  # This is the acceptance test for the whole thing: once credentials are shared in a pool
+  # they can't be deleted while referenced, and "switch the app to another credential
+  # first" makes no sense when deactivating -- what you want is to take it fully offline.
   test "停用之后，它原来占着的凭据可以删了" do
     app = deactivatable_app
     credential = app.ssh_credential

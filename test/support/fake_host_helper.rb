@@ -8,12 +8,12 @@ module FakeHost
 
   class NotReady < StandardError; end
 
-  # git 只保留可执行位，所以这把测试密钥从仓库 checkout 出来时是 0644，
-  # 而 OpenSSH 客户端【拒绝】使用组/他人可读的私钥。
-  # 走 net-ssh（Ruby）的测试不受影响——它不做这项 OS 检查——
-  # 但任何调真实 ssh / kamal 二进制的测试都会以「Permission denied (publickey)」失败，
-  # 且失败信息完全不指向权限。CI workflow 有一步 chmod 600 正是为此；
-  # 本地开发没有那一步，所以在这里自动修正。
+  # git only preserves the executable bit, so this test key is 0644 when checked out of the repo,
+  # and the OpenSSH client [refuses] to use a private key that is group/world readable. Tests going
+  # through net-ssh (Ruby) are unaffected -- it doesn't do this OS check -- but any test calling the
+  # real ssh / kamal binary fails with "Permission denied (publickey)", and the failure message
+  # doesn't point to permissions at all. The CI workflow has a chmod 600 step for exactly this;
+  # local development has no such step, so it's fixed up automatically here.
   def self.ensure_key_mode!
     mode = File.stat(KEY_PATH).mode & 0o777
     File.chmod(0o600, KEY_PATH) unless mode == 0o600
@@ -40,10 +40,12 @@ module FakeHost
     end
   end
 
-  # 记住就绪状态——但只记住「成功」。fake host 一旦就绪，在一次测试进程运行期间
-  # 不会中途掉线，没必要每个测试都为它开 2 条 SSH 连接；但如果第一次探测时容器
-  # 还没起来，不能把这个「暂时未就绪」永久记成失败，否则本地开发时容器起来晚了
-  # 就会一直误报 fixture 坏掉。所以失败分支每次都重新探测。
+  # Memoize readiness -- but only "success". Once the fake host is ready, it won't drop mid-run
+  # during a test process, so there's no need for every test to open 2 SSH connections for it; but
+  # if the container hasn't started on the first probe, this "temporarily not ready" must not be
+  # permanently memoized as failure, otherwise when the container starts late in local development
+  # it would keep falsely reporting the fixture as broken. So the failure branch re-probes every
+  # time.
   def self.ready?
     return true if @ready
 
@@ -68,11 +70,11 @@ module FakeHost
     MSG
   end
 
-  # 直接探测单个节点，不经过、也不写 @ready 那个"全体只需成功一次"的
-  # 记忆化标记。故障注入测试会真的把某一台节点停掉再拉起来，这时候
-  # 需要回答的是"这一台现在到底通不通"，而 #ready? 一旦见过一次成功
-  # 就永远返回 true（哪怕这台节点此刻正在重启），用来做"重启后是否
-  # 已经恢复"的判断会直接失真。
+  # Probe a single node directly, without going through or writing the @ready "everyone only needs
+  # to succeed once" memoization flag. Fault-injection tests really stop a node and bring it back
+  # up, and at that point what needs answering is "is this one reachable right now", while #ready?
+  # returns true forever once it has seen one success (even while this node is restarting), so using
+  # it to judge "has it recovered after restart" would be plainly distorted.
   def self.node_ready?(node)
     ssh(node, "docker info >/dev/null && echo ok").strip == "ok"
   rescue StandardError
@@ -87,16 +89,17 @@ module FakeHost
     end
   end
 
-  # 按 Kamal 的命名与标签约定造一个容器。
-  # 容器名格式来自 Kamal::Configuration::Role#container_name:
+  # Build a container following Kamal's naming and label conventions. The container name format
+  # comes from Kamal::Configuration::Role#container_name:
   #   [service, role, destination].compact.join("-") + "-" + version
   #
-  # 这几个参数（尤其 service/destination/role）拼进的是一条经 SSH 发给远端
-  # shell 执行的命令——目前调用方全部传字面量，没有一处来自不可信输入，
-  # 所以今天不构成注入面；但这个 helper 是 Task 6-8 都会依样画葫芦的模板，
-  # 如果它们将来把 ManagedApp 的字段（哪怕是已经校验过的 destination）传
-  # 进来，"这里本来就该转义"不该是靠读这段代码才知道的事。所以无论今天
-  # 用不用得上，都用 Shellwords.escape 转义每一个拼进命令行的值。
+  # These parameters (especially service/destination/role) are spliced into a command sent over SSH
+  # to be run by the remote shell -- currently all callers pass literals, none from untrusted input,
+  # so today it is not an injection surface; but this helper is the template Tasks 6-8 will all
+  # copy, and if they later pass in ManagedApp fields (even an already validated destination), then
+  # "this should have been escaped here" shouldn't be something you only know by reading this code.
+  # So whether or not it is needed today, escape every value spliced into the command line with
+  # Shellwords.escape.
   def self.seed_container(node:, service:, role:, destination:, version:, state: :running)
     name = [ service, role, destination, version ].compact.join("-")
 
@@ -126,7 +129,7 @@ module FakeHost
         #{Shellwords.escape(PROXY_IMAGE)}
     SH
 
-    # 等 proxy 的 RPC socket 就绪
+    # Wait for the proxy's RPC socket to be ready
     20.times do
       return if ssh(node, "docker exec kamal-proxy kamal-proxy list --json 2>/dev/null").present?
       sleep 0.5

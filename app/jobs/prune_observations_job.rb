@@ -1,5 +1,6 @@
-# 清理过期的观测快照。Observation / ProxyTarget 只追加，必须有清理。
-# 每台主机留【两条】锚点：全局最近一条，以及最近一条 reachable——只留前者，失联越久越先失去历史。
+# Clean up expired observation snapshots. Observation / ProxyTarget are append-only, so they must be
+# pruned. Keep [two] anchors per host: the latest overall, and the latest reachable — keeping only
+# the former means the longer a host is unreachable, the sooner it loses its history.
 class PruneObservationsJob < ApplicationJob
   queue_as :default
 

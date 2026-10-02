@@ -6,8 +6,9 @@ class CreateAppMemberships < ActiveRecord::Migration[8.1]
       t.datetime :created_at, null: false
     end
 
-    # 唯一索引而不是只靠模型校验：成员关系是授权的输入，重复行会让
-    # 「这个人是不是成员」这个问题在不同查询下给出不同答案。
+    # A unique index rather than relying only on model validation: membership is an input to
+    # authorization, and duplicate rows would make the question "is this person a member" answer
+    # differently under different queries.
     add_index :app_memberships, [ :user_id, :managed_app_id ], unique: true
   end
 end

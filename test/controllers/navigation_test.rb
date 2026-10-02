@@ -1,8 +1,9 @@
 require "test_helper"
 
-# 顶部导航的「当前位置」标识。之前用的是 current_page?(users_path)，那是
-# 整条 URL 的精确比对：一进 /users/new 就不再等于 /users，高亮整个消失，
-# 人在子页面里看不出自己身在哪一栏。导航要按【版块】高亮，不是按页面。
+# The "current location" marker in the top navigation. It used to use current_page?(users_path),
+# which is an exact match on the whole URL: as soon as you enter /users/new it no longer equals
+# /users, the highlight disappears entirely, and on a subpage people can't tell which section
+# they're in. Navigation must highlight by [section], not by page.
 class NavigationTest < ActionDispatch::IntegrationTest
   setup do
     @managed_app = ManagedApp.create!(name: "blog",
@@ -12,7 +13,8 @@ class NavigationTest < ActionDispatch::IntegrationTest
     sign_in_as users(:two)
   end
 
-  # 只断言"哪一栏亮着"，不断言 class 怎么拼——换个高亮实现不该让这里变红。
+  # Only assert "which section is lit", not how the class is spelled -- swapping the highlight
+  # implementation shouldn't turn this red.
   def assert_current_nav(label, path)
     get path
     assert_response :success
@@ -40,8 +42,8 @@ class NavigationTest < ActionDispatch::IntegrationTest
     assert_current_nav "人员", edit_user_path(users(:one))
   end
 
-  # 镜像库凭据是另一个控制器，但挂在 /credentials/registry 下，对用户来说
-  # 就是「凭据」这一栏里的东西。
+  # Registry credentials are a different controller, but live under /credentials/registry, and to
+  # the user they are things under the "Credentials" section.
   test "凭据的子页面仍然高亮「凭据」" do
     assert_current_nav "凭据", new_credential_path
     assert_current_nav "凭据", edit_credential_path(@credential)

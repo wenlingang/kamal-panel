@@ -1,10 +1,10 @@
-# 自适应轮询节奏（spec 6.3）。
+# Adaptive polling cadence (spec 6.3).
 class PollCadence
   IDLE     = 60.seconds
   VIEWING  = 10.seconds
   BURST    = 2.seconds
 
-  VIEWING_TTL = 30.seconds   # 页面每 10 秒续一次，30 秒不续即视为无人查看
+  VIEWING_TTL = 30.seconds   # the page renews every 10 seconds; 30 seconds without renewal means nobody is viewing
   BURST_TTL   = 90.seconds
 
   class << self
@@ -23,8 +23,9 @@ class PollCadence
       Rails.cache.write(key(managed_app, :burst), true, expires_in: BURST_TTL)
     end
 
-    # 调度器（PollAllManagedAppsJob）用它来认领本轮是否轮到自己跑。
-    # 和 :viewing/:burst 共用同一个前缀，集中在这一处，避免两处字符串各写一份、日后不一致。
+    # The scheduler (PollAllManagedAppsJob) uses it to claim whether it is this app's turn to run
+    # this round. Shares the same prefix with :viewing/:burst, centralized in this one place, to
+    # avoid two string copies drifting apart later.
     def last_run_key(managed_app)
       key(managed_app, :last_run)
     end

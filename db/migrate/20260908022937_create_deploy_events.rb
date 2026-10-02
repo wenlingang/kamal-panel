@@ -8,20 +8,21 @@ class CreateDeployEvents < ActiveRecord::Migration[8.1]
       t.string :command
       t.string :source, null: false, default: "hook"
 
-      # 服务端收到两段上报的时刻——所有告警计时只认这两列
+      # The moments the server received the two reports; all alert timing relies on these two
+      # columns only
       t.datetime :started_at
       t.datetime :succeeded_at
-      # 机器上的原文，只用于展示
+      # The original text from the machine, used for display only
       t.datetime :recorded_at
-      # 轮询回填：该版本首次被观测到 running 的观测时间
+      # Backfilled by polling: the observation time at which this version was first observed running
       t.datetime :observed_at
 
       t.timestamps
     end
 
-    # 配对查询：同一应用同一版本中 succeeded_at 为空的最近一行
+    # Pairing query: the latest row for the same app and version where succeeded_at is null
     add_index :deploy_events, [ :managed_app_id, :version, :succeeded_at ]
-    # 告警查询与历史列表都按时间倒序取
+    # Both alert queries and the history list fetch in reverse chronological order
     add_index :deploy_events, [ :managed_app_id, :created_at ]
   end
 end

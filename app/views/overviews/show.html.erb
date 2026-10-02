@@ -8,16 +8,16 @@
   <% end %>
 </div>
 
-<%# 采集完成后 PollManagedAppJob 广播的是一条 refresh：每个浏览器带着自己
-    当前的 URL（也就是各自的筛选条件）回来重新请求这一页。服务端不知道谁在
-    筛什么，所以它不能替某个人渲染网格。 %>
+<%# What PollManagedAppJob broadcasts after collection finishes is a refresh: each browser comes back with its own
+    current URL (that is, its own filter criteria) and re-requests this page. The server does not know who is
+    filtering what, so it cannot render the grid on anyone's behalf. %>
 <%= turbo_stream_from "overview" %>
 
 <% if !@any_managed_apps %>
   <section class="section">
     <div class="panel">
-      <%# 水印只给"一个都还没接入"这种长期空状态。筛选筛空的那条不放——
-          那是临时状态，摆上一枚放大的标会显得像"出事了"。 %>
+      <%# The watermark is only for the long-lived empty state of "nothing onboarded yet". The one where filtering yields nothing does not get it —
+          that is a temporary state, and putting up an enlarged mark would make it look like "something went wrong". %>
       <div class="empty-state">
         <%= icon_tag("box", css: "empty-icon") %>
         <p class="empty-hint"><%= t(".empty") %></p>
@@ -49,8 +49,8 @@
 
     <div class="panel">
       <% if @managed_apps.empty? %>
-        <%# 与"一个应用都还没接入"是两回事：那时候该讲怎么接入，这时候该
-            讲怎么退回去看全部。 %>
+        <%# This is a different matter from "no app onboarded yet": in that case we should explain how to onboard, and in this case we should
+            explain how to step back and see everything. %>
         <p class="empty-hint">
           <%= t(".no_matches_html", link: link_to(t(".filter_clear"), overview_path)).html_safe %>
         </p>

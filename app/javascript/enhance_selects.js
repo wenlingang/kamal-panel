@@ -1,8 +1,8 @@
-// 全站每个单选 <select> 都换成自定义下拉，不靠各个视图自己记得加
-// data-controller="select"——此前就是这样漏掉了新建应用、人员那几个。
+// Replace every single-select <select> site-wide with the custom dropdown, rather than relying on each view to remember to add
+// data-controller="select" — that is how the new-app and people ones were missed before.
 //
-// 多选与 size > 1 的列表框排除在外：select_controller 是单选 listbox，
-// 接管它们会静默丢掉多选能力。
+// Multi-selects and listboxes with size > 1 are excluded: select_controller is a single-select listbox,
+// and taking them over would silently drop the multi-select ability.
 const ELIGIBLE = "select:not([multiple]):not([data-controller~='select'])"
 
 function enhance() {
@@ -14,7 +14,7 @@ function enhance() {
   })
 }
 
-// morph 刷新会换掉 DOM，frame-load 会带进新的 select，两者都要补一遍。
+// morph refreshes replace the DOM and frame-load brings in new selects; both need a pass.
 for (const event of [ "turbo:load", "turbo:morph", "turbo:frame-load" ]) {
   document.addEventListener(event, enhance)
 }

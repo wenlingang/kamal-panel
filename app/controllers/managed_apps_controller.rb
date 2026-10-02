@@ -37,7 +37,8 @@ class ManagedAppsController < ApplicationController
 
     if @managed_app.update(update_params)
       clear_poll_error_if_config_changed(changed)
-      # 权限变更必须留痕。detail 只记字段名——记值等于把密文写进审计表。
+      # Permission changes must leave a trace. detail records only field names — recording values
+      # would write the secret into the audit table.
       AuditLog.record_access!(user: Current.user, action_name: "app.update",
                               managed_app: @managed_app,
                               detail_key: "app.update_fields",
@@ -92,7 +93,8 @@ class ManagedAppsController < ApplicationController
     end
     helper_method :assign_credentials?
 
-    # 指控新配置，直到下一轮采集。新配置若也坏，下一轮会重新记上。
+    # blames the new config until the next collection round. If the new config is also broken, the
+    # next round will record it again.
     def clear_poll_error_if_config_changed(changed)
       return if (changed & %w[config_yaml destination_config_yaml]).empty?
       return if @managed_app.last_poll_error.nil?

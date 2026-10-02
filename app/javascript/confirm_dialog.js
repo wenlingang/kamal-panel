@@ -1,7 +1,7 @@
-// 把 Turbo 的 data-turbo-confirm 从原生 confirm() 换成这套设计里的对话框。
+// Swap Turbo's data-turbo-confirm from the native confirm() to the dialog from this design.
 //
-// 文案用 "标题\n正文" 的形式传：第一行做标题，其余做正文。
-// Turbo 只要一个返回 Promise<boolean> 的函数，所以不需要任何 Stimulus 控制器。
+// The copy is passed as "title\nbody": the first line is the title and the rest is the body.
+// Turbo only needs a function that returns Promise<boolean>, so no Stimulus controller is needed.
 import { Turbo } from "@hotwired/turbo-rails"
 
 const CANCEL = document.documentElement.lang === "en" ? "Cancel" : "取消"
@@ -33,7 +33,7 @@ function build(message, danger) {
 
   const ok = document.createElement("button")
   ok.type = "button"
-  // 红色只给真正破坏性的动作。启用一个应用不是破坏性的，红按钮会稀释这个信号。
+  // Red is only for truly destructive actions. Enabling an app is not destructive, and a red button would dilute that signal.
   if (danger) ok.className = "btn-danger"
   ok.textContent = OK
   ok.value = "ok"
@@ -58,9 +58,9 @@ Turbo.setConfirmMethod((message, element, submitter) => {
 
     cancel.addEventListener("click", () => close(false))
     ok.addEventListener("click", () => close(true))
-    // Esc 关闭走的是 dialog 自己的 cancel 事件
+    // Esc closes via the dialog's own cancel event
     dialog.addEventListener("cancel", (e) => { e.preventDefault(); close(false) })
-    // 点遮罩关闭：::backdrop 收不到事件，落到 dialog 自己身上的点击就是点在遮罩上
+    // Click on the backdrop closes: ::backdrop receives no events, so a click landing on the dialog itself is a click on the backdrop
     dialog.addEventListener("click", (e) => { if (e.target === dialog) close(false) })
 
     dialog.showModal()

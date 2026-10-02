@@ -43,8 +43,8 @@
   </div>
 </section>
 
-<%# 停用的应用不在总览网格里（那一页回答"现在线上什么样"），但必须在这里
-    找得到——看不见就没法把它启用回来。 %>
+<%# Deactivated apps are not in the overview grid (that page answers "what does production look like right now"), but they must be findable here
+    — if they cannot be seen, there is no way to re-enable them. %>
 <% if @deactivated_apps.any? %>
   <section class="section">
     <h2><%= t(".deactivated_section") %></h2>

@@ -1,7 +1,8 @@
 require "open3"
 require "json"
 
-# 不预判"是不是带密码"以跳过子进程：自制 reader 与 net-ssh 对畸形输入理解不一致，出过真实 bypass。
+# Do not pre-judge "whether it has a passphrase" in order to skip the subprocess: a home-made reader
+# and net-ssh understand malformed input differently, and a real bypass has happened.
 class SshKeyValidator
   Result = Struct.new(:ok, :encrypted, :fingerprint, :error_class, keyword_init: true) do
     def ok? = ok
@@ -49,15 +50,17 @@ class SshKeyValidator
       [ RbConfig.ruby, SCRIPT ]
     end
 
-    # 返回 [stdout, timed_out]。
+    # Returns [stdout, timed_out].
     def run_subprocess
       input = JSON.generate(value: value)
       stdout = nil
       timed_out = false
 
       Open3.popen3(*command) do |stdin, out, err, wait_thread|
-        # 写 stdin、读 stdout、读 stderr 各起一个线程，且必须在 wait_thread.join 之前启动。
-        # 实测：对一个从不读 stdin 的子进程，同步 write 阻塞了 117.85 秒，外层包 Timeout 也拦不住。
+        # Write stdin, read stdout, read stderr each on its own thread, and they must be started
+        # before wait_thread.join. Measured: for a subprocess that never reads stdin, a synchronous
+        # write blocked for 117.85 seconds, and wrapping it in Timeout from outside could not stop
+        # it either.
         stdin_writer = Thread.new do
           stdin.write(input)
         rescue Errno::EPIPE

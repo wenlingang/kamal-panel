@@ -1,11 +1,12 @@
-# 总览页的筛选条件（名称模糊匹配 + 状态）。
+# Filter criteria for the overview page (fuzzy name match + status).
 class OverviewFilter
   PARSE_ERROR = "parse_error"
 
-  # 下拉的选项集合。
+  # The set of options in the dropdown.
   STATUS_KEYS = (ManagedAppStatus::LEVELS.map(&:to_s) + [ PARSE_ERROR ]).freeze
 
-  # 下拉的 [显示名, 值] 对，调用时才翻译。视图直接喂给 options_for_select。
+  # The dropdown [display name, value] pairs, translated only at call time. The view feeds them
+  # straight to options_for_select.
   def self.options
     STATUS_KEYS.map { |key| [ label_for(key), key ] }
   end
@@ -18,8 +19,8 @@ class OverviewFilter
 
   def initialize(q: nil, status: nil)
     @q = q.to_s.strip
-    # 参数来自 URL，谁都能手改。
-    # 也不要给一个"什么都没有"的空页让人以为应用丢了。
+    # The params come from the URL, which anyone can edit by hand. Also do not hand over an empty
+    # page of "nothing at all" that makes people think apps were lost.
     @status = status.to_s.presence_in(STATUS_KEYS)
   end
 
@@ -37,7 +38,7 @@ class OverviewFilter
 
   private
     def matches_status?(app)
-      # 那行去算 level——一算就抛 ParseError。
+      # that row to compute level — computing it would raise ParseError right away.
       return app.last_poll_error.present? if status == PARSE_ERROR
       return false if app.last_poll_error.present?
 

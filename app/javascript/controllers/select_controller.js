@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-// shadcn 风格的触发器 + 菜单面板。原生 select 视觉隐藏但仍在表单里承载值。
+// A shadcn-style trigger + menu panel. The native select is visually hidden but still carries the value in the form.
 export default class extends Controller {
   connect() {
     this.select = this.element
@@ -11,8 +11,8 @@ export default class extends Controller {
     }
     document.addEventListener("pointerdown", this.onDocumentPointerdown)
 
-    // morph 会删掉这个注入的容器（服务端 HTML 里没有它），而原生 select 存活，
-    // 所以 Stimulus 不会重新 connect——自己补回来。
+    // morph deletes this injected container (it is not in the server HTML) while the native select survives,
+    // so Stimulus will not reconnect — put it back ourselves.
     this.onMorph = () => { if (!this.root?.isConnected) this.mount() }
     document.addEventListener("turbo:morph", this.onMorph)
   }
@@ -72,10 +72,10 @@ export default class extends Controller {
       text.textContent = option.text
       item.append(text, this.checkMark())
 
-      // mousedown 上 preventDefault 是这里的关键：菜单项是个 div，按下它会让
-      // 触发器失焦，于是下面那个 blur 处理器在 rAF 里把菜单关掉——而 click
-      // 要等 mouseup 才到，目标此时已经 hidden，click 根本不会触发，选择丢失。
-      // 按下时间越长越必踩（自动化点击在同一帧内完成，测不出来）。
+      // preventDefault on mousedown is the key here: a menu item is a div, and pressing it makes the
+      // trigger lose focus, so the blur handler below closes the menu in rAF — while click
+      // only arrives on mouseup, by which time the target is already hidden, click never fires, and the selection is lost.
+      // The longer the press, the more surely it is hit (automated clicks finish within one frame and cannot reveal it).
       item.addEventListener("mousedown", (e) => e.preventDefault())
       item.addEventListener("click", () => this.choose(i))
       item.addEventListener("pointermove", () => this.highlight(i))

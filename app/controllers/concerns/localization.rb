@@ -1,4 +1,4 @@
-# 每个请求决定一次界面语言。
+# Decides the UI language once per request.
 module Localization
   extend ActiveSupport::Concern
 
@@ -22,8 +22,8 @@ module Localization
   private
     def switch_locale(&) = I18n.with_locale(resolved_locale, &)
 
-    # 三级，从高到低：用户自己的偏好 → 浏览器 → 默认。
-    # 未登录页面（登录页、设置密码页）只有第二级可问。
+    # Three levels, highest to lowest: the user's own preference -> browser -> default.
+    # Logged-out pages (login page, set-password page) can only ask at the second level.
     def resolved_locale
       Current.user&.locale.presence&.to_sym ||
         Localization.match_accept_language(request.env["HTTP_ACCEPT_LANGUAGE"]) ||

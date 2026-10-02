@@ -1,5 +1,5 @@
 class PasswordsMailer < ApplicationMailer
-  # 按【收件人】的语言渲染，不是按发信那一刻的 I18n.locale。
+  # Render in the [recipient's] language, not the I18n.locale at the moment of sending.
   def reset(user)
     @user = user
 

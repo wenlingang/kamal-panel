@@ -1,7 +1,8 @@
-# 仓库里那份 config/deploy.yml 是给人照抄的范例（README「Deploying the panel
-# itself」）。它写坏了、或者 Kamal 升级之后不再接受它，我们应当比读者先知道——
-# 所以让 CI 拿【面板自己的解析器】解一遍：与面板处理用户粘贴的 deploy.yml
-# 走的是同一条代码路径，不是另写一份"差不多"的校验。
+# The config/deploy.yml in the repo is a sample meant to be copied by people (README "Deploying the
+# panel itself"). If it's broken, or Kamal stops accepting it after an upgrade, we should know
+# before our readers do, so have CI run it through [the panel's own parser]: it takes the same code
+# path as the panel handling a user-pasted deploy.yml, rather than a separate "roughly equivalent"
+# validation.
 namespace :deploy_config do
   desc "用面板自己的解析器校验仓库内的 config/deploy.yml"
   task verify: :environment do

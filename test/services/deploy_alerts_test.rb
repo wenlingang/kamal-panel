@@ -68,12 +68,12 @@ class DeployAlertsTest < ActiveSupport::TestCase
     assert_nil stale.reload.observed_at, "历史里那行事件本身还留着痕迹，不是被抹掉"
   end
 
-  # not_superseded 用"最近一条已观测事件的 created_at"当截止线。推断行
-  # 天生已观测（source: "inferred" 的行 observed_at 必有值），所以它会把
-  # 更早的、尚未被观测到的 hook 告警一并翻篇——这是有意为之：推断行是
-  # 观测背书的证据，比一条始终没被观测到的上报更硬，没道理还揪着那条
-  # 上报的矛盾不放。spec 只写了"推断事件不触发告警"，没写"会消解"，
-  # 这里把这条行为钉住。
+  # not_superseded uses the "created_at of the latest observed event" as the cutoff. Inferred rows
+  # are inherently observed (a row with source: "inferred" always has observed_at), so it also turns
+  # the page on earlier hook alerts that haven't been observed yet -- this is intentional: an
+  # inferred row is evidence backed by observation, harder than a report that was never observed, so
+  # there's no reason to keep clinging to that report's contradiction. The spec only says "inferred
+  # events don't trigger alerts", not "they resolve them", so this pins that behavior.
   test "推断行会消解更早的、尚未被观测到的 hook 告警" do
     stale = event(succeeded_at: 20.minutes.ago, created_at: 20.minutes.ago)
     assert_equal :unobserved, DeployAlerts.new(@app).list.sole[:kind], "先确认告警本来是存在的"

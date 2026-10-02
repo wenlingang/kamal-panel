@@ -1,20 +1,22 @@
 require "test_helper"
 
-# 主设计 8.4 的原话：「四个状态色必须在两个主题下【分别】做对比度验证，
-# 不能只把亮色主题反转」。
+# Verbatim from main design §8.4: "The four status colors must have their contrast
+# verified under both themes [separately]; it is not enough to just invert the light theme."
 #
-# 如果这条只靠某个人某一次算过一遍、然后在文档里写"验过了"，它和纸面承诺
-# 没有区别——下一个调色的人不会知道自己把某个状态色调到了 3.9:1，而色觉
-# 正常的人在自己的显示器上也未必看得出来。所以这里直接解析样式表里的两套
-# 调色板、按 WCAG 公式算，改坏了这条测试会红。
+# If this relied on one person computing it once and writing "verified" in a doc, it
+# would be no different from a paper promise: the next person to tune the palette won't
+# know they've pushed a status color down to 3.9:1, and people with normal color vision
+# won't necessarily notice on their own monitor. So we parse both palettes in the
+# stylesheet directly and compute with the WCAG formula; break it and this test goes red.
 class ColorContrastTest < ActiveSupport::TestCase
   STYLESHEET = Rails.root.join("app/assets/stylesheets/application.css")
 
-  # WCAG 2.1 对正文（<18pt 且非粗体大字）的 AA 要求。状态徽章是 0.85rem，
-  # 属于正文档次，不能用 3:1 那档大字标准。
+  # WCAG 2.1 AA requirement for body text (<18pt and not bold large text). The status
+  # badge is 0.85rem, which is body-text territory, so the 3:1 large-text bar does not apply.
   AA_NORMAL_TEXT = 4.5
 
-  # 每一对都是【实际会同时出现在屏幕上】的前景/背景组合，不是随便两个变量。
+  # Every pair is a foreground/background combination that [actually appears on screen
+  # together], not two arbitrary variables.
   PAIRS = [
     %w[--ink --surface],
     %w[--ink-muted --surface],
@@ -25,25 +27,27 @@ class ColorContrastTest < ActiveSupport::TestCase
     %w[--unknown-ink --unknown-bg],
     %w[--output-ink --output-bg],
 
-    # 操作层（登录、接入、操作区）的组合。这一层此前没有任何样式，
-    # 补齐时引入的颜色同样要过 AA，否则"补齐视觉"会变成"引入一批没人验过的颜色"。
-    %w[--action --surface],          # 正文里的链接
-    %w[--action-ink --action-fill],  # 主要动作按钮上的字（填充色与链接色是两个值）
-    %w[--btn-ink --btn-bg],          # 普通动作按钮上的字
-    %w[--danger-ink --btn-bg],       # 危险动作按钮上的字（白底红字，不填充）
-    %w[--field-ink --field-bg],      # 输入框里的字
-    %w[--ink --card-bg],             # 认证卡片上的正文
-    %w[--ink --card-raised],         # primary 区块面板上的正文
-    %w[--ink-muted --card-raised]    # primary 区块面板上的次要文本
+    # Combinations for the action layer (login, onboarding, action area). This layer had
+    # no styling before; colors introduced while filling it in must pass AA too, otherwise
+    # "filling in the visuals" becomes "introducing a batch of colors nobody has verified".
+    %w[--action --surface],          # links in body text
+    %w[--action-ink --action-fill],  # text on the primary action button (fill and link colors differ)
+    %w[--btn-ink --btn-bg],          # text on a regular action button
+    %w[--danger-ink --btn-bg],       # text on a danger action button (red on white, no fill)
+    %w[--field-ink --field-bg],      # text inside input fields
+    %w[--ink --card-bg],             # body text on the auth card
+    %w[--ink --card-raised],         # body text on the primary section panel
+    %w[--ink-muted --card-raised]    # secondary text on the primary section panel
   ].freeze
 
-  # WCAG 2.1 的 1.4.11（非文本对比）。站标是图形而不是文字，受的是这一档，
-  # 不是上面那档 4.5:1——把图形按文本标准去卡会在深色下逼出一个惨白的标记。
-  # 但它也【不能没有标准】：标记在深色标签栏或深色顶栏里糊成一团，跟一段
-  # 读不出的文字是同一种失败。
+  # WCAG 2.1 1.4.11 (non-text contrast). The logo is a graphic, not text, so it falls
+  # under this tier rather than the 4.5:1 one above; holding a graphic to the text standard
+  # would force a glaringly white mark in dark mode. But it [cannot go without a standard]
+  # either: a mark that blurs into a dark tab bar or header is the same failure as
+  # unreadable text.
   AA_GRAPHIC = 3.0
 
-  # 站标内部实际相邻的两对：白牌压在墨底上，金绳压在墨底上。
+  # The two adjacent pairs inside the logo: white plate on ink, gold rope on ink.
   GRAPHIC_PAIRS = [
     %w[--mark-on --mark-tile],
     %w[--mark-gold --mark-tile]
@@ -65,8 +69,10 @@ class ColorContrastTest < ActiveSupport::TestCase
     assert_all_graphic_pairs_pass palette(:dark), "深色"
   end
 
-  # 上面几条走 palette()，只认六位 hex；rgba() 写的 token（--ring、--shadow-md
-  # 这些）落在它的正则之外，两边漏写一个都不会红。这条只比变量名的集合。
+  # The tests above go through palette(), which only recognizes six-digit hex; tokens
+  # written as rgba() (--ring, --shadow-md and the like) fall outside its regex, so
+  # forgetting one on either side would not turn anything red. This one compares only
+  # the set of variable names.
   test "两套调色板的变量名集合必须相等" do
     assert_equal palette_names(:light), palette_names(:dark),
                  "浅色块和深色块必须定义同一组变量名，否则深色下会有 token 静默" \
@@ -74,10 +80,11 @@ class ColorContrastTest < ActiveSupport::TestCase
   end
 
   test "与主题无关的 token 不会被深色块重定义" do
-    # 文件里三个 :root 块按出现顺序是：浅色调色板、深色 @media、与主题无关的
-    # token（排版/形状）。第三块【排在深色块之后】，所以同名 token 一旦两边都
-    # 写，后出现的第三块会把深色值覆盖掉——深色模式静默失效，没有任何测试会红。
-    # 判据很简单：第三块里的 token 名，不许出现在深色块里。
+    # The three :root blocks in the file are, in order: light palette, dark @media,
+    # theme-independent tokens (typography/shape). The third block [comes after the dark
+    # block], so if a same-named token is written in both, the later third block overrides
+    # the dark value: dark mode silently breaks and no test goes red.
+    # The criterion is simple: a token name in the third block must not appear in the dark block.
     blocks = STYLESHEET.read.scan(/:root\s*\{(.*?)\}/m).flatten
     assert_equal 3, blocks.length, "样式表里应该正好有三个 :root 块"
 
@@ -106,7 +113,7 @@ class ColorContrastTest < ActiveSupport::TestCase
       block.scan(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/).to_h
     end
 
-    # => ["--action", "--brand", ...]（不限值的格式，rgba()/hsl() 也算）
+    # => ["--action", "--brand", ...]  (any value format; rgba()/hsl() count too)
     def palette_names(theme)
       css = STYLESHEET.read
       block = case theme
@@ -147,7 +154,7 @@ class ColorContrastTest < ActiveSupport::TestCase
       (lighter + 0.05) / (darker + 0.05)
     end
 
-    # WCAG 2.1 的相对亮度定义
+    # WCAG 2.1 definition of relative luminance
     def relative_luminance(hex)
       r, g, b = hex.delete("#").scan(/../).map { |part| linearize(part.to_i(16) / 255.0) }
       (0.2126 * r) + (0.7152 * g) + (0.0722 * b)

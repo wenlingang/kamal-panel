@@ -1,4 +1,4 @@
-# 手动触发一次采集。
+# Manually trigger one collection.
 class RefreshesController < ApplicationController
   def create
     managed_app = ManagedApp.find(params[:managed_app_id])
@@ -7,7 +7,7 @@ class RefreshesController < ApplicationController
     PollManagedAppJob.perform_later(managed_app)
 
     respond_to do |format|
-      # 回来——所以这一步不刷整页。
+      # comes back — so this step does not refresh the whole page.
       format.turbo_stream do
         render turbo_stream: turbo_stream.replace(
           "host-status",

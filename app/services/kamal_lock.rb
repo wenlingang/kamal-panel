@@ -1,4 +1,4 @@
-# 读 Kamal 自己的部署锁（spec 7.4）。
+# Read Kamal's own deploy lock (spec 7.4).
 class KamalLock
   LOCK_PRESENT_MARKER = "KAMAL_PANEL_LOCK_PRESENT"
   LOCK_ABSENT_MARKER  = "KAMAL_PANEL_LOCK_ABSENT"
@@ -10,11 +10,14 @@ class KamalLock
   def status
     result = session.capture_many([ primary_host ]) { read_command }.fetch(primary_host)
 
-    # 连不上时【绝不报告「未锁定」】：那会让面板放行一次它无权确认的操作。
+    # When unreachable, [never report "unlocked"]: that would let the panel allow an operation it
+    # has no authority to confirm.
     return { locked: false, details: nil, error: result.error } if result.error
 
-    # 判定信号只看第一行；payload（锁持有者信息，攻击者可控的自由文本）绝不参与判定。
-    # payload 是攻击者可控的自由文本，绝不参与判定——否则含 LOCK_ABSENT 子串的锁消息能骗过它。
+    # The decision signal looks only at the first line; the payload (lock-holder info,
+    # attacker-controllable free text) never takes part in the decision. The payload is
+    # attacker-controllable free text and never takes part in the decision — otherwise a lock
+    # message containing the LOCK_ABSENT substring could fool it.
     marker, _separator, payload = result.stdout.to_s.partition("\n")
 
     if marker == LOCK_ABSENT_MARKER

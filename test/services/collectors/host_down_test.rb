@@ -29,17 +29,17 @@ class Collectors::HostDownTest < ExecutionLayerTest
   end
 
   teardown do
-    # 用 `down` + `up -d` 而不是 brief 里原本的 `stop` + `start`：这个
-    # fixture 跑在 dind 之上，`stop` 发 SIGTERM 之后内层 containerd 偶尔
-    # 会卡在一个半死状态，随后的 `start` 在本地是间歇性失败、在 CI 里是
-    # 稳定失败——一旦失败，这个损坏的容器会一路拖垮它之后的每一个测试
-    # （Task 2 已经踩过这个坑）。`down` 把容器整个删掉、`up -d` 重新创建，
-    # 不会继承那个半死状态。
+    # Use `down` + `up -d` rather than the brief's original `stop` + `start`: this fixture runs on
+    # top of dind, and after `stop` sends SIGTERM the inner containerd occasionally gets stuck in a
+    # half-dead state; the following `start` then fails intermittently locally and consistently in
+    # CI -- once it fails, this broken container drags down every test after it (Task 2 already
+    # stepped on this). `down` deletes the container entirely and `up -d` recreates it, so it
+    # doesn't inherit that half-dead state.
     #
-    # 就绪判断也不用 FakeHost.ready?——那个方法把"曾经全体成功过一次"
-    # 记忆化成永久 true，节点重启期间调用它只会立刻返回缓存的 true，
-    # 完全测不出 node-2 有没有真的恢复。这里用不经过记忆化的
-    # #wait_until_node_ready! 直接探测 node-2 本身。
+    # Readiness checking doesn't use FakeHost.ready? either -- that method memoizes "everything
+    # succeeded once" as a permanent true, and calling it while the node restarts just returns the
+    # cached true immediately, which can't tell at all whether node-2 has really recovered. Here we
+    # use the non-memoized #wait_until_node_ready! to probe node-2 itself directly.
     system("docker compose -f docker-compose.test.yml down node-2 >/dev/null 2>&1")
     system("docker compose -f docker-compose.test.yml up -d node-2 >/dev/null 2>&1")
     FakeHost.wait_until_node_ready!("node-2", timeout: 60)
@@ -54,15 +54,16 @@ class Collectors::HostDownTest < ExecutionLayerTest
 
     assert_equal "aaaaaaa", ManagedAppStatus.new(app).versions.first
 
-    # 记住第一次（可达）那条观测真实的 observed_at——下面要拿它跟失联
-    # 之后 last_known_rows 报的"上次状态的时间"做逐秒比对，而不是只
-    # 断言"有值"。这条时间戳保留了「这台机器是什么时候还活着」这条信息，
-    # 「保留上次已知状态」如果只保留版本号却丢了这个时间，操作者照样
-    # 没法判断这份数据现在有多旧——那也是一种「面板瞎了」。
+    # Remember the real observed_at of the first (reachable) observation -- below it is compared
+    # second by second against the "time of the last state" reported by last_known_rows after the
+    # host goes down, rather than only asserting "has a value". This timestamp preserves the
+    # information "when this machine was still alive"; if "keep last known state" kept only the
+    # version and lost this time, the operator still couldn't judge how old this data is now --
+    # which is also a way of the "panel going blind".
     last_good_observed_at = Observation.latest_for(app).first.observed_at
 
-    # 故障注入：把机器整个拆掉（保留数据这一端的事实：容器采集之前
-    # 是真的连得上、现在是真的连不上，不是模拟出来的）。
+    # Fault injection: tear the machine down entirely (preserving the fact on the data side: before
+    # this the container collection really could connect and now really can't, it isn't simulated).
     system("docker compose -f docker-compose.test.yml down node-2 >/dev/null 2>&1")
 
     Collectors::ContainerCollector.call(app)

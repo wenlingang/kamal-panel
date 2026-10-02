@@ -2,16 +2,18 @@ require "json"
 require "shellwords"
 
 module Collectors
-  # 每个 ManagedApp × 每台 host 一条命令，取回该应用的全部容器。
+  # One command per ManagedApp x host, fetching all of that app's containers.
   class ContainerCollector
-    # docker ps 通了、但每一行都读不懂时写进 observations.error 的那句话。
+    # The message written to observations.error when docker ps works but not a single line can be
+    # understood.
     UNPARSEABLE_OUTPUT_MARKER = "输出无法解析".freeze
 
     def self.unparseable_output_error(line_count)
       "docker ps #{UNPARSEABLE_OUTPUT_MARKER}（#{line_count} 行全部解析失败），详情见日志"
     end
 
-    # label 被压平成逗号拼接后无法可靠反切分，而 service/destination 没有字符集限制。
+    # labels flattened into a comma-joined string cannot be reliably split back, and
+    # service/destination have no character-set restriction.
     DOCKER_FORMAT_TEMPLATE = '{"name":{{json .Names}},"state":{{json .State}},' \
                              '"status":{{json .Status}},"role":{{json (.Label "role")}},' \
                              '"destination":{{json (.Label "destination")}}}'

@@ -1,4 +1,4 @@
-# 面板相对 CLI 的真实增量（spec 7.1）。
+# The panel's real increment over the CLI (spec 7.1).
 class RollbackCandidates
   RUNNING_STATUSES = %w[running restarting].freeze
 
@@ -17,7 +17,7 @@ class RollbackCandidates
     end
   end
 
-  # 正在跑的那个版本。
+  # The version that is currently running.
   def running_version
     versions = running_versions
     versions.first if versions.one?

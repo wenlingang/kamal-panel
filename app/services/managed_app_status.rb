@@ -1,4 +1,4 @@
-# 由最近一轮 Observation 计算应用状态。
+# Compute the app status from the most recent round of Observations.
 class ManagedAppStatus
   LEVELS = %i[drift unhealthy unreachable ok unknown].freeze
 
@@ -6,7 +6,8 @@ class ManagedAppStatus
 
   RUNNING_STATUSES = %w[running restarting].freeze
 
-  # 阈值不硬编码：它必须随轮询节奏走，否则在高延迟链路上会对健康集群狼来了。
+  # The threshold is not hard-coded: it must follow the polling cadence, otherwise on a high-latency
+  # link it would cry wolf on a healthy cluster.
   STALE_MULTIPLIER = 3
 
   def self.stale_threshold
@@ -34,7 +35,7 @@ class ManagedAppStatus
     versions.size > 1
   end
 
-  # 只看正在运行的容器：已停止的旧版本是回滚候选，不是漂移。
+  # Only look at running containers: stopped older versions are rollback candidates, not drift.
   def versions
     observations.group_by(&:host).flat_map do |_host, host_observations|
       running = host_observations.select { |o| RUNNING_STATUSES.include?(o.docker_status) }
@@ -52,7 +53,7 @@ class ManagedAppStatus
     missing_configured_hosts.any?
   end
 
-  # 逐机器的明细行。
+  # Per-machine detail rows.
   def host_rows
     observed_hosts = observations.map(&:host)
     missing_hosts  = managed_app.cached_app_hosts - observed_hosts
@@ -60,7 +61,7 @@ class ManagedAppStatus
     observed_rows + missing_hosts.map { |host| unobserved_row(host) }
   end
 
-  # 失联的主机回落到它最近一次「可达」的观测。
+  # An unreachable host falls back to its most recent "reachable" observation.
   def last_known_rows
     host_rows.map do |row|
       next row if row[:reachable]
@@ -158,7 +159,7 @@ class ManagedAppStatus
       managed_app.cached_app_hosts - observations.map(&:host)
     end
 
-    # deploy.yml 移除的机器（哪怕它在 #observations 里还有一条记录）。
+    # machines removed from deploy.yml (even if they still have a record in #observations).
     def configured_host_observed_ats
       managed_app.cached_app_hosts.filter_map { |host| observed_at_for(host) }
     end

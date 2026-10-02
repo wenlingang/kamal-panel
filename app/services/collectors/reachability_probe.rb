@@ -1,5 +1,5 @@
 module Collectors
-  # 接入时的连通性探测：逐台列出成功/失败（spec 5.3 第 2 步）。
+  # Connectivity probe at onboarding: lists success/failure host by host (spec 5.3 step 2).
   class ReachabilityProbe
     def self.call(managed_app)
       session = SshSession.new(managed_app)

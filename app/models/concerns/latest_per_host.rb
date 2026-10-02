@@ -1,5 +1,5 @@
-# Observation 与 ProxyTarget 都按 (managed_app, host) 取各自最新一行。
-# 计划 01 中这段查询有两份副本；行为一致但会分叉。
+# Observation and ProxyTarget each take their latest row per (managed_app, host).
+# In plan 01 this query had two copies; they behaved the same but would diverge.
 module LatestPerHost
   extend ActiveSupport::Concern
 

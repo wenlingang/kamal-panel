@@ -40,10 +40,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      # 测试环境的 Active Record encryption 密钥，通过环境变量注入而不是写入
-      # config/environments/test.rb 之外的任何落盘文件（生产环境走同一条路径，
-      # 见 config/application.rb）。这里用的是与 test.rb 兜底值不同的测试密钥，
-      # 用来确认 CI 实际走的是环境变量这条路，而不是碰巧命中了 test.rb 的默认值。
+      # Active Record encryption keys for the test environment, injected through env vars rather
+      # than written to any on-disk file other than config/environments/test.rb (production takes
+      # the same path, see config/application.rb). These are test keys that differ from the test.rb
+      # fallback values, to confirm CI actually goes through the env vars and doesn't just happen to
+      # hit the test.rb defaults.
       AR_ENCRYPTION_PRIMARY_KEY: fg3Sakd53Ge6haQD8cKen2y164HeL5Kb
       AR_ENCRYPTION_DETERMINISTIC_KEY: jNRHBmNhsjiebbByWNI7oWfubnXilpfe
       AR_ENCRYPTION_KEY_DERIVATION_SALT: n8pz8pGz2OlSJQWZyBmL7IoqDTLjkqtk
@@ -53,17 +54,17 @@ jobs:
         with:
           bundler-cache: true
       - name: 修复测试密钥权限
-        # git 只保留可执行位，不保留权限位：新检出的 id_ed25519 是 644，
-        # OpenSSH 客户端会拒绝以 644 加载私钥（"UNPROTECTED PRIVATE KEY
-        # FILE"）。必须在任何 ssh 调用之前把它改回 600。
+        # git only preserves the executable bit, not other permission bits: a freshly checked-out
+        # id_ed25519 is 644, and the OpenSSH client refuses to load a private key with 644
+        # ("UNPROTECTED PRIVATE KEY FILE"). It must be changed back to 600 before any ssh call.
         run: chmod 600 test/fake_host/id_ed25519
       - name: 启动 fake host
         run: docker compose -f docker-compose.test.yml up -d --build
       - name: 等待 fake host 就绪
-        # 同时等 2201（node-1）与 2202（node-2）两个节点：只探测 2201 会在
-        # node-2 起得慢时让第一条碰它的测试以一条误导性的
-        # "FakeHost::NotReady：请先启动 docker compose" 报错失败
-        # （见 final review 分诊 4）。
+        # Wait for both 2201 (node-1) and 2202 (node-2): probing only 2201 would, when
+        # node-2 is slow to start, make the first test that touches it fail with a misleading
+        # "FakeHost::NotReady: start docker compose first" error
+        # (see final review triage 4).
         run: |
           for port in 2201 2202; do
             for i in $(seq 1 60); do
@@ -78,25 +79,28 @@ jobs:
               sleep 2
             done
           done
-      # 仓库里那份 config/deploy.yml 是给人照抄的范例。用面板自己的解析器解一遍：
-      # 与面板处理用户粘贴的 deploy.yml 走同一条代码路径，写坏了或 Kamal 升级后
-      # 不再接受它，我们比读者先知道。不连任何主机。
+      # config/deploy.yml in the repo is a sample meant to be copied by people. Parse it with the
+      # panel's own parser: this takes the same code path as the panel handling a user-pasted
+      # deploy.yml, so if it breaks or a Kamal upgrade stops accepting it, we find out before our
+      # readers do. Connects to no hosts.
       - name: 校验仓库内的 deploy.yml
         run: bin/rails deploy_config:verify
 
       - name: 单元测试 + 浏览器测试
-        # bin/rails test 按 Rails 约定不包含 test/system——这曾经让本产品
-        # 唯一一条浏览器层面的诚实断言（失联主机仍显示上次已知状态）从未
-        # 在 CI 里跑过一次（见 final review I5）。test:all 同时跑两者。
+        # By Rails convention bin/rails test does not include test/system. That once meant this
+        # product's only browser-level honest assertion (an unreachable host still shows its last
+        # known status) never ran in CI even once (see final review I5). test:all runs both.
         run: bin/rails test:all
 
-  # Kamal 版本兼容矩阵（主设计 9.4）。
+  # Kamal version compatibility matrix (main design §9.4).
   #
-  # 面板直接引 kamal gem，并从四个地方依赖它的内部行为：配置解析、容器标签、
-  # 锁目录格式、CLI 参数。这是那个方案的必付成本，必须在 CI 里自动暴露，
-  # 而不是等用户报"升级 Kamal 之后面板全炸"。
+  # The panel requires the kamal gem directly and relies on its internal behavior in four places:
+  # config parsing, container labels, lock directory format, and CLI arguments. This is the
+  # unavoidable cost of that approach and must surface automatically in CI, rather than waiting for
+  # users to report "the panel is totally broken after upgrading Kamal".
   #
-  # 当前锁定版本（2.12）由上面的 test 作业覆盖，这里只跑上一个 minor。
+  # The currently pinned version (2.12) is covered by the test job above; this one only runs the
+  # previous minor.
   compat_matrix:
     runs-on: ubuntu-latest
     strategy:
@@ -112,17 +116,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          # 不用 bundler-cache：Gemfile.lock 锁的是 2.12，这个作业刻意让
-          # bundler 重新解析到别的版本，缓存只会帮倒忙。
+          # No bundler-cache: Gemfile.lock pins 2.12, and this job deliberately makes
+          # bundler re-resolve to a different version, so a cache would only get in the way.
           bundler-cache: false
       - name: 安装被测版本的依赖
         run: bundle install --jobs 4
 
-      # 这一步【不】允许失败，而且必须在跑测试之前。
+      # This step is NOT allowed to fail, and it must run before the tests.
       #
-      # 如果 KAMAL_VERSION 哪天失效（改名、拼错、bundler 行为变化），矩阵会
-      # 静默地又跑一遍 2.12 并永远显示绿色——一个什么都没测却永远通过的作业，
-      # 比没有这个作业更糟。所以先钉住"我现在跑的确实是那个版本"。
+      # If KAMAL_VERSION ever stops working (renamed, misspelled, bundler behavior change), the
+      # matrix would silently run 2.12 again and show green forever; a job that tests nothing yet
+      # always passes is worse than no job at all. So first pin down that "what I'm running is
+      # really that version".
       - name: 确认真的装上了被测版本
         run: |
           actual=$(bundle exec ruby -e 'require "kamal/version"; print Kamal::VERSION')
@@ -152,8 +157,9 @@ jobs:
             done
           done
 
-      # 这一步【允许】失败：旧版本上的不兼容是要看见的信息，不是合并的闸门。
-      # 与上面那个断言步骤的区别是刻意的——矩阵坏了必须吵，被测版本不兼容只需被看见。
+      # This step IS allowed to fail: incompatibility on an older version is information to be seen,
+      # not a merge gate. The difference from the assertion step above is deliberate: a broken
+      # matrix must be loud, while an incompatible version under test only needs to be visible.
       - name: 跑全套（旧版本不兼容不阻塞合并）
         id: compat_tests
         continue-on-error: true

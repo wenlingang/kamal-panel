@@ -33,11 +33,12 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     assert_in_delta 90.days.ago.to_i, remaining.first.observed_at.to_i, 60
   end
 
-  # 注意：这里不能只造一条过期的 ProxyTarget 就断言清空为 0——那条记录
-  # 同时也是它所在 (app, host) 分组里"最近的一条"，跟 Observation 的
-  # "即使全部超期，也保留每台主机最近一条"是同一条规则，对 ProxyTarget
-  # 同样成立（否则会自相矛盾）。这里造两条，验证真正超期且已被更新
-  # 记录取代的那条会被删掉，同时最近一条被保留。
+  # Note: here we can't just create one expired ProxyTarget and assert the count drops to 0 -- that
+  # record is also the "most recent one" in its (app, host) group, the same rule as Observation's
+  # "keep the most recent one per host even if all have expired", and it holds for ProxyTarget too
+  # (otherwise it would contradict itself). So create two here, and verify that the one that is
+  # truly expired and already superseded by a newer record is deleted, while the most recent one is
+  # kept.
   test "同样清理 ProxyTarget" do
     ProxyTarget.create!(managed_app: @app, host: "10.0.0.1",
                         service_name: "blog-web-production", observed_at: 20.days.ago)
@@ -51,25 +52,28 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
     assert_in_delta 1.day.ago.to_i, remaining.first.observed_at.to_i, 60
   end
 
-  # Task 11 花了两轮 review 才立住的承诺：一台失联的机器，界面回落到它
-  # 「最近一次可达」的观测,并标注这条数据有多旧——绝不清空整行(spec 6.4)。
+  # A promise that took Task 11 two review rounds to establish: for a machine that has
+  # gone unreachable, the UI falls back to its "most recent reachable" observation and
+  # marks how old that data is -- never blanking the whole row (spec 6.4).
   #
-  # 如果 prune 只按 (app, host) 保留 observed_at 最大的一条,对一台已经
-  # 失联超过保留期的机器来说,"最大"的那条恰好是不可达的记录,而
-  # last_known_rows 唯一能回落到的、真正有用的"上次已知状态"——最近一次
-  # 可达的观测——比它更旧,会被当成过期数据删掉。于是这台失联时间最长、
-  # 操作者最需要历史的机器,反而最先失去历史,面板退化成
-  # "无可用的历史状态",这个回归会随时间悄悄发生,且没有任何测试会因为
-  # "刚失联"的场景发现它。
+  # If prune only kept the observed_at-max record per (app, host), then for a machine
+  # that has been unreachable longer than the retention period, the "max" one happens to
+  # be the unreachable record, while the only truly useful "last known state" that
+  # last_known_rows can fall back to -- the most recent reachable observation -- is older
+  # than it and would be deleted as stale data. So the machine that has been unreachable
+  # longest, whose operator needs history most, would be the first to lose its history,
+  # and the panel would degrade to "no history available". This regression creeps in
+  # quietly over time, and no test would catch it through a "just went unreachable" scenario.
   #
-  # 这里刻意让可达的那条观测比保留期还旧得多(100 天前),不可达的观测
-  # 也在保留期之外(50 天前)——两条都够格被当成"过期"删掉,但可达的那条
-  # 必须活下来,因为它是唯一的回退依据。
-  # prune 是按 (managed_app_id, host) 分组的，不是按 managed_app_id 单独
-  # 分组——如果分组打错了范围（比如漏掉 host，或者反过来漏掉
-  # managed_app_id 导致跨应用互相踩），一个多主机应用里"只有部分主机
-  # 过期"的场景最容易把这种错误暴露出来：错误分组要么会把还没过期的
-  # 主机也删掉,要么会把该删的主机保留下来。
+  # Here we deliberately make the reachable observation much older than the retention
+  # period (100 days ago) and the unreachable one also outside it (50 days ago) -- both
+  # qualify to be deleted as "expired", but the reachable one must survive, because it is
+  # the only fallback basis.
+  # prune groups by (managed_app_id, host), not by managed_app_id alone -- if the grouping
+  # scope is wrong (say it drops host, or conversely drops managed_app_id so apps trample
+  # each other), the scenario of "only some hosts expired" in a multi-host app is the one
+  # most likely to expose it: a wrong grouping either deletes hosts that haven't expired
+  # or keeps hosts that should be deleted.
   test "一个应用多台主机，只清理其中过期的那些，各自独立判断" do
     Observation.create!(managed_app: @app, host: "10.0.0.1",
                         docker_status: "running", observed_at: 20.days.ago)
@@ -99,13 +103,14 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
   end
 
   test "prune 的保留条件必须对齐回退真正读取的条件——可达但没有容器的行不能顶替带容器的那一行" do
-    # D0：机器正常跑着容器（最旧）
-    # D1：容器被移除，机器仍可达（比 D0 新）
-    # D2：机器彻底下线（最新）
-    # 三条全部超过保留期。旧的保留条件是"最新一条 + 最新一条 reachable"，
-    # 会保留 D2（最新）与 D1（最新 reachable），删掉 D0——但回退
-    # （ManagedAppStatus#last_reachable_observation）要的是"最新一条 reachable
-    # 且带容器"的行，也就是 D0。删掉它会让回退无落点可用（见 final review I6）。
+    # D0: the machine is running containers normally (oldest)
+    # D1: the container was removed, the machine is still reachable (newer than D0)
+    # D2: the machine is fully offline (newest)
+    # All three are past the retention period. The old retention condition was "newest +
+    # newest reachable", which would keep D2 (newest) and D1 (newest reachable) and delete
+    # D0 -- but the fallback (ManagedAppStatus#last_reachable_observation) wants the
+    # "newest reachable one with containers" row, i.e. D0. Deleting it leaves the fallback
+    # with nothing to land on (see final review I6).
     d0 = Observation.create!(managed_app: @app, host: "127.0.0.1", role: "web",
       container_name: "blog-web-production-aaaaaaa", version: "aaaaaaa",
       docker_status: "running", reachable: true, observed_at: 100.days.ago)

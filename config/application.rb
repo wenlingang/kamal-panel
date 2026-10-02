@@ -24,17 +24,18 @@ module KamalPanel
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
-    # 面板界面是中文的，所以 Rails 自己产出的文案（time_ago_in_words、
-    # 校验失败信息等）也必须是中文——译文由 rails-i18n 提供。
-    # fallbacks 放在这里而不是只放 production：缺一条译文时宁可退回英文，
-    # 也不要在页面上渲染出 "translation missing" 这种东西。
+    # The panel UI is in Chinese, so the strings Rails itself produces (time_ago_in_words,
+    # validation error messages, etc.) must be Chinese too; translations come from rails-i18n.
+    # fallbacks go here rather than only in production: when a translation is missing, better to
+    # fall back to English than to render something like "translation missing" on the page.
     config.i18n.default_locale = :"zh-CN"
     config.i18n.available_locales = [ :"zh-CN", :en ]
     config.i18n.fallbacks = [ :en ]
 
-    # 生产环境从环境变量读取 Active Record encryption 主密钥，不落盘（spec 7.2）。
-    # 开发环境可用 `bin/rails credentials:edit` 写入 credentials.yml.enc；
-    # 测试环境使用 config/environments/test.rb 中固定的测试专用密钥（见该文件注释）。
+    # In production, read the Active Record encryption master keys from env vars, never on disk
+    # (spec 7.2). In development, `bin/rails credentials:edit` can write them to
+    # credentials.yml.enc; the test environment uses the fixed test-only keys in
+    # config/environments/test.rb (see the comments in that file).
     config.active_record.encryption.primary_key = ENV["AR_ENCRYPTION_PRIMARY_KEY"] if ENV["AR_ENCRYPTION_PRIMARY_KEY"]
     config.active_record.encryption.deterministic_key = ENV["AR_ENCRYPTION_DETERMINISTIC_KEY"] if ENV["AR_ENCRYPTION_DETERMINISTIC_KEY"]
     config.active_record.encryption.key_derivation_salt = ENV["AR_ENCRYPTION_KEY_DERIVATION_SALT"] if ENV["AR_ENCRYPTION_KEY_DERIVATION_SALT"]

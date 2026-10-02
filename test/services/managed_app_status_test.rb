@@ -2,11 +2,11 @@ require "test_helper"
 
 class ManagedAppStatusTest < ActiveSupport::TestCase
   setup do
-    Rails.cache.clear # cached_app_hosts 缓存键含 id，SQLite 回滚后可能复用 id
+    Rails.cache.clear # cached_app_hosts cache key contains the id, and SQLite may reuse ids after rollback
 
-    # 两台机器（10.0.0.1、10.0.0.2）都配置在 deploy.yml 里——这样
-    # observe() 用到的主机才会跟"配置里到底有哪些机器"对得上，才能
-    # 测出"配置里有、但从没采集过"的那台机器。
+    # Both machines (10.0.0.1, 10.0.0.2) are configured in deploy.yml -- so that the hosts observe()
+    # uses line up with "which machines are actually in the config", making it possible to test the
+    # machine that is "in the config but never collected".
     @app = ManagedApp.create!(
       name: "blog", config_yaml: file_fixture("two_host_deploy.yml").read,
       destination: "production"
@@ -24,14 +24,13 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     )
   end
 
-  # 一台可达、但没有匹配到任何容器的机器——docker_status/version/
-  # container_name 全部是 nil，这正是 Collectors::ContainerCollector 在
-  # "docker ps 没找到匹配的容器"时落库的形状（它的 empty_row 只有
-  # base_row：host/reachable/observed_at，没有别的字段）。用一个专门
-  # 命名的帮助方法而不是让调用方自己拼 `version: nil, docker_status: nil`，
-  # 是因为原来的测试套件从没写出过这个形状——helper 的默认值悄悄把它
-  # 变成了不可表达的状态，这正是这次漏判 bug 能一直藏到评审才被发现的
-  # 原因之一。
+  # A machine that is reachable but matched no container -- docker_status/version/ container_name
+  # are all nil, which is exactly the shape Collectors::ContainerCollector writes when "docker ps
+  # found no matching container" (its empty_row has only base_row: host/reachable/observed_at, no
+  # other fields). A specially named helper rather than having callers assemble `version: nil,
+  # docker_status: nil` themselves, because the original test suite never wrote out this shape --
+  # the helper's defaults quietly made it an inexpressible state, which is one of the reasons this
+  # missed-detection bug stayed hidden until review.
   def observe_no_containers(host:, reachable: true)
     observe(host: host, version: nil, docker_status: nil, reachable: reachable)
   end
@@ -95,9 +94,9 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal :unreachable, ManagedAppStatus.new(@app).level
   end
 
-  # Critical：可达的机器如果一个容器都没匹配到（从没部署过，或者容器被
-  # 整个删掉了），不能落到 :ok——那看起来和"一切正常"一模一样，而实际上
-  # 是"这台机器完全没有在服务"。
+  # Critical: if a reachable machine matched no container at all (never deployed, or the container
+  # was deleted entirely), it must not fall to :ok -- that looks exactly like "everything is fine",
+  # while in reality it is "this machine isn't serving at all".
   test "可达但没有匹配到任何容器的机器 → unhealthy，而不是正常" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe_no_containers(host: "10.0.0.2")
@@ -112,12 +111,14 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_equal :unhealthy, ManagedAppStatus.new(@app).level
   end
 
-  # Important：deploy.yml 里配置了但从来没有一条 Observation 的机器，
-  # 不能被状态计算悄悄忽略——那等于"没看过"被当成了"看过、没问题"。
+  # Important: a machine configured in deploy.yml but with no Observation ever must not be quietly
+  # ignored by the status computation -- that is "never looked at" being treated as "looked at, no
+  # problem".
   test "配置里存在但从未采集过的机器 → 不算正常，视为机器失联" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
-    # 10.0.0.2 在 two_host_deploy.yml 里配置了，但这里故意不为它写任何
-    # Observation——模拟"新加的机器还没轮到采集"或"数据被清理过"。
+    # 10.0.0.2 is configured in two_host_deploy.yml, but here we deliberately write no
+    # Observation for it -- simulating "a newly added machine whose turn to be collected hasn't
+    # come" or "the data was cleaned up".
 
     assert_equal :unreachable, ManagedAppStatus.new(@app).level
   end
@@ -146,27 +147,29 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_predicate ManagedAppStatus.new(@app).label, :present?
   end
 
-  # Important：数据年龄必须来自正在展示的这批观测，而不是"此刻数据库里
-  # 最新一次采集是什么时候"——否则轮询中会出现"页面显示的数据年龄，比
-  # 页面上其它数据实际的时间还新"这种自相矛盾的情况。
+  # Important: data age must come from the batch of observations being displayed, not from "when the
+  # latest collection in the database is right now" -- otherwise polling would produce the
+  # self-contradiction of "the data age shown on the page is newer than the actual time of the other
+  # data on the page".
   test "数据年龄来自已经加载的这批观测，而不是重新查询出的更新时间" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
     observe(host: "10.0.0.2", version: "aaaaaaa")
     status = ManagedAppStatus.new(@app)
 
-    assert_equal :ok, status.level # 触发并缓存这一批 observations
+    assert_equal :ok, status.level # triggers and caches this batch of observations
 
-    # 模拟"页面渲染之后，又来了一轮更新的采集"——如果 #observed_at 重新
-    # 查库，会返回这个更新的时间，而不是页面上实际展示的那批数据的时间。
+    # Simulate "a newer collection round arrived after the page was rendered" -- if #observed_at
+    # re-queried the DB, it would return this newer time rather than the time of the batch of data
+    # actually displayed on the page.
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now + 1.hour)
 
     assert_equal @now.to_i, status.observed_at.to_i
   end
 
-  # Important（review 回合二）：数据年龄这行字唯一诚实的说法是"这里没有
-  # 一条数据比 N 更旧"。如果取最新一台的时间，一台 3 小时没采到的机器
-  # 会被一台 12 秒前刚采到的机器的时间戳掩盖——这正是数据年龄指示器
-  # 唯一不能犯的方向的谎：让人以为整页数据都是新的。
+  # Important (review round 2): the only honest wording for the data-age line is "no data here is
+  # older than N". If we took the latest machine's time, a machine not collected for 3 hours would
+  # be masked by the timestamp of a machine collected 12 seconds ago -- exactly the one direction in
+  # which the data-age indicator must never lie: making people think the whole page's data is fresh.
   test "数据年龄取最旧的一台机器，而不是最新的一台" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now - 3.hours)
     observe(host: "10.0.0.2", version: "aaaaaaa", observed_at: @now)
@@ -178,10 +181,10 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
       "「3 小时没采到」藏在「12 秒前」背后"
   end
 
-  # Important（review 回合二）：失联的机器如果压根没有任何一条「可达」的
-  # 历史观测，last_known_rows 没有"上次"可回落——这是最容易让空白行
-  # 溜到界面上的分支，必须验证它诚实地保持"失联、没有历史"，而不是
-  # 悄悄编出一个版本号，也不是把整行清空。
+  # Important (review round 2): if an unreachable machine has no "reachable" historical observation
+  # at all, last_known_rows has no "last time" to fall back to -- this is the branch most likely to
+  # let a blank row slip onto the UI, and it must be verified to honestly stay "unreachable, no
+  # history", rather than quietly inventing a version, or clearing the whole row.
   test "失联但从来没有过可达的观测 → 保留失联状态，不编造历史版本" do
     observe(host: "10.0.0.1", reachable: false, version: nil, docker_status: nil)
     observe(host: "10.0.0.2", version: "aaaaaaa")
@@ -194,15 +197,15 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     assert_nil row[:stale_since], "没有历史状态就不该出现一个假的\"上次\"时间戳"
   end
 
-  # Important（review 回合二）：两台机器都出现过、其中一台失联时，回落
-  # 必须只用它自己的历史记录。如果回退逻辑漏了 host 过滤，会读到"最近
-  # 一次全局可达的观测"——那可能是另一台机器的版本，面板会在 A 的名字
-  # 底下显示 B 的版本，这比空白更危险。
+  # Important (review round 2): when both machines have appeared and one is unreachable, the
+  # fallback must use only its own history. If the fallback logic missed the host filter, it would
+  # read "the most recent globally reachable observation" -- possibly another machine's version, and
+  # the panel would show B's version under A's name, which is more dangerous than blank.
   test "失联主机的回退状态只用它自己的历史记录，不会串到另一台机器" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now)
     observe(host: "10.0.0.2", version: "bbbbbbb", observed_at: @now)
 
-    # 10.0.0.1 之后失联
+    # 10.0.0.1 goes unreachable afterwards
     observe(host: "10.0.0.1", version: nil, docker_status: nil, reachable: false,
             observed_at: @now + 1.minute)
 
@@ -214,11 +217,11 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     refute_equal "bbbbbbb", row[:version]
   end
 
-  # Minor（review 回合二，判断题）：一台曾经采集过、但已经不在当前
-  # deploy.yml 里的机器——不删掉这一行（删掉等于悄悄丢弃"它曾经存在过"
-  # 这条信息），但绝不能让它继续无条件地显示"正常"，那等于面板替一台
-  # 已经不属于这个应用的机器背书。这里验证 host_rows 能区分"仍在配置中"
-  # 与"已被移出配置"。
+  # Minor (review round 2, a judgment call): a machine that was collected once but is no longer in
+  # the current deploy.yml -- don't delete the row (deleting would quietly discard the information
+  # "it once existed"), but it must never keep showing "ok" unconditionally, which would be the
+  # panel vouching for a machine that no longer belongs to this app. This verifies host_rows can
+  # distinguish "still in the config" from "removed from the config".
   test "曾经采集过、但已从当前配置移除的机器：仍出现在 host_rows 里，但标记为不在配置中" do
     app = ManagedApp.create!(
       name: "blog-#{SecureRandom.hex(4)}", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -228,8 +231,8 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     Observation.create!(managed_app: app, host: "127.0.0.1", role: "web",
       container_name: "blog-web-production-aaaaaaa", version: "aaaaaaa",
       docker_status: "running", reachable: true, observed_at: @now)
-    # "10.9.9.9" 曾经被采集过，但 simple_deploy.yml 里从未配置过它——
-    # 模拟"这台机器后来从 deploy.yml 里被删掉了"。
+    # "10.9.9.9" was collected once, but simple_deploy.yml never configured it --
+    # simulating "this machine was later deleted from deploy.yml".
     Observation.create!(managed_app: app, host: "10.9.9.9", role: "web",
       container_name: "blog-web-production-zzzzzzz", version: "zzzzzzz",
       docker_status: "running", reachable: true, observed_at: @now)
@@ -242,14 +245,14 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
       "已经不在 deploy.yml 里的机器不能被当成\"仍属于这个应用\"的普通一行"
   end
 
-  # Important（review 回合三，低估）：数据年龄如果只看 #observations 这批
-  # 记录本身的最旧值，一台配置了但从没被采集过的机器会完全隐形——它对
-  # "数据年龄"这个计算不贡献任何时间戳，于是指示器可能显示"刚采集过"，
-  # 而实际上有一台机器面板压根没看过它。一台从没被看过的机器，是"最旧"，
-  # 不是"不存在"。
+  # Important (review round 3, underestimate): if data age looks only at the oldest value among the
+  # records of #observations, a machine that is configured but never collected becomes completely
+  # invisible -- it contributes no timestamp to the "data age" computation, so the indicator may say
+  # "just collected", while actually there is a machine the panel never looked at at all. A machine
+  # never looked at is "oldest", not "nonexistent".
   test "配置里有一台从未采集过的机器时，数据年龄指示器不能显示新鲜" do
     observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now)
-    # 10.0.0.2 在 two_host_deploy.yml 里配置了，但故意不写任何 Observation。
+    # 10.0.0.2 is configured in two_host_deploy.yml, but we deliberately write no Observation.
 
     status = ManagedAppStatus.new(@app)
 
@@ -258,11 +261,11 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
       "这跟「所有机器都很新」是完全不同的两件事"
   end
 
-  # Important（review 回合三，高估）：数据年龄如果不按"当下配置里有哪些
-  # 机器"过滤，一台已经从 deploy.yml 移除、但历史上被采集过的机器会永远
-  # 拖着它的旧时间戳（Observation 只追加、不会因为配置改了就消失），把
-  # 整个应用钉死在"已过期"——这是"狼来了"式的回归：指示器永远红，操作者
-  # 会学会不再看它。
+  # Important (review round 3, overestimate): if data age isn't filtered by "which machines are in
+  # the current config", a machine removed from deploy.yml but collected historically would forever
+  # drag its old timestamp along (Observations are append-only and don't vanish when config
+  # changes), pinning the whole app at "stale" -- a "cry wolf" regression: the indicator is always
+  # red, and operators learn to stop looking at it.
   test "唯一拖累新鲜度的是已经不在配置里的机器时，数据年龄指示器不能显示过期" do
     app = ManagedApp.create!(
       name: "blog-#{SecureRandom.hex(4)}", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -272,8 +275,8 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
     Observation.create!(managed_app: app, host: "127.0.0.1", role: "web",
       container_name: "blog-web-production-aaaaaaa", version: "aaaaaaa",
       docker_status: "running", reachable: true, observed_at: @now)
-    # "10.9.9.9" 不在 simple_deploy.yml 里，但留着一条很旧的历史观测——
-    # 模拟"这台机器很久以前被下线、从配置里删掉了"。
+    # "10.9.9.9" isn't in simple_deploy.yml, but a very old historical observation is kept --
+    # simulating "this machine was decommissioned long ago and removed from the config".
     Observation.create!(managed_app: app, host: "10.9.9.9", role: "web",
       container_name: "blog-web-production-zzzzzzz", version: "zzzzzzz",
       docker_status: "running", reachable: true, observed_at: @now - 3.hours)
@@ -285,11 +288,12 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
       "它已经被下线横幅单独标注了，不该再拖累这个全局数字"
   end
 
-  # 回归护栏：所有配置的机器数据都新鲜时，必须仍然显示新鲜——防止上面
-  # 两个修复本身矫枉过正，把"新鲜"这条路也堵死了。
+  # Regression guard: when all configured machines' data is fresh, it must still show fresh -- to
+  # prevent the two fixes above from overcorrecting and blocking the "fresh" path too.
   test "读不到 proxy 状态时，接流量必须是未知（nil），不能编造成「否」" do
     observe(host: "10.0.0.1", version: "aaaaaaa")
-    # 没有为这台机器创建任何 ProxyTarget——面板压根没问到 proxy 状态。
+    # No ProxyTarget was created for this machine -- the panel never asked about proxy status at
+    # all.
 
     status = ManagedAppStatus.new(@app)
     row = status.host_rows.find { |r| r[:host] == "10.0.0.1" }

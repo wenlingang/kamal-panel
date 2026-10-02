@@ -30,6 +30,6 @@ class Collectors::ReachabilityProbeTest < ExecutionLayerTest
     result = Collectors::ReachabilityProbe.call(app)
 
     assert_equal true,  result["127.0.0.1"]
-    assert_equal false, result["192.0.2.1"]   # TEST-NET-1，保证连不通
+    assert_equal false, result["192.0.2.1"]   # TEST-NET-1, guaranteed unreachable
   end
 end

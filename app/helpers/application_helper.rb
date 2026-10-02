@@ -1,6 +1,6 @@
 module ApplicationHelper
-  # Lucide（ISC）的路径手工内联在 app/views/shared/icons/ 下。
-  # label 只在图标独自成立时给（仅图标的按钮）；不给就渲染成 aria-hidden。
+  # Lucide (ISC) paths are inlined by hand under app/views/shared/icons/. label is given only when
+  # the icon stands on its own (icon-only buttons); without it, it renders as aria-hidden.
   def icon_tag(name, size: :md, label: nil, css: nil)
     klass = [ "icon", "icon-#{size}", css ].compact.join(" ")
     a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": "true", focusable: "false" }
@@ -12,7 +12,7 @@ module ApplicationHelper
     end
   end
 
-  # 色觉障碍者与黑白打印下分不出来。
+  # indistinguishable for people with color-vision deficiency and in black-and-white printing.
   STATUS_ICONS = {
     "ok" => "circle-check",
     "drift" => "triangle-alert",
@@ -31,7 +31,7 @@ module ApplicationHelper
     end
   end
 
-  # 顶部导航按【版块】高亮，不按页面。
+  # The top nav highlights by [section], not by page.
   def nav_link_to(label, path, controllers:, icon: nil)
     current = Array(controllers).include?(controller.controller_path)
 
@@ -57,7 +57,7 @@ module ApplicationHelper
     "#{user.nickname} <#{user.email_address}>"
   end
 
-  # 动作名。
+  # The action name.
   def audit_action_label(log)
     t("audit.actions.#{log.action_name}", default: log.action_name)
   end
@@ -76,14 +76,16 @@ module ApplicationHelper
   end
 
   private
-    # 那一类——凭据名、应用名这种专名，翻了反而是错的——以及所有历史行。
+    # that category — proper names like credential names and app names, where translating would
+    # actually be wrong — as well as all historical rows.
     def audit_detail_text(log)
       return t("audit.details.#{log.detail_key}", **audit_detail_args(log)) if log.detail_key.present?
 
       log.detail.presence
     end
 
-    # 人要看的是"SSH 私钥"。连接符本身也是语言相关的，所以也走译文。
+    # What people want to see is "SSH private key". The connector itself is also language-dependent,
+    # so it goes through the translations too.
     def audit_detail_args(log)
       args = log.detail_args.symbolize_keys
 

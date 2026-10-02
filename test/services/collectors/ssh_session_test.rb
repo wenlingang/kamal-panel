@@ -52,11 +52,12 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     assert_nil results["127.0.0.1"].error
   end
 
-  # CONNECT_TIMEOUT 只管 TCP 握手，管不到"连上之后命令卡住不返回"这种更
-  # 常见的真实故障（卡死的机器）。这里用 sleep 模拟一台已经接受连接、但
-  # 命令执行阶段永远不返回的主机，确认 capture 有一个独立的执行期截止时间
-  # ——而不是无限阻塞。execution_timeout 传一个很短的值，只是为了不让这条
-  # 测试本身拖慢整个套件；生产环境用的是 EXECUTION_TIMEOUT 常量。
+  # CONNECT_TIMEOUT only covers the TCP handshake and can't cover the more common real failure of
+  # "the command hangs and never returns after connecting" (a hung machine). Here sleep simulates a
+  # host that has accepted the connection but never returns during command execution, confirming
+  # capture has an independent execution-phase deadline
+  # -- rather than blocking forever. execution_timeout is given a very short value only so this
+  # test itself doesn't slow down the whole suite; production uses the EXECUTION_TIMEOUT constant.
   test "capture 对连上之后卡住不返回的主机有执行期截止时间，而不是无限阻塞" do
     session = Collectors::SshSession.new(managed_app, execution_timeout: 2)
 
@@ -105,12 +106,13 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     Rails.logger = original_logger
   end
 
-  # net-ssh 的 :timeout 选项只管单个包的等待时间（round 4 review），不管
-  # "连接 + 认证"这整段过程的总时长——一个每次都能在单包超时之前挤出一点
-  # 数据、但永远不完成握手/认证的对端，能把连接阶段拖到无限长。这里不
-  # 依赖一台真的会这样卡住的 SSH 服务器（构造起来很麻烦），而是直接把
-  # Net::SSH.start 本身临时换成一个会 sleep 的假实现，验证#connect 外面
-  # 包的 Timeout 确实生效——这是在测本类自己的兜底机制，不是在测 net-ssh。
+  # net-ssh's :timeout option only covers the wait time for a single packet (round 4 review), not
+  # the total duration of the whole "connect + authenticate" phase -- a peer that squeezes out a bit
+  # of data before each single-packet timeout but never completes the handshake/authentication can
+  # drag the connect phase out indefinitely. Here we don't depend on an SSH server that really hangs
+  # like that (troublesome to build), and instead temporarily swap Net::SSH.start itself for a fake
+  # that sleeps, verifying the Timeout wrapped around #connect really takes effect -- this tests
+  # this class's own fallback mechanism, not net-ssh.
   test "connect 阶段（连接 + 认证）整体有截止时间，不只是逐包超时" do
     session = Collectors::SshSession.new(managed_app, connect_timeout: 2)
 
@@ -126,13 +128,14 @@ class Collectors::SshSessionTest < ExecutionLayerTest
     Net::SSH.define_singleton_method(:start, original_start)
   end
 
-  # 走跳板机（ssh.proxy）时，底层 socket 不是普通 TCPSocket，而是
-  # Net::SSH::Proxy::Command#open 里 IO.popen 出来的、包着子进程的 IO；
-  # 这种 IO 的 #close 会等子进程退出，子进程卡住不退出的话 #close 就跟着
-  # 卡住——而这一步发生在 capture 的 ensure 里（见 close_session 上方
-  # 注释），不单独设限的话会重新抵消前面两段已经生效的截止时间。这里
-  # 直接调用私有的 close_session（而不是搭一整套真实的跳板机连接），
-  # 用一个"永远卡住"的假 session 验证这层兜底本身有效。
+  # When going through a jump host (ssh.proxy), the underlying socket isn't a plain TCPSocket but
+  # the IO popen'd by IO.popen in Net::SSH::Proxy::Command#open, wrapping a child process; #close on
+  # this kind of IO waits for the child to exit, and if the child hangs and doesn't exit #close
+  # hangs with it -- and this step happens in capture's ensure (see the comment above
+  # close_session), and without its own limit it would cancel out the two deadlines already in
+  # effect above. Here we call the private close_session directly (rather than building a whole real
+  # jump host connection), using a "hangs forever" fake session to verify this fallback layer itself
+  # works.
   test "关闭阶段本身也有截止时间：即使 shutdown! 卡住（比如代理场景下 IO.popen 的 #close 要等子进程退出），capture 也不会被拖住" do
     session = Collectors::SshSession.new(managed_app, close_timeout: 1)
     wedged_session = Object.new

@@ -5,7 +5,7 @@ class RegistryCredentialsController < ApplicationController
 
   before_action :set_credential, only: %i[ edit update destroy ]
 
-  # 没有 index：两种凭据列在同一页（CredentialsController#index）。
+  # No index: both kinds of credentials are listed on the same page (CredentialsController#index).
 
   def new
     @credential = RegistryCredential.new
@@ -26,8 +26,9 @@ class RegistryCredentialsController < ApplicationController
   def edit
   end
 
-  # 只换 value：名字不动，因为名字是别人引用这条凭据的方式。换了之后【立刻】
-  # 对所有引用它的应用生效——这是一次多应用操作，视图要把受影响的应用列出来。
+  # Only change value: the name stays put, because the name is how others reference this credential.
+  # After the change it takes effect [immediately] for every app that references it — this is a
+  # multi-app operation, so the view must list the affected apps.
   def update
     if @credential.update(rotate_params)
       AuditLog.record_access!(user: Current.user, action_name: "registry_credential.rotate",
@@ -55,6 +56,6 @@ class RegistryCredentialsController < ApplicationController
 
     def create_params = params.expect(registry_credential: [ :name, :value, :server ])
 
-    # 轮换只收 value：名字与 server 不在这里改。
+    # Rotation only accepts value: the name and server are not changed here.
     def rotate_params = params.expect(registry_credential: [ :value ])
 end

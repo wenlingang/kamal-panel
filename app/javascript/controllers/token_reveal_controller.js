@@ -1,8 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 
-// 上报 token 的脚本只在生成后那一次出现，所以用模态框端到脸前，而不是让人
-// 自己在页面里找。下载按钮把两段脚本拼成一个 .txt，内容直接读 DOM 里的
-// <pre>，不另存一份——两处文本漂移的话，下载到的那份会是错的。
+// The reporting token's script appears only that once after generation, so a modal puts it right in front of the user rather than making them
+// look for it on the page. The download button joins the two scripts into one .txt, reading the content straight from the
+// <pre> in the DOM without keeping a separate copy — if the two texts drifted apart, the downloaded one would be wrong.
 export default class extends Controller {
   static targets = ["script"]
   static values = { filename: String }
@@ -11,10 +11,10 @@ export default class extends Controller {
     if (typeof this.element.showModal !== "function") return
 
     this.element.showModal()
-    // 内容高过 max-height 时，浏览器给焦点做的滚动会把标题与警示条顶出可视区。
-    // 最要紧的那句话必须是打开时第一眼看到的东西。
+    // When the content is taller than max-height, the scrolling the browser does for focus would push the title and warning bar out of view.
+    // The most important sentence must be the first thing seen on opening.
     this.element.scrollTop = 0
-    // showModal 挡住了交互，但遮罩下面的页面仍然能被滚轮滚动。
+    // showModal blocks interaction, but the page beneath the backdrop can still be scrolled with the wheel.
     document.documentElement.classList.add("scroll-locked")
   }
 
@@ -26,8 +26,8 @@ export default class extends Controller {
     this.element.close()
   }
 
-  // 关掉之后不留在 DOM 里：脚本含明文 token，没有理由让它继续躺在页面上。
-  // remove() 会触发 disconnect()，滚动锁在那里解开。
+  // Do not leave it in the DOM after closing: the script contains the plaintext token, and there is no reason to let it keep lying on the page.
+  // remove() triggers disconnect(), where the scroll lock is released.
   discard() {
     this.element.remove()
   }

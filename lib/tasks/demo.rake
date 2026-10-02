@@ -1,20 +1,24 @@
-# 一份"看得见的"演示数据：五个应用覆盖 ManagedAppStatus 的全部状态，外加两类
-# 对账告警、两种来源的部署事件、三种结果的审计记录。
+# A "visible" demo data set: five apps covering every ManagedAppStatus state, plus two kinds of
+# reconciliation alerts, deploy events from two sources, and audit records with three kinds of
+# results.
 #
-# 为什么值得进仓库：面板刚装好时是一片空白，而它的全部价值恰恰在"有东西不对时
-# 长什么样"。克隆下来跑一条命令就能看到漂移、失联、容器异常、告警与审计，
-# 比截图更可信，也比读文档快。
+# Why it's worth keeping in the repo: a freshly installed panel is blank, and all of its value lies
+# in "what it looks like when something is wrong". Clone it, run one command, and you see drift,
+# unreachable hosts, container failures, alerts and audits; more convincing than screenshots, and
+# faster than reading docs.
 namespace :demo do
   desc "在开发环境灌入演示数据（五个应用，覆盖全部状态与告警）"
   task seed: :environment do
-    # 这些数据会凭空造出"生产应用"和"部署记录"，在真实环境里是污染。
+    # This data fabricates "production apps" and "deploy records" out of thin air, which is
+    # pollution in a real environment.
     unless Rails.env.development?
       abort "demo:seed 只在 development 下可用（当前是 #{Rails.env}）"
     end
 
     if ManagedApp.where("name LIKE ?", "demo-%").exists?
-      # 审计日志按设计不可删除（见计划 02），所以没法"清掉旧的再来一遍"——
-      # 重复播种只会让事件与审计翻倍。要重来就重建整个开发库。
+      # Audit logs are undeletable by design (see plan 02), so there is no "clear the old ones and
+      # start over": re-seeding would only double the events and audits. To start over, rebuild the
+      # whole development database.
       abort "已经有演示数据了。要重来请先 bin/rails db:reset 再执行本任务。"
     end
 

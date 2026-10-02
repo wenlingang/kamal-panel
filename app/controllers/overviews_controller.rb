@@ -1,9 +1,9 @@
 class OverviewsController < ApplicationController
   def show
-    # 那个问题（它们在应用列表页的"已停用"分组里）。
+    # that question (they are in the "Deactivated" group on the app list page).
     all_apps = ManagedApp.active.order(:name).to_a
 
-    # 标记的是【全部】应用，不是筛剩下的那几个。
+    # What gets marked is [all] apps, not just the ones left after filtering.
     all_apps.each { |app| PollCadence.mark_viewed!(app) }
 
     @any_managed_apps = all_apps.any?

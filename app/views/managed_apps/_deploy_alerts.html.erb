@@ -1,4 +1,4 @@
-<%# 两套数据源矛盾时把矛盾摆到台面上，而不是挑一个来信任（主设计 6.4）。 %>
+<%# When the two data sources contradict, put the contradiction on the table rather than picking one to trust (main design 6.4). %>
 <% alerts = DeployAlerts.new(managed_app).list %>
 <% if alerts.any? %>
   <div class="deploy-alerts" role="alert">

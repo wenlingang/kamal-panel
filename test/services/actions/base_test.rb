@@ -13,13 +13,13 @@ class Actions::BaseTest < ActiveSupport::TestCase
   end
 
   test "动作名恰好能拼出一个真实存在的 Ruby 常量时也必须被拒绝——不是靠字符串猜不中才安全" do
-    # 「exec」「rm -rf /」不巧都拼不出真实常量，光靠这两个例子测不出
-    # find 到底是走显式表（真正安全）还是按名字动态查找类（不安全，
-    # 等价于把动作名当代码执行）——两种实现在这两个输入上表现一样。
-    # "base" 会被 camelize 成 "Base"，而 Actions::Base 是一个真实存在
-    # 的常量：若 find 走的是 `"Actions::#{name.camelize}".constantize`
-    # 这类动态查找，这里就会错误地把它当成一个合法动作返回，而不是
-    # 抛 UnknownAction。
+    # "exec" and "rm -rf /" happen not to spell any real constant, so these two examples alone can't
+    # tell whether find goes through an explicit table (actually safe) or looks classes up
+    # dynamically by name (unsafe, equivalent to executing the action name as code) -- both
+    # implementations behave the same on these two inputs. "base" gets camelized to "Base", and
+    # Actions::Base is a real constant: if find used dynamic lookup like
+    # `"Actions::#{name.camelize}".constantize`, it would wrongly return this as a valid action here
+    # instead of raising UnknownAction.
     assert_raises(Actions::Base::UnknownAction) { Actions::Base.find("base") }
   end
 

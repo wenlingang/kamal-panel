@@ -63,8 +63,9 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     refute_predicate policy(@developer, @mine), :manage_members?
   end
 
-  # 两个最朴素的替身：run? 只关心动作类怎么回答 mutating?，不关心它别的任何事。
-  # 不去改 Actions::Base 的默认值——那会把一条授权规则的测试变成对动作注册表的改动。
+  # Two of the plainest stand-ins: run? only cares how the action class answers mutating?,
+  # not anything else about it. We don't change Actions::Base's defaults -- that would turn
+  # a test of an authorization rule into a change to the action registry.
   class ReadOnlyAction
     def self.mutating? = false
   end
@@ -73,18 +74,20 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     def self.mutating? = true
   end
 
-  # run? 是每个会改变线上状态的请求都要过的那个方法，两条分支都得钉住。
-  # 只读分支眼下还没有真实动作类走到（已注册的五个动作 mutating? 全是 true），
-  # Task 6 的 Actions::Logs 才会用上它——正因为如此，它现在更需要一条测试，
-  # 否则它就是一段没人验证过的死代码，等到有人依赖它时才发现写错了。
+  # run? is the method every request that changes live state goes through, so both branches must be
+  # pinned. The read-only branch has no real action class reaching it yet (all five registered
+  # actions have mutating? true); Task 6's Actions::Logs will be the first to use it -- which is
+  # exactly why it needs a test now, otherwise it is dead code nobody has verified, and a bug would
+  # only surface once someone depends on it.
   test "run?：只读动作跟着 view_logs? 走，而不是跟着可见性走" do
     assert policy(@ops, @theirs).run?(ReadOnlyAction),
       "ops 的价值就是查问题，只读动作必须对它全站开放"
     assert policy(@admin, @theirs).run?(ReadOnlyAction)
     assert policy(@developer, @mine).run?(ReadOnlyAction)
 
-    # 注意这里是 refute。看得见 ≠ 读得到日志：show? 对所有人为真（总览要一屏看全），
-    # 但日志里有应用自己打出来的东西，它按名下收窄——见上面的 view_logs? 用例。
+    # Note this is refute. Visible != can read logs: show? is true for everyone (the
+    # overview must be viewable at a glance), but logs contain things the app itself printed,
+    # so access is narrowed by ownership -- see the view_logs? case above.
     refute policy(@developer, @theirs).run?(ReadOnlyAction),
       "developer 对名下之外的应用能看见状态，但不能读它的日志"
   end
@@ -98,8 +101,9 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     assert policy(@admin, @theirs).run?(MutatingAction)
   end
 
-  # 停用的应用不接受任何动作。守卫放在 policy 顶部，一处改动同时挡住重启、
-  # 回滚、强制解锁、看日志、重生成 token 和编辑——它们都从这几个方法走。
+  # A deactivated app accepts no actions. The guard sits at the top of the policy, so one
+  # change blocks restart, rollback, force unlock, view logs, regenerate token and edit
+  # at once -- they all go through these methods.
   test "停用的应用：谁都动不了它" do
     @mine.deactivate!
 
@@ -115,7 +119,7 @@ class ManagedAppPolicyTest < ActiveSupport::TestCase
     refute_predicate policy(@admin, @mine), :view_logs?
   end
 
-  # 看不见就没法启用它。
+  # Can't enable it if you can't see it.
   test "停用的应用仍然看得见" do
     @mine.deactivate!
 

@@ -6,7 +6,8 @@ class UserTest < ActiveSupport::TestCase
     assert_equal("downcased@example.com", user.email_address)
   end
 
-  # 昵称是可选的显示名。六个显示点共用 display_name，回落规则只定义一次。
+  # nickname is an optional display name. The six display points share display_name, so the fallback
+  # rule is defined only once.
   test "display_name 有昵称时用昵称" do
     user = User.new(email_address: "wang@example.com", nickname: "老王")
     assert_equal "老王", user.display_name
@@ -17,8 +18,9 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "lisi@example.com", user.display_name
   end
 
-  # 「存了个空串」和「没填」在界面上长得一模一样，但前者会让 presence 判断
-  # 之外的任何写法（比如 nickname.nil?）行为不一致。统一归一成 nil。
+  # "Stored an empty string" and "left blank" look identical in the UI, but the former
+  # makes anything other than a presence check (e.g. nickname.nil?) behave inconsistently.
+  # Normalize both to nil.
   test "只有空白的昵称存成 nil，不是空串" do
     user = User.create!(email_address: "blank@example.com", password: "secret123456",
                         nickname: "   ")
@@ -44,7 +46,8 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate other, :valid?
   end
 
-  # locale 可空：没表达过偏好的人跟默认走，而不是在建号时被迫选一次语言。
+  # locale is nullable: someone who hasn't expressed a preference follows the default, rather than
+  # being forced to pick a language at account creation.
   test "没设过 locale 的用户 locale 是 nil" do
     user = User.create!(email_address: "nolocale@example.com", password: "secret123456")
     assert_nil user.locale
@@ -55,9 +58,10 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate user, :valid?
   end
 
-  # 校验按 available_locales 而不是 SELECTABLE_LOCALES：后者只管「切换器上
-  # 让不让选」，是个会随批次变的展示决定；数据库里能不能存是另一回事，
-  # 不该因为界面暂时不暴露英文，就让已经存着 en 的行变成非法。
+  # Validate against available_locales rather than SELECTABLE_LOCALES: the latter only governs
+  # "whether the switcher lets you pick it", a display decision that changes from batch to batch;
+  # whether the database can store it is a separate matter, and rows that already store en shouldn't
+  # become invalid just because the UI temporarily doesn't expose English.
   test "拒绝不可用的语言" do
     user = User.new(email_address: "l2@example.com", password: "secret123456", locale: "fr")
     refute_predicate user, :valid?
@@ -109,8 +113,8 @@ class UserTest < ActiveSupport::TestCase
     end
   end
 
-  # 迁移之后库里不该再有任何落在 ROLES 之外的角色。测试库由 fixtures 建立，
-  # 所以这条同时钉住了 fixtures 有没有跟着改。
+  # After the migration there should be no role left outside ROLES. The test DB is built
+  # from fixtures, so this also pins down whether the fixtures were updated accordingly.
   test "库里没有任何角色落在 ROLES 之外" do
     assert_empty User.where.not(role: User::ROLES).pluck(:email_address)
   end
@@ -143,8 +147,9 @@ class UserTest < ActiveSupport::TestCase
     refute_includes User.active, gone
   end
 
-  # 唯一性此前只有数据库索引兜着：人员页填个重复邮箱是 RecordNotUnique（500），
-  # 空邮箱则能存下一个永远登录不进来的账号，还顺手留一行审计。
+  # Uniqueness used to be backed only by the database index: a duplicate email on the
+  # people page is a RecordNotUnique (500), and an empty email could save an account that
+  # can never log in, leaving an audit row behind as a bonus.
   test "邮箱不能为空" do
     user = User.new(password: "secret123456", role: "ops")
     refute_predicate user, :valid?
@@ -159,7 +164,8 @@ class UserTest < ActiveSupport::TestCase
     assert_includes dup.errors.attribute_names, :email_address
   end
 
-  # normalizes 在校验之前跑，所以大小写与空白不同的"同一个邮箱"也要被拦下。
+  # normalizes runs before validation, so the "same email" differing in case or whitespace must be
+  # blocked too.
   test "大小写不同的同一个邮箱也算重复" do
     User.create!(email_address: "dup@example.com", password: "secret123456", role: "ops")
 

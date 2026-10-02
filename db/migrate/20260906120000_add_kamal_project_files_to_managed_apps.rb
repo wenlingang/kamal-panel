@@ -1,11 +1,12 @@
 class AddKamalProjectFilesToManagedApps < ActiveRecord::Migration[8.1]
-  # Kamal 把 `.kamal/secrets*` 与 `.kamal/hooks/*` 都按【当前工作目录】相对路径
-  # 解析（kamal-2.12.0 configuration.rb:268-273）。面板在临时目录里执行 kamal，
-  # 所以这两样东西必须由面板自己持有并写进那个临时目录，否则用户的 hook 永远
-  # 不会触发、`app boot`/`rollback` 在标准的数组式密码写法上必然失败。
+  # Kamal resolves both `.kamal/secrets*` and `.kamal/hooks/*` relative to the [current working
+  # directory] (kamal-2.12.0 configuration.rb:268-273). The panel runs kamal in a temp directory, so
+  # the panel itself must own these two things and write them into that temp directory; otherwise
+  # the user's hooks never fire, and `app boot`/`rollback` inevitably fail with the standard
+  # array-style password syntax.
   #
-  # 两列都加密：secrets 顾名思义；hooks 脚本按 spec 5.4 的样例本身就带
-  # per-application token，同样是凭据材料。
+  # Both columns are encrypted: secrets, obviously; the hook scripts, per the sample in spec 5.4,
+  # themselves carry a per-application token, which is likewise credential material.
   def change
     add_column :managed_apps, :kamal_secrets, :text
     add_column :managed_apps, :kamal_hooks, :text

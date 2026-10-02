@@ -1,7 +1,7 @@
 require "net/ssh"
 require "timeout"
 
-# 对被管应用的 SSH 访问。
+# SSH access to managed apps.
 module Collectors
   class SshSession
     Result = Struct.new(:host, :stdout, :error, keyword_init: true)
@@ -29,7 +29,8 @@ module Collectors
       @close_timeout = close_timeout
     end
 
-    # 不用 Net::SSH.start 的块形式：它的 ensure 不受 Timeout 保护，实测 sleep 30 要等满 30 秒。
+    # Do not use the block form of Net::SSH.start: its ensure is not protected by Timeout, and
+    # measured, sleep 30 waits the full 30 seconds.
     def capture(host, command)
       session = connect(host)
 
@@ -40,8 +41,8 @@ module Collectors
       end
     end
 
-    # 对多台主机执行命令。
-    # 不会中断其他主机（spec 6.4：失联要显式呈现，不能让整轮采集失败）。
+    # Run a command on multiple hosts. Does not interrupt the other hosts (spec 6.4: unreachability
+    # must be shown explicitly, and must not fail the whole collection round).
     def capture_many(hosts)
       hosts.each_with_object({}) do |host, results|
         results[host] =
@@ -71,12 +72,14 @@ module Collectors
         ssh_options[:user]
       end
 
-      # 不管连接+认证的总时长，这里用 Timeout 包一个总截止时间。
+      # Regardless of the total time for connect + auth, wrap it in a Timeout here as an overall
+      # deadline.
       def connect(host)
         Timeout.timeout(connect_timeout) { Net::SSH.start(host, ssh_user, **net_ssh_options) }
       end
 
-      # 走跳板机时 socket 是 IO.popen 包着子进程的 IO，它的 close 会 Process.wait，所以这里也要设限。
+      # When going through a jump host, the socket is the IO of a subprocess wrapped by IO.popen,
+      # and its close does Process.wait, so a limit is needed here too.
       def close_session(session)
         Timeout.timeout(close_timeout) { session.shutdown! }
       rescue StandardError
@@ -93,7 +96,7 @@ module Collectors
           verify_host_key: :never,
           timeout: connect_timeout,
           non_interactive: true,
-          # 显式关掉 net-ssh 对 ~/.ssh/config（以及 /etc/ssh_config）的读取。
+          # Explicitly turn off net-ssh reading ~/.ssh/config (and /etc/ssh_config).
           config: false
         }.compact
       end

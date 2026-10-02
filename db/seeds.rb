@@ -1,6 +1,7 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+# This file should ensure the existence of records required to run the application in every
+# environment (production, development, test). The code here should be idempotent so that it can be
+# executed at any point in every environment. The data can then be loaded with the bin/rails db:seed
+# command (or created alongside the database with db:setup).
 #
 # Example:
 #
@@ -8,7 +9,7 @@
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
 
-# 首个 admin 由环境变量注入，避免出现「默认密码」这种东西。
+# The first admin is injected via env vars, so there is no such thing as a "default password".
 if (email = ENV["KAMAL_PANEL_ADMIN_EMAIL"]).present?
   password = ENV.fetch("KAMAL_PANEL_ADMIN_PASSWORD")
   User.find_or_create_by!(email_address: email) do |user|

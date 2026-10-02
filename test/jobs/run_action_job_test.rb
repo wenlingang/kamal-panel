@@ -104,10 +104,11 @@ class RunActionJobTest < ExecutionLayerTest
     assert_raises(Actions::Base::UnknownAction) { RunActionJob.new.perform(log.id) }
   end
 
-  # 这一条存在的原因很具体：broadcast_result 里那个 rescue StandardError 是为了
-  # 「投递失败不连累执行本身」，但它顺带会吞掉【文案本身出错】——比如少写一条
-  # 译文。那种 bug 的表现是页面永远停在"执行中……"，离原因非常远，而且只有跑
-  # 系统测试才看得见。这里用最便宜的方式把那一类挡在前面。
+  # The reason this exists is very specific: the rescue StandardError in broadcast_result
+  # is there so that "delivery failure doesn't take down the execution itself", but it also
+  # swallows [errors in the copy itself] -- e.g. a missing translation. The symptom of
+  # that bug is the page stuck on "Running…" forever, very far from the cause, and only
+  # visible when running system tests. This blocks that class of bug up front the cheapest way.
   test "终态广播用到的译文中英文都存在" do
     %w[actions.result.succeeded actions.result.failed].each do |key|
       %i[zh-CN en].each do |locale|

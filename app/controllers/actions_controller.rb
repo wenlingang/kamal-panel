@@ -23,7 +23,7 @@ class ActionsController < ApplicationController
 
   def show
     @managed_app = ManagedApp.find(params[:managed_app_id])
-    # 会把别的应用的执行输出挂在这个应用的面包屑下渲染出来。
+    # would render another app's execution output under this app's breadcrumb.
     @audit_log = AuditLog.where(managed_app: @managed_app).find(params[:id])
 
     action_class = Actions::Base.find(@audit_log.action_name)

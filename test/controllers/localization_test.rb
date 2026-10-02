@@ -1,13 +1,14 @@
 require "test_helper"
 
-# locale 的三级来源：用户偏好 → Accept-Language → 默认。
+# The three-tier source of locale: user preference -> Accept-Language -> default.
 class LocalizationTest < ActionDispatch::IntegrationTest
   setup do
     @admin = users(:two)
-    # 页面上没有任何地方直接印出当前 locale，所以集成测试断言的是一条【确实
-    # 会随 locale 变】的既有文案：审计动作名（设计 12 建的 audit.actions.*）。
-    # 断言用户真正看到的东西，而不是内省 I18n.locale——后者在请求结束时已经
-    # 被 around_action 还原，请求之后再去读它，读到的永远是默认值。
+    # Nothing on the page prints the current locale directly, so the integration test asserts an
+    # existing string that [really varies with locale]: audit action names (audit.actions.* built in
+    # design 12). Assert what the user actually sees, rather than introspecting I18n.locale -- the
+    # latter has already been restored by around_action at the end of the request, so reading it
+    # after the request always gives the default.
     AuditLog.record_access!(user: @admin, action_name: "user.deactivate",
                             target_user: users(:one))
   end
@@ -21,8 +22,9 @@ class LocalizationTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "Deactivate member"
   end
 
-  # 偏好为空时落到第二级。这一条同时证明了请求头确实被读到了——它是
-  # match_accept_language 那组单测之外，唯一能证明"接线接对了"的测试。
+  # When preference is empty it falls to the second tier. This also proves the request header is
+  # really read -- apart from the match_accept_language unit tests, it's the only test proving "the
+  # wiring is right".
   test "没设偏好的登录用户跟 Accept-Language 走" do
     @admin.update!(locale: nil)
     sign_in_as @admin
@@ -50,8 +52,9 @@ class LocalizationTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "停用成员"
   end
 
-  # I18n.locale 是线程级全局状态。请求结束不还原的话，同一个线程服务下一个
-  # 请求时会带着上一个用户的语言——这种串味在生产里极难复现，必须有测试盯着。
+  # I18n.locale is thread-level global state. If it isn't restored at the end of a request, the same
+  # thread serving the next request carries over the previous user's language -- such
+  # cross-contamination is extremely hard to reproduce in production, so a test must watch it.
   test "请求结束后 I18n.locale 已还原" do
     @admin.update!(locale: "en")
     sign_in_as @admin
@@ -62,7 +65,8 @@ class LocalizationTest < ActionDispatch::IntegrationTest
   end
 end
 
-# 纯函数，单独测。不需要请求、不需要登录，所以可以把各种畸形头部穷举干净。
+# A pure function, tested on its own. Needs no request and no login, so all kinds of malformed
+# headers can be exhausted.
 class LocalizationAcceptLanguageTest < ActiveSupport::TestCase
   def match(header) = Localization.match_accept_language(header)
 

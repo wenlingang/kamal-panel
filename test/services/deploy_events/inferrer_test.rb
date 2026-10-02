@@ -7,7 +7,8 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
                                       destination: "production")
   end
 
-  # two_host_deploy.yml 的两台机器；一次"全体收敛"必须两台都有可达且 running 的观测
+  # The two machines of two_host_deploy.yml; one "full convergence" requires both to have reachable,
+  # running observations
   HOSTS = %w[10.0.0.1 10.0.0.2].freeze
 
   def observe(host:, version:, status: "running", reachable: true, at: Time.current, role: "web")
@@ -55,7 +56,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
-    # 滚动部署中途：一台已经是新版，另一台还没换
+    # Mid rolling deploy: one machine is already on the new version, the other hasn't switched yet
     observe(host: "10.0.0.1", version: "bbbbbbb")
     observe(host: "10.0.0.2", version: "aaaaaaa")
     DeployEvents::Inferrer.call(@managed_app)
@@ -98,14 +99,14 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
   end
 
   test "回滚到很久以前的版本仍然记一条" do
-    # 那一版在三个月前部署过，库里躺着一条老的 hook 事件
+    # That version was deployed three months ago, and an old hook event is sitting in the DB
     old_event = DeployEvent.create!(managed_app: @managed_app, version: "aaaaaaa",
                                     source: "hook", succeeded_at: 3.months.ago,
                                     observed_at: 3.months.ago, created_at: 3.months.ago)
     converge(version: "bbbbbbb", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
-    # 现在回滚回 aaaaaaa
+    # Now rolling back to aaaaaaa
     converge(version: "aaaaaaa", at: 1.minute.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
@@ -119,8 +120,8 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     converge(version: "aaaaaaa", at: 10.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
-    # 10.0.0.9 早就从 deploy.yml 移除了，但它的观测行被故意保留了下来，
-    # 且跑着一个跟当前收敛版本不一致的旧版本。
+    # 10.0.0.9 was removed from deploy.yml long ago, but its observation row was deliberately kept,
+    # and it runs an old version that doesn't match the current converged version.
     observe(host: "10.0.0.9", version: "zzzzzzz", at: 10.minutes.ago)
     converge(version: "bbbbbbb", at: 1.minute.ago)
     DeployEvents::Inferrer.call(@managed_app)
@@ -149,7 +150,7 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     converge(version: "aaaaaaa", at: 30.minutes.ago)
     DeployEvents::Inferrer.call(@managed_app)
 
-    # hook 报了这一版，随后面板才观测到收敛
+    # The hook reported this version, and then the panel observed convergence
     DeployEvent.create!(managed_app: @managed_app, version: "bbbbbbb", source: "hook",
                         succeeded_at: 2.minutes.ago)
     converge(version: "bbbbbbb", at: 1.minute.ago)

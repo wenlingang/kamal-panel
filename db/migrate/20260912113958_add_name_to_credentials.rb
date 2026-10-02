@@ -1,6 +1,6 @@
 class AddNameToCredentials < ActiveRecord::Migration[8.1]
-  # 回填用原始 SQL 而不是模型：模型在同一个提交里刚加上 name 的必填校验，
-  # 用它来写这批还没有名字的行会跟校验打架。
+  # Backfill with raw SQL rather than the model: the model just gained a required validation on name
+  # in the same commit, and using it to write these still-unnamed rows would fight the validation.
   def up
     add_column :credentials, :name, :string
 
@@ -14,8 +14,8 @@ class AddNameToCredentials < ActiveRecord::Migration[8.1]
        ORDER BY c.id
     SQL
       base = row["app_name"].presence ? "#{row["app_name"]} 的 SSH 私钥" : "未命名凭据 #{row["id"]}"
-      # ManagedApp#name 没有唯一约束，两个应用同名是可能的——而下一步就要给
-      # name 加唯一索引。冲突时补 id 后缀。
+      # ManagedApp#name has no unique constraint, so two apps sharing a name is possible, and the
+      # next step is to add a unique index on name. On conflict, append the id as a suffix.
       name = taken.include?(base) ? "#{base}（##{row["id"]}）" : base
       taken << name
 

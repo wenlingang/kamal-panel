@@ -1,5 +1,6 @@
 module DeployEvents
-  # 把"面板真的看见这一版在跑了"这件事回填到 DeployEvent 上（spec 03 第 5 节）。
+  # Backfill onto DeployEvent the fact that "the panel actually saw this version running" (spec 03
+  # §5).
   class Reconciler
     RUNNING_STATUSES = %w[running restarting].freeze
 
@@ -22,7 +23,7 @@ module DeployEvents
     private
       attr_reader :managed_app
 
-      # version => 该版本最早的那条 running 观测时间
+      # version => the time of the earliest running observation of that version
       def running_versions
         Observation.latest_for(managed_app)
                    .select { |o| RUNNING_STATUSES.include?(o.docker_status) && o.version.present? }

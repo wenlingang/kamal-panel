@@ -1,4 +1,4 @@
-# kamal-proxy 路由表的快照。与 Observation 一样只追加。
+# A snapshot of the kamal-proxy routing table. Append-only, like Observation.
 class ProxyTarget < ApplicationRecord
   include LatestPerHost
 

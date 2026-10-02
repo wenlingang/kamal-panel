@@ -97,17 +97,18 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
     assert_nil observation.version
   end
 
-  # review 发现的真实场景：docker ps 的 `.Labels` 字段会把一个容器全部
-  # label 压平成一条逗号拼接的 "k=v,k=v,..." 字符串。旧实现天真地按 ","
-  # 再按 "=" 切分这条字符串——哪怕 role/destination 自己没有逗号，只要
-  # 容器上还挂着*别的*、值里带逗号的 label（accessory、compose、健康
-  # 检查分组……这些都可能长这样），旧实现切分时就会把那条 label 拆成
-  # 一段没有 "=" 的碎片，整个 parse_labels 直接抛异常，被 rescue 吞掉、
-  # 退化成空 hash——role 变成 nil，version 的前缀算漏了 role/destination，
-  # 静默算出一个错误的版本号。这比崩溃更糟：面板会在事故现场显示错误
-  # 的 role/version，而不是报错。新实现改用 docker 自己的 `.Label` 函数
-  # 按字段单独 JSON 编码取值，不再依赖对这条压平字符串做切分，天然不
-  # 受这类"某个不相关的 label 里带逗号"的影响。
+  # A real scenario found in review: docker ps's `.Labels` field flattens all of a container's
+  # labels into one comma-joined "k=v,k=v,..." string. The old implementation naively split this
+  # string on "," and then on "=" -- even if role/destination themselves have no commas, as long as
+  # the container also carries *other* labels whose values contain commas (accessory, compose,
+  # health check groups... these can all look like this), the old implementation would split that
+  # label into a fragment with no "=", the whole parse_labels would raise, get swallowed by rescue,
+  # and degrade to an empty hash -- role becomes nil, the version prefix is computed without
+  # role/destination, silently producing a wrong version. That is worse than crashing: the panel
+  # would show the wrong role/version at the scene of an incident instead of reporting an error. The
+  # new implementation uses docker's own `.Label` function to JSON-encode each field's value
+  # separately, no longer relying on splitting this flattened string, so it is naturally immune to
+  # "some unrelated label contains a comma".
   test "容器身上其它 label 的值里带逗号，也不会污染 role/version 的解析" do
     name = "blog-web-production-aaaaaaa"
 
@@ -147,8 +148,9 @@ class Collectors::ContainerCollectorTest < ExecutionLayerTest
 
     count = Collectors::ContainerCollector.call(app)
 
-    # 全部行解析失败必须留下一行痕迹，而不是零行——零行会让上一轮的旧观测
-    # 继续以"最新"的身份被渲染成当前状态（见 final review I1）。
+    # If every row fails to parse, it must leave a row of trace rather than zero rows -- zero rows
+    # would let the previous round's stale observations keep being rendered as the current state
+    # under the identity of "latest" (see final review I1).
     assert_equal 1, count
 
     observation = Observation.latest_for(app).first

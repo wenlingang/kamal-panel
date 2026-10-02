@@ -3,7 +3,7 @@
 <div class="page-head">
   <div class="page-title">
     <h1><%= @user.display_name %></h1>
-    <%# 标题显示昵称时，邮箱才是这一页在改的那个账号的唯一标识，不能没有。 %>
+    <%# When the title shows a nickname, the email is the only identifier of the account this page is editing, and cannot be missing. %>
     <% if @user.nickname.present? %>
       <p class="page-sub mono"><%= @user.email_address %></p>
     <% end %>
@@ -35,8 +35,8 @@
             <%= app.name %>
           </label>
         <% end %>
-        <%# 全不勾时浏览器不会提交任何 managed_app_ids，控制器就看不出「清空」
-            与「没动过」的区别。这个隐藏字段保证参数一定存在。 %>
+        <%# When nothing is ticked the browser submits no managed_app_ids at all, and the controller cannot tell "cleared"
+            from "untouched". This hidden field guarantees the param is always present. %>
         <%= hidden_field_tag "managed_app_ids[]", "" %>
       </fieldset>
 

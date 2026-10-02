@@ -59,16 +59,17 @@ class PollManagedAppJobTest < ExecutionLayerTest
     refute Observation.latest_for(app).first.reachable
   end
 
-  # 广播是这个任务的另一半：总览页能不能不用手动刷新就更新，完全取决于
-  # 这里有没有真的往 "overview" 这个 stream 发消息、target 是不是页面
-  # 订阅并等着被替换的那个 #overview-grid。只验证"采集写库了"不够——
-  # stream 名字或 target id 打错，页面会悄悄停止更新，而所有测试仍然
-  # 全绿。这里钉住服务器这一半：广播确实发生、发到了正确的 stream、
-  # 替换了正确的 DOM 节点。
+  # Broadcasting is the other half of this job: whether the overview page updates without
+  # a manual refresh depends entirely on whether a message really goes to the "overview"
+  # stream, and whether the target is the #overview-grid the page subscribes to and waits
+  # to have replaced. Verifying only "the collection wrote to the DB" is not enough --
+  # if the stream name or target id is mistyped, the page quietly stops updating while
+  # every test stays green. This pins down the server half: the broadcast really happens,
+  # goes to the right stream, and replaces the right DOM node.
   test "deploy.yml 解析不了时，把原因记在 ManagedApp 上，而不只是留一行日志" do
     app = build_app
-    # 把 config_yaml 改坏成不再能解析的样子——同时确保 destination 校验
-    # 不会先一步拦下来（config_yaml_must_parse 在 destination 已经报错时会跳过）。
+    # Break config_yaml so it no longer parses -- while making sure the destination validation
+    # doesn't block first (config_yaml_must_parse is skipped when destination already has an error).
     app.update_column(:config_yaml, "not: valid: kamal: yaml: [")
     app.reload
 
@@ -86,11 +87,11 @@ class PollManagedAppJobTest < ExecutionLayerTest
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production")
     app.update_column(:config_yaml, "不是配置")
-    # update_column 绕过了 config_yaml= 里让 @parsed_config 失效那一步（见
-    # ManagedApp#config_yaml=），create! 校验阶段已经把旧的合法配置解析结果
-    # 缓存在这个内存对象上了。reload 之后才会跟生产环境一致——生产环境里
-    # PollManagedAppJob 走 perform_later，每一轮轮询反序列化出的都是全新
-    # 查出来的 ManagedApp，不会带着上一次的缓存。
+    # update_column bypasses the step in config_yaml= that invalidates @parsed_config (see
+    # ManagedApp#config_yaml=); the create! validation phase has already cached the old
+    # valid parse result on this in-memory object. Only after reload does it match
+    # production: there PollManagedAppJob goes through perform_later, and each polling
+    # round deserializes a freshly loaded ManagedApp that carries no cache from last time.
     app.reload
 
     travel_to Time.utc(2026, 9, 6, 10, 0, 0) do
@@ -117,10 +118,11 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_nil app.last_poll_error_at
   end
 
-  # 广播的是 refresh 而不是渲染好的网格：总览页支持按名称/状态筛选，服务端
-  # 不知道哪个浏览器正在筛什么，替它渲染一份全量网格换上去，等于把正在筛选
-  # 的人的结果悄悄换回全部。refresh 让每个浏览器带着自己当前的 URL（也就是
-  # 各自的筛选条件）回来重新请求，页面用 morph 合并。
+  # What gets broadcast is a refresh rather than a rendered grid: the overview page
+  # supports filtering by name/status, and the server doesn't know which browser is
+  # filtering by what; rendering a full grid and swapping it in would quietly replace a
+  # filtering user's results with everything. A refresh makes each browser come back with
+  # its own current URL (i.e. its own filters) and re-request, and the page merges with morph.
   test "轮询完成后向 overview 频道广播一次 refresh，而不是渲染好的网格" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -153,17 +155,19 @@ class PollManagedAppJobTest < ExecutionLayerTest
       "广播的内容应该是重绘后的机器状态，能看到刚采集到的版本"
   end
 
-  # 广播失败——只限"投递"这一步（Solid Cable 抖动、序列化问题……）——
-  # 不该连累已经成功持久化的采集结果。这跟两个采集器各自独立执行是
-  # 同一个道理（Task 9）：一次跟"采集是否成功"无关的旁路失败，不该让
-  # Solid Queue 把这一轮判定为失败任务去重试一遍其实已经成功的采集。
+  # Broadcast failure -- only the "delivery" step (Solid Cable hiccups, serialization
+  # problems...) -- shouldn't take down a collection result that was already persisted.
+  # It's the same reasoning as the two collectors running independently of each other
+  # (Task 9): a side-channel failure unrelated to "did the collection succeed" shouldn't
+  # make Solid Queue mark this run as a failed job and retry a collection that actually
+  # already succeeded.
   #
-  # 特意 stub 的是 Turbo::StreamsChannel.broadcast_stream_to——真正
-  # 把消息送给 ActionCable 的那一步——而不是更上层的方法，因为下面
-  # 那个"渲染阶段异常必须让任务失败"的测试要证明的正是：渲染
-  # （ManagedAppStatus、partial）和投递现在是分开的两段，只有投递
-  # 这一段被兜底。如果这里 stub 的方法把两段都覆盖了，两个测试就分辨
-  # 不出兜底到底护住了哪一半。
+  # What we deliberately stub is Turbo::StreamsChannel.broadcast_stream_to -- the step that
+  # really hands the message to ActionCable -- rather than a higher-level method, because
+  # the test below, "an exception in the render phase must fail the job", is there to prove
+  # exactly this: rendering (ManagedAppStatus, partial) and delivery are now two separate
+  # stages, and only delivery is covered by the safety net. If the method stubbed here
+  # covered both stages, the two tests couldn't tell which half the safety net protects.
   test "广播投递失败不影响采集结果落库，任务本身不因此失败" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -177,11 +181,12 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_equal "aaaaaaa", Observation.latest_for(app).first.version
   end
 
-  # 反面：渲染阶段的异常（ManagedAppStatus 算错了、partial 里有
-  # bug……）必须照常抛出、让任务失败被重试——不能被"广播失败是自我修复
-  # 的退化"这条兜底顺手吞掉，否则一个真正的代码 bug 会退化成"总览页
-  # 悄悄不再更新，只有一行日志"，而所有测试仍然全绿，这正是这次
-  # review 要堵住的回归。
+  # The flip side: an exception in the render phase (ManagedAppStatus computed wrongly, a
+  # bug in the partial...) must be raised as usual and fail the job so it gets retried --
+  # it must not be swallowed in passing by the "broadcast failure is a self-healing
+  # degradation" safety net, otherwise a real code bug would degrade into "the overview
+  # page quietly stops updating, with only a log line" while all tests stay green, which
+  # is exactly the regression this review wants to block.
   test "渲染阶段异常必须让任务失败，不会被广播的兜底吞掉" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
@@ -193,7 +198,8 @@ class PollManagedAppJobTest < ExecutionLayerTest
     end
 
     assert_equal "partial 渲染炸了", error.message
-    # 渲染炸了不该拖累采集结果——它们在广播之前已经落库了。
+    # A render blowing up shouldn't take down the collection results -- they were already saved
+    # before the broadcast.
     assert_equal "aaaaaaa", Observation.latest_for(app).first.version
   end
 
@@ -240,8 +246,9 @@ class PollManagedAppJobTest < ExecutionLayerTest
       receiver.define_singleton_method(method_name, original)
     end
 
-  # 停用时可能已经有一轮采集在队列里。它不该把应用复活着采一遍——那会在
-  # 停用之后再攒一条失败观测（凭据已经被释放了）。
+  # A collection round may already be queued when the app is disabled. It shouldn't revive
+  # the app and collect it again -- that would pile up one more failed observation after
+  # disabling (the credentials have already been released).
   test "已经入队的采集遇到已停用的应用时直接放弃" do
     app = build_app
     app.deactivate!

@@ -8,7 +8,8 @@ module WriteOnlySecret
     validates :name, presence: true, uniqueness: true
   end
 
-  # encryption 自动过滤，但序列化路径不受它管辖，需要在这里显式兜底。
+  # encryption filters this automatically, but the serialization path is not under its jurisdiction,
+  # so an explicit safeguard is needed here.
   def serializable_hash(options = nil)
     super(options).except("value")
   end

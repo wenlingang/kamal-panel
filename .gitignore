@@ -23,5 +23,5 @@ tmp/
 # Internal design docs — not published.
 /docs/superpowers/
 
-# Playwright MCP 的截图与控制台日志
+# Screenshots and console logs from Playwright MCP
 /.playwright-mcp/

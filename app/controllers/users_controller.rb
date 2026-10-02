@@ -19,7 +19,7 @@ class UsersController < ApplicationController
     if manual_password?
       @user.assign_attributes(password_params)
     else
-      # 它，账号在对方点开邮件里的链接之前登不进来。
+      # it; the account cannot log in until the person clicks the link in the email.
       @user.password = SecureRandom.hex(32)
     end
 
@@ -54,7 +54,8 @@ class UsersController < ApplicationController
     role_changed = new_role.present? && new_role != @user.role
     updated = false
 
-    # 抛异常会留下"角色已改、成员只改了一半"的现场，而审计看上去像是都做了。
+    # Raising an exception would leave a scene of "role changed, memberships only half changed",
+    # while the audit would look as if both were done.
     @user.transaction do
       if (updated = @user.update(update_params))
         if role_changed
@@ -92,12 +93,14 @@ class UsersController < ApplicationController
   private
     def set_user = @user = User.find(params[:id])
 
-    # 退回表单时回填给视图，收敛成两个确定值比到处判断 params 安全。
+    # Filled back into the view when the form is re-rendered; narrowing it to two definite values is
+    # safer than checking params everywhere.
     def set_password_setup = @password_setup = params[:password_setup] == "manual" ? "manual" : "mail"
 
     def manual_password? = @password_setup == "manual"
 
-    # 存 key 不存中文：审计行只增不删，写进中文就等于把语言永久焊死在数据里。
+    # Store the key, not Chinese text: audit rows are append-only, and writing Chinese in would weld
+    # the language permanently into the data.
     def password_setup_detail_key
       manual_password? ? "user.password_by_admin" : "user.password_by_mail"
     end
@@ -106,16 +109,18 @@ class UsersController < ApplicationController
 
     def password_params = params.expect(user: [ :password, :password_confirmation ])
 
-    # update 不收 :email_address。
+    # update does not accept :email_address.
     def update_params = params.expect(user: [ :role, :nickname ])
 
-    # 成员关系的写入口只有这一处（设计 11 第 5.2 节）：应用详情页只读展示。
-    # 两处都能编辑意味着两套表单、两条写路径，以及它们迟早不一致。
+    # Membership has only this one write entry point (design 11 §5.2): the app detail page is
+    # read-only display. Editing in both places would mean two forms, two write paths, and the two
+    # being inconsistent sooner or later.
     def sync_memberships
-      # 这张表只放 developer 的行（设计 11 第 2.2 节：admin 与 ops 永远不进这张表）。
+      # This table holds only developer rows (design 11 §2.2: admin and ops never go in this table).
       wanted =
         if @user.developer?
-          # 而不存在 id 为 0 的应用——不滤掉就会在 create! 上抛外键错误。
+          # while no app with id 0 exists — without filtering it out, create! would raise a
+          # foreign-key error.
           Array(params[:managed_app_ids]).map(&:to_i).reject(&:zero?)
         else
           []
@@ -135,7 +140,8 @@ class UsersController < ApplicationController
       end
     end
 
-    # 去服务器上开 rails console。这是单向的死局，必须在发生之前拦住。
+    # and go onto the server to open a rails console. That is a one-way dead end and must be stopped
+    # before it happens.
     def last_admin?(user)
       user.admin? && User.active.where(role: "admin").where.not(id: user.id).none?
     end

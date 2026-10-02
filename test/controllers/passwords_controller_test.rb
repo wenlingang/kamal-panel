@@ -62,8 +62,10 @@ class PasswordsControllerTest < ActionDispatch::IntegrationTest
     assert_notice "重复密码与密码不匹配"
   end
 
-  # 密码太短和两次不一致是两种错误，提示语必须分得开——此前这里把所有
-  # 失败都说成「两次输入的密码不一致」，改密码的人会照着错误的提示反复重试。
+  # A too-short password and a mismatch between the two entries are two kinds of error, and the
+  # messages must be distinguishable -- previously every failure here was reported as "the two
+  # passwords don't match", and the person changing the password would retry again and again
+  # following the wrong message.
   test "update with too short password" do
     token = @user.password_reset_token
     assert_no_changes -> { @user.reload.password_digest } do

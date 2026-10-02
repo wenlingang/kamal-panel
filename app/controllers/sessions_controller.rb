@@ -8,7 +8,8 @@ class SessionsController < ApplicationController
   def create
     user = User.authenticate_by(params.permit(:email_address, :password))
 
-    # 停用的账号与密码错误给同一句话：区别对待等于向未认证的人确认这个邮箱存在。
+    # A deactivated account and a wrong password get the same message: treating them differently
+    # would confirm to an unauthenticated person that this email exists.
     if user && !user.deactivated?
       start_new_session_for user
       redirect_to after_authentication_url

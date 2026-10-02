@@ -29,8 +29,9 @@ class CredentialsController < ApplicationController
   def edit
   end
 
-  # 只换 value：名字不动，因为名字是别人引用这条凭据的方式。换了之后【立刻】
-  # 对所有引用它的应用生效——这是一次多应用操作，视图要把受影响的应用列出来。
+  # Only change value: the name stays put, because the name is how others reference this credential.
+  # After the change it takes effect [immediately] for every app that references it — this is a
+  # multi-app operation, so the view must list the affected apps.
   def update
     if @credential.update(rotate_params)
       AuditLog.record_access!(user: Current.user, action_name: "credential.rotate",
@@ -57,6 +58,6 @@ class CredentialsController < ApplicationController
 
     def create_params = params.expect(credential: [ :name, :value ])
 
-    # 轮换只收 value：名字不在这里改。
+    # Rotation only accepts value: the name is not changed here.
     def rotate_params = params.expect(credential: [ :value ])
 end

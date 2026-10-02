@@ -8,9 +8,9 @@
       <strong><%= t("managed_apps.show.lock_held") %></strong><br><small><%= lock[:details] %></small>
     </p>
 
-    <%# spec 7.4：不提供强制解锁，用户遇到 CI 崩溃留下的死锁就只能去 SSH。
-        代价是它能打断一次正在进行的真实部署，所以入口只在确实有锁时出现，
-        默认折叠，且要有该应用的动作权限 + 手输应用名。 %>
+    <%# spec 7.4: no force-unlock is provided, so a user hitting a dead lock left by a CI crash could only go SSH in.
+        The cost is that it can interrupt a real deploy in progress, so the entry appears only when a lock really exists,
+        is collapsed by default, and requires act permission on that app + typing the app name by hand. %>
     <%= allowed_to(:act, managed_app) do %>
       <details class="force-unlock">
         <summary><%= t("managed_apps.show.force_unlock") %></summary>
@@ -31,23 +31,23 @@
         <h2><%= t("managed_apps.show.actions") %></h2>
         <div class="panel">
         <p class="actions-hint"><%= t("managed_apps.show.actions_hint") %></p>
-        <%# 影响面在点下去之前就摆在眼前（spec 7.7）：这三个动作不要求手输
-            应用名，那么至少要让人看清它会动到哪些机器上的哪些角色。 %>
+        <%# The blast radius is put in front of people before they click (spec 7.7): these three actions do not require typing
+            the app name, so at least people must see clearly which roles on which machines it will touch. %>
         <p class="affected-scope">
           <%= t("managed_apps.show.affected_scope", hosts: joined_list(managed_app.cached_app_hosts),
                                    roles: joined_list(managed_app.role_names)) %>
         </p>
-        <%# 这三个此前是 type="button" 的死按钮：没有表单、没有处理器，
-            点下去什么都不会发生（Task 12 的验收才把它暴露出来）。
-            接上时三者的约束并不相同，所以不是一排一样的按钮。 %>
+        <%# These three used to be dead type="button" buttons: no form, no handler,
+            clicking did nothing at all (only Task 12's acceptance exposed it).
+            The constraints are not the same once wired up, so they are not a row of identical buttons. %>
         <% rollback_candidates = RollbackCandidates.new(managed_app) %>
         <div class="action-buttons">
           <% if (running = rollback_candidates.running_version) %>
             <%= button_to t("managed_apps.show.restart"), managed_app_actions_path(managed_app),
                           method: :post, params: { name: "restart", version: running } %>
           <% else %>
-            <%# `app boot` 必须带 --version，观测里说不清跑的是哪一版时，
-                与其让它在执行页上报一个 ArgumentError，不如在这里说清楚。 %>
+            <%# `app boot` must carry --version; when the observation cannot tell which version is running,
+                rather than let it raise an ArgumentError on the action page, say it clearly here. %>
             <p class="action-unavailable"><%= t("managed_apps.show.restart_unavailable") %></p>
           <% end %>
 
@@ -55,7 +55,7 @@
                         method: :post, params: { name: "start" } %>
         </div>
 
-        <%# 停止会让服务真的下线，因此和回滚一样要手输应用名。 %>
+        <%# Stopping really takes the service offline, so like rollback it requires typing the app name by hand. %>
         <details class="stop-app">
           <summary><%= t("managed_apps.show.stop") %></summary>
           <p><%= t("managed_apps.show.stop_warning") %></p>
@@ -68,9 +68,9 @@
         </details>
 
         <h3><%= t("managed_apps.show.rollback") %></h3>
-        <%# 只列真正可回滚的版本（spec 7.1）：kamal rollback 要求该版本的容器
-            在每台 host 上都还在，缺一台就直接拒绝。面板手里已有全量
-            docker ps --all，所以能提前把不可回滚的置灰并注明缺在哪台。 %>
+        <%# List only versions that can really be rolled back (spec 7.1): kamal rollback requires that version's container
+            to still exist on every host, and rejects outright if even one is missing. The panel already holds the full
+            docker ps --all, so it can gray out the non-rollbackable ones ahead of time and note which host is missing. %>
         <% candidates = rollback_candidates.list %>
         <% if candidates.empty? %>
           <p><%= t("managed_apps.show.rollback_none") %></p>

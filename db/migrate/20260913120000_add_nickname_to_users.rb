@@ -1,6 +1,7 @@
 class AddNicknameToUsers < ActiveRecord::Migration[8.1]
-  # 可空，也不加唯一索引：昵称是显示名，不是身份。身份始终是 email_address
-  # ——审计要追责时靠的是它，两个人叫同一个名字不该被数据库拦下。
+  # Nullable and no unique index: a nickname is a display name, not an identity. Identity is always
+  # email_address; that's what accountability in audits relies on, and two people sharing a name
+  # shouldn't be blocked by the database.
   def change
     add_column :users, :nickname, :string
   end

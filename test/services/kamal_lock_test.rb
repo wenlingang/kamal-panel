@@ -48,14 +48,15 @@ class KamalLockTest < ExecutionLayerTest
   end
 
   test "锁消息里恰好含有哨兵字符串时仍报告已锁定（Critical 1，task-5 review）" do
-    # 锁的 details 是持有锁的人写的自由文本（write_lock_details 里的
-    # message 参数，来自 `kamal lock acquire -m`），面板对它的内容没有
-    # 任何控制。旧实现用 `stdout.include?("LOCK_ABSENT")` 判断"是否已
-    # 解锁"，而这个子串恰恰可能出现在这段自由文本里——一条锁消息只要
-    # 提到 "LOCK_ABSENT" 这几个字符（哪怕只是在讨论这个哨兵值本身），
-    # 旧实现就会把"有锁"误判成"未锁定"。这条测试用一段真实包含该
-    # 子串、但仍然是"有锁"状态的 details，锁定新实现（只看第一行的
-    # 判定标记，不看 payload 内容）不会重蹈覆辙。
+    # A lock's details are free text written by whoever holds the lock (the message argument in
+    # write_lock_details, coming from `kamal lock acquire -m`), and the panel has no control over
+    # its content. The old implementation used `stdout.include?("LOCK_ABSENT")` to decide "is it
+    # unlocked", yet that substring may well appear in this free text -- as soon as a lock message
+    # mentions the characters "LOCK_ABSENT" (even just when discussing the sentinel itself), the old
+    # implementation would misjudge "locked" as "unlocked". This test uses details that really
+    # contain that substring but are still in the "locked" state, locking in that the new
+    # implementation (which looks only at the first line's verdict marker, not the payload content)
+    # won't repeat the mistake.
     app = build_app
     lock_dir = ".kamal/lock-blog-production"
     message = "Locked by: ci@example.com — investigating why LOCK_ABSENT never showed up in the logs"

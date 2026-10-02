@@ -1,11 +1,12 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  # sessions#create 有 rate_limit（10 次 / 3 分钟，按 IP 计），计数存在
-  # Rails.cache 里，而集成测试之间不会自己清。这个文件里既有"登录失败"又有
-  # "被限流"的用例，不清的话后者会把前者顶过阈值，失败原因看起来像"登录逻辑
-  # 坏了"，其实只是上一条用例攒下的计数。application_system_test_case.rb
-  # 早就因为同样的原因每个用例前清一次。
+  # sessions#create has a rate_limit (10 per 3 minutes, per IP), and the counter is stored in
+  # Rails.cache, which integration tests don't clear between themselves. This file has both "login
+  # failed" and "rate limited" cases; without clearing, the latter would push the former over the
+  # threshold, and the failure would look like "the login logic is broken" when it's really just the
+  # count accumulated by the previous case. application_system_test_case.rb has long cleared it
+  # before every case for the same reason.
   setup do
     Rails.cache.clear
     @user = User.take
@@ -75,9 +76,11 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   end
 
-  # 认证页是居中卡片版式，自己在卡片里渲染 flash。而 layout 又对【所有】页面
-  # 渲染一遍——于是登录失败时同一句话出现两次：一次贴在页面最顶上、左对齐、
-  # 通栏（那是给内页的宽容器准备的样式，在居中卡片上完全错位），一次在卡片里。
+  # The auth pages use a centered-card layout and render flash inside the card themselves. The
+  # layout, though, renders it for [all] pages
+  # -- so on login failure the same sentence appears twice: once stuck at the very top of the page, left-aligned,
+  # full-width (that style is meant for the wide container of inner pages, and is completely out of
+  # place on a centered card), and once inside the card.
   test "登录失败的提示只出现一次，且在卡片里" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
@@ -91,7 +94,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "main.page > .flash", count: 0
   end
 
-  # 重定向那条路仍然存在（限流），它同样不能出现两份 flash。
+  # The redirect path still exists (rate limiting), and it also must not show two copies of the
+  # flash.
   test "被限流时提示也只出现一次" do
     11.times { post session_path, params: { email_address: "me@example.com", password: "wrong" } }
     follow_redirect!
@@ -100,9 +104,10 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".auth-card .flash-alert", text: /请稍后再试/
   end
 
-  # 登录失败不该把人填的邮箱也一起清掉——重打一遍邮箱是纯粹的惩罚，而错的
-  # 通常只是密码。视图里本来就写着 value: params[:email_address]，只是 create
-  # 走的是 redirect，参数在重定向里就没了，那一行一直是死的。
+  # A failed login shouldn't also clear the email the person typed -- retyping the email is pure
+  # punishment, and what's wrong is usually just the password. The view already has value:
+  # params[:email_address], but create redirects, so the params are gone by the redirect and that
+  # line has always been dead.
   test "登录失败保留已填的邮箱地址" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 
@@ -117,8 +122,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".flash-alert", count: 1
   end
 
-  # 密码不回填：浏览器的密码管理器会自己填，而把它渲染进 HTML 等于让它出现在
-  # 页面源码、以及任何抓到这次响应的地方。
+  # The password isn't refilled: the browser's password manager fills it itself, and rendering it
+  # into HTML means it would appear in the page source and anywhere that captures this response.
   test "登录失败不回填密码" do
     post session_path, params: { email_address: "me@example.com", password: "wrong" }
 

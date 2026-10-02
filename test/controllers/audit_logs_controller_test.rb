@@ -2,13 +2,13 @@ require "test_helper"
 
 class AuditLogsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    sign_in_as(users(:one)) # ops：审计记录只读，ops 也能看
+    sign_in_as(users(:one)) # ops: audit records are read-only, and ops can see them too
     @app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                               destination: "production")
   end
 
   test "未登录时无法查看审计列表" do
-    delete session_path # 退出登录
+    delete session_path # log out
 
     get audit_logs_path
 
@@ -28,8 +28,9 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "data-turbo-method=\"delete\"", @response.body
   end
 
-  # 追责看的是邮箱，日常辨认看的是昵称——审计页两个都给。只给昵称的话，
-  # 两个重名的人（昵称不要求唯一）在这一页上就分不出来了。
+  # Accountability looks at the email, day-to-day recognition looks at the nickname -- the audit
+  # page shows both. With only the nickname, two people with the same name (nicknames aren't
+  # required to be unique) couldn't be told apart on this page.
   test "操作人显示昵称与邮箱" do
     users(:two).update!(nickname: "老王")
     AuditLog.record_access!(user: users(:two), action_name: "user.deactivate",
@@ -62,9 +63,10 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /one@example.com/
   end
 
-  # 「对象」这一列装着三种结构上不同的东西：人、版本号、detail。只有 detail
-  # 这一路需要翻译，而它自己又分两类——凭据名和应用名是【专名】，翻译了反而
-  # 是错的；字段名列表和密码设置方式才该翻。
+  # The "target" column holds three structurally different things: a person, a version, detail. Only
+  # the detail path needs translation, and it splits into two kinds -- credential names and app
+  # names are [proper nouns], where translating would be wrong; field-name lists and
+  # password-setting modes are what should be translated.
   test "老的审计行只有 detail，原样显示，不走翻译" do
     AuditLog.record_access!(user: users(:two), action_name: "credential.rotate",
                             detail: "生产集群")
@@ -83,8 +85,9 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "密码由管理员直接设置"
   end
 
-  # 「被操作的人」和「对象说明」都在时要一起显示。此前这一列是取第一个非空，
-  # user.create 两个都写了，说明那一半就永远看不见——只写不显等于没记。
+  # When both "the person acted on" and "target description" are present, show them together.
+  # Previously this column took the first non-blank, user.create writes both, so that second half
+  # would never be visible -- written but never shown is as good as not recorded.
   test "被操作的人与对象说明同时存在时都显示" do
     AuditLog.record_access!(user: users(:two), action_name: "user.create",
                             target_user: users(:one),
@@ -96,7 +99,8 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /密码由管理员直接设置/
   end
 
-  # 字段名要逐个翻译再拼，连接符本身也是语言相关的。
+  # Field names must be translated one by one and then joined; the joiner itself is also
+  # language-dependent.
   test "app.update 的字段名逐个翻译后拼接" do
     AuditLog.record_access!(user: users(:two), action_name: "app.update", managed_app: @app,
                             detail_key: "app.update_fields",
@@ -117,8 +121,9 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: "blog"
   end
 
-  # 代码里改过名、审计行还留着旧名的情况：不能崩，也不该显示成
-  # "translation missing"。退回原始字符串，至少还查得出来。
+  # The case where the code was renamed but audit rows still carry the old name: must not crash, and
+  # must not show "translation missing". Fall back to the raw string, so it can at least still be
+  # traced.
   test "认不出的动作名退回原始字符串" do
     AuditLog.record_access!(user: users(:two), action_name: "legacy.something")
 
@@ -128,8 +133,9 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "凭据事件在审计页上显示得出是哪条凭据" do
-    # 凭据既不是用户也不是版本号，它的"对象"只存在 detail 里；这一列不读
-    # detail 的话，凭据审计行对人显示成一个破折号，等于没记。
+    # A credential is neither a user nor a version; its "target" exists only in detail. If this
+    # column doesn't read detail, credential audit rows show as a dash to humans, which is as good
+    # as not recorded.
     AuditLog.record_access!(user: users(:two), action_name: "credential.rotate",
                             detail: "生产集群")
     sign_in_as users(:two)

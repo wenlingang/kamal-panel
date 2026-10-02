@@ -42,7 +42,8 @@ module Collectors
         entries.map { |entry| row(host, entry) }
       end
 
-      # kamal-proxy 在 happy path 上偶尔会往 stderr 写一行（已合并进 stdout）。
+      # kamal-proxy occasionally writes a line to stderr on the happy path (already merged into
+      # stdout).
       def json_payload(stdout)
         text = stdout.to_s
         start = text.index("{") || text.index("[")
@@ -55,7 +56,7 @@ module Collectors
         nil
       end
 
-      # 顶层形状必须是 Hash 或 Array 才认为「认识」；
+      # The top-level shape must be a Hash or an Array to count as "recognized";
       def recognized_shape?(parsed)
         parsed.is_a?(Hash) || parsed.is_a?(Array)
       end

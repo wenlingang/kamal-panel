@@ -18,8 +18,8 @@
 
 <p class="hint"><%= t(".intro_html").html_safe %></p>
 
-<%# Turbo Stream 把弹窗塞进这个插槽（不刷页面）；没有 JS 时走重定向，
-    由 flash 里的 token 在这里直接渲染出来。 %>
+<%# Turbo Stream puts the dialog into this slot (no page refresh); without JS it goes through a redirect,
+    and the token in flash is rendered right here. %>
 <div id="hook_token_dialog">
   <% if (token = flash[:hook_token]) %>
     <%= render "managed_apps/hook_token_dialog", managed_app: managed_app, token: token %>

@@ -1,14 +1,14 @@
-# 一行代表【一次部署尝试】，不是一条上报（spec 03 第 3 节）。
+# One row is one deploy attempt, not one report (spec 03 §3).
 class DeployEvent < ApplicationRecord
   belongs_to :managed_app
 
-  # 只需盖住"容器起来后被下一轮轮询看到"这一小段。
+  # Only has to cover the gap between "the container is up" and "the next poll sees it".
   UNOBSERVED_AFTER = 90.seconds
-  # 要盖住一次正常部署的全长（构建 + 健康检查）。
-  # 合成同一个常量会让其中一个必然误报。
+  # Has to cover a whole normal deploy (build + health check).
+  # Folding both into one constant would make one of them fire false alarms.
   UNFINISHED_AFTER = 15.minutes
 
-  # 给不出 performer / command，也看不见失败的部署。
+  # can't supply performer / command, and never sees a failed deploy.
   SOURCES = %w[hook inferred].freeze
 
   validates :version, presence: true
@@ -16,7 +16,8 @@ class DeployEvent < ApplicationRecord
 
   scope :recent_first, -> { order(created_at: :desc) }
 
-  # 面板真正确认过这一版跑起来了，与"上报说成功了"是两回事。
+  # The panel itself confirmed this version is running — not the same as "the report says it
+  # succeeded".
   def observed? = observed_at.present?
 
   def observation_delay
@@ -26,7 +27,7 @@ class DeployEvent < ApplicationRecord
   end
 
   def observation_delay_text
-    # 收敛时刻，算出来的 0 秒是个没有含义的数字。
+    # convergence moment, so a computed delay of 0 seconds means nothing.
     return I18n.t("deploy_events.observed_by_panel") if source == "inferred"
 
     return nil unless observed?
@@ -38,7 +39,8 @@ class DeployEvent < ApplicationRecord
     I18n.t("deploy_events.delayed_seconds", seconds: delay.round)
   end
 
-  # 两类事实混在同一张表里，读的人必须一眼看出哪行是机器说的、哪行是面板推的。
+  # Two kinds of fact share one table; a reader must see at a glance which rows the machine
+  # reported and which the panel inferred.
   def source_text
     I18n.t(source == "inferred" ? "deploy_events.inferred" : "deploy_events.hook_reported")
   end

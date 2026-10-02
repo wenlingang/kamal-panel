@@ -1,10 +1,12 @@
 require "test_helper"
 
-# 漏挂一个授权过滤器是这类重构最典型的事故，而它【不会让任何别的测试变红】
-# ——那个动作照常工作，只是对谁都工作。这条测试是唯一能在 CI 里抓住它的东西。
+# Forgetting to attach one authorization filter is the classic accident of this kind of refactor,
+# and it [won't turn any other test red]
+# -- the action works as usual, just for everyone. This test is the only thing that can catch it in CI.
 #
-# 这里的清单是人写的、故意写死的：它表达的是「这些动作必须被授权」这个意图，
-# 而不是从代码里反推出来的事实。从代码反推的测试只会永远为真。
+# The list here is written by hand and deliberately hard-coded: it expresses the intent that "these
+# actions must be authorized", not a fact inferred back from the code. A test inferred from the code
+# is forever true.
 class AuthorizationCoverageTest < ActiveSupport::TestCase
   DECLARATIVE = {
     "ManagedAppsController" => %w[new create],
@@ -13,16 +15,19 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     "RegistryCredentialsController" => %w[new create edit update destroy]
   }.freeze
 
-  # 权限取决于 URL 里那个应用的动作没法用类宏声明（before_action 拿不到
-  # params 指向的记录），它们在方法体里判断。这里列出它们，并在下面用一条
-  # 源码断言确认那句判断还在——比"什么都不检查"强，比假装它们也是声明式的诚实。
-  # RefreshesController#create 不在以上任何一张表里，这是刻意的：手动刷新是读动作
-  # ——不取部署锁、不写审计、不改变线上任何状态，只是让一次本来就会自动发生的采集
-  # 提前（设计 11 第 3.2 节，对三档角色一律开放）。别顺手把它"补"进来。
+  # Actions whose permission depends on the app in the URL can't be declared with a class macro
+  # (before_action can't get at the record params points to); they check inside the method body.
+  # They are listed here, and a source assertion below confirms that check is still there -- better
+  # than "checking nothing", more honest than pretending they are declarative too.
+  # RefreshesController#create is in none of the tables above, deliberately: manual refresh is a
+  # read action
+  # -- it takes no deploy lock, writes no audit, changes no live state, and only moves up a collection that would
+  # have happened automatically anyway (design 11 §3.2, open to all three roles). Don't "fix" it by
+  # adding it in.
   INLINE = {
     "app/controllers/actions_controller.rb"     => [
       "ManagedAppPolicy.new(Current.user, app).run?",
-      # show 会把动作的完整输出渲染出来，必须和发起动作走同一个判断。
+      # show renders the action's full output, so it must use the same check as launching an action.
       "ManagedAppPolicy.new(Current.user, @managed_app).run?(action_class)"
     ],
     "app/controllers/managed_apps_controller.rb" => [

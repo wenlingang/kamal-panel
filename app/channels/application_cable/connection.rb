@@ -7,7 +7,8 @@ module ApplicationCable
     end
 
     private
-      # 这里重复了 Authentication#find_session_by_cookie 里的停用判断，是刻意的。
+      # Repeating the deactivation check from Authentication#find_session_by_cookie here is
+      # deliberate.
       def set_current_user
         session = Session.find_by(id: cookies.signed[:session_id])
         return if session.nil? || session.user.deactivated?

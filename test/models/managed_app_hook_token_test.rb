@@ -51,7 +51,7 @@ class ManagedAppHookTokenTest < ActiveSupport::TestCase
 
   test "配置已损坏的应用仍能轮换 token" do
     @app.update_column(:config_yaml, "这不是 yaml: [")
-    refute_predicate @app.reload, :valid? # 确认真的坏了，不是在测一个总能通过的假设
+    refute_predicate @app.reload, :valid? # confirm it really is broken, not testing a premise that always passes
 
     token = nil
     assert_nothing_raised { token = @app.regenerate_hook_token! }

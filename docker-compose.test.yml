@@ -1,7 +1,7 @@
 services:
   node-1:
     build: ./test/fake_host
-    privileged: true          # dind 必需
+    privileged: true          # required by dind
     ports:
       - "2201:22"
   node-2:

@@ -1,5 +1,5 @@
 module DeployEvents
-  # 从观测推断部署事件（子设计 05）。
+  # Infer deploy events from observations (sub-design 05).
   class Inferrer
     RUNNING_STATUSES = %w[running restarting].freeze
 
@@ -16,13 +16,15 @@ module DeployEvents
       return if version.nil?
       return if version == managed_app.last_converged_version
 
-      # 基线判断提到最前面：第一次收敛（last_converged_version 还是 nil）
+      # The baseline check is hoisted to the very front: the first convergence
+      # (last_converged_version is still nil)
       first_convergence = managed_app.last_converged_version.nil?
 
-      # 比较用的是【更新之前】的边界：这条上报是不是在当前这一轮收敛期内到达的。
+      # The comparison uses the boundary from [before the update]: whether this report arrived
+      # within the current convergence period.
       record_inferred(version, converged_at) if !first_convergence && !hook_already_reported?(version)
 
-      # 一个错误的时间边界去比。
+      # a wrong time boundary to compare against.
       managed_app.update_columns(last_converged_version: version,
                                  last_converged_at: converged_at,
                                  updated_at: Time.current)
@@ -31,7 +33,7 @@ module DeployEvents
     private
       attr_reader :managed_app
 
-      # => [version, converged_at] 或 [nil, nil]
+      # => [version, converged_at] or [nil, nil]
       def converged_state
         hosts = managed_app.cached_app_hosts
         rows = running_rows(hosts)
@@ -65,8 +67,8 @@ module DeployEvents
         managed_app.deploy_events.create!(
           version: version, source: "inferred",
           destination: managed_app.destination,
-          # 推断不出何时开始；
-          # 留空比编一个 "unknown" 诚实。
+          # cannot infer when it started;
+          # leaving it blank is more honest than making up an "unknown".
           started_at: nil, performer: nil, command: nil,
           succeeded_at: converged_at, observed_at: converged_at
         )

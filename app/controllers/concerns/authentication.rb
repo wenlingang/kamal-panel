@@ -25,7 +25,8 @@ module Authentication
       Current.session ||= find_session_by_cookie
     end
 
-    # cookie 的人会一直有效到 cookie 过期。每次请求都问一遍，停用才是即时的。
+    # a person holding a cookie stays valid until the cookie expires. Asking on every request makes
+    # deactivation take effect immediately.
     def find_session_by_cookie
       return nil unless cookies.signed[:session_id]
 

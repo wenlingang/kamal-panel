@@ -1,9 +1,9 @@
 require "test_helper"
 
-# 面板的临时目录里没有 git 仓库（README：面板永不接触源码）。Kamal 的
-# `app boot` 与 `rollback VERSION` 一旦拿不到显式版本号就会去读 git，
-# 读不到就直接报错。这条调用方义务过去只活在注释里；这里把它钉成
-# 会真正抛异常的行为。
+# The panel's temp dir has no git repo (README: the panel never touches source code). Kamal's `app
+# boot` and `rollback VERSION` read git as soon as they can't get an explicit version, and error out
+# if they can't. This caller obligation used to live only in a comment; here it is pinned as
+# behavior that really raises.
 class Actions::VersionEnforcementTest < ActiveSupport::TestCase
   def build_app
     ManagedApp.new(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,

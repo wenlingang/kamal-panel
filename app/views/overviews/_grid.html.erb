@@ -12,12 +12,12 @@
   <tbody>
     <% managed_apps.each do |app| %>
       <% if app.last_poll_error.present? %>
-        <%# 配置解析不了时，status.observed_at / status.stale? /
-            app.cached_app_hosts 都会重新触发解析而在这里再炸一次
-            ParseError——而这次是在渲染阶段，任何调用方（包括别的应用
-            轮询完成后的整页广播）都接不住（见 final review I4，本项
-            修复过程中发现并需要一并堵上的口子）。所以这一行完全不碰
-            parsed_config，只显示"配置解析失败"本身。 %>
+        <%# When the config cannot be parsed, status.observed_at / status.stale? /
+            app.cached_app_hosts would all re-trigger parsing and blow up here with
+            ParseError again — and this time in the render phase, where no caller (including the whole-page
+            broadcast after another app's polling finishes) can catch it (see final review I4, a hole found
+            and needing to be plugged together during this fix). So this row does not touch
+            parsed_config at all and shows only "config parse failed" itself. %>
         <tr class="status-unreachable">
           <td>
             <%= link_to app.name, app %>
@@ -43,7 +43,7 @@
             <% end %>
           </td>
           <td>
-            <%# 状态绝不只靠颜色：文字与形状各是一个独立于颜色的信号 %>
+            <%# Status never relies on color alone: text and shape are each a signal independent of color %>
             <%= status_badge(status.level, status.label) %>
           </td>
           <td>
@@ -66,11 +66,11 @@
             <% elsif status.level == :unknown %>
               <%= t(".never_collected") %>
             <% else %>
-              <%# 配置里有机器一条观测都没有——不给一个看起来精确、实则
-                  不成立的数字（见 Task 11 review 第三轮）。这是信息，不是
-                  告警，所以不用 <strong>——<strong> 留给真正的告警
-                  （上面的"已过期"），跟 managed_apps/show.html.erb 的
-                  写法保持一致，避免把信息样式成告警（Task 12 review）。 %>
+              <%# Some machine in the config has no observation at all — do not give a number that looks precise but
+                  does not hold (see Task 11 review, round three). This is information, not an
+                  alert, so <strong> is not used — <strong> is reserved for real alerts
+                  (the "expired" above), consistent with the way
+                  managed_apps/show.html.erb is written, avoiding styling information as an alert (Task 12 review). %>
               <%= t(".partially_collected") %>
             <% end %>
           </td>

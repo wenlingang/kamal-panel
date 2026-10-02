@@ -26,8 +26,8 @@
             <td><%= link_to user.email_address, edit_user_path(user) %></td>
             <td><%= t("roles.#{user.role}") %></td>
             <td>
-              <%# admin 与 ops 的权限来自全站角色，不靠成员表——这里如实说明，
-                  免得有人以为给 admin 加成员才是完整配置。 %>
+              <%# admin and ops get their permissions from the site-wide role, not the membership table — say so honestly here,
+                  so nobody thinks adding members for an admin is the complete configuration. %>
               <% if user.developer? %>
                 <%= app_name_list(user.managed_apps, empty: t(".no_apps")) %>
               <% else %>

@@ -1,16 +1,16 @@
 import { Controller } from "@hotwired/stimulus"
 
-// 选了就提交，并把那个作为退路的提交按钮藏起来。
+// Submit on selection, and hide the submit button that serves as the fallback.
 //
-// 藏按钮这件事必须由 JS 自己做，不能写死在 CSS 里：CSS 没法知道 JS 到底加载
-// 上没有。没有 JS（或者 JS 挂了）的时候按钮留着，表单照样能用——这和密码设置
-// 方式那个 :has() 展开是同一条原则：降级之后功能还在，只是不那么顺手。
+// Hiding the button must be done by JS itself and cannot be hard-coded in CSS: CSS cannot know whether JS
+// has actually loaded. Without JS (or if JS is broken) the button stays and the form still works — this is the same principle as
+// the :has() expansion for the password setup method: after degrading, the feature is still there, just less convenient.
 export default class extends Controller {
   static targets = ["fallback"]
 
-  // 用 targetConnected 而不是在 connect() 里遍历 fallbackTargets：控制器挂在
-  // form 上，而 connect() 可能在浏览器还没解析完 form 的子节点时就触发，那时
-  // fallbackTargets 是空的，按钮就永远藏不掉了（这不是假设，是测出来的）。
+  // Use targetConnected rather than iterating fallbackTargets in connect(): the controller is attached to
+  // the form, and connect() may fire before the browser has finished parsing the form's children, when
+  // fallbackTargets is empty and the button could never be hidden (this is not a hypothesis; it was found by testing).
   fallbackTargetConnected(button) {
     button.hidden = true
   }

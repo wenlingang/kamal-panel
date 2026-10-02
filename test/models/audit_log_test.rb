@@ -7,9 +7,11 @@ class AuditLogTest < ActiveSupport::TestCase
                               destination: "production")
   end
 
-  # 动作名在页面上要翻译，翻译不到就会退回原始的 action_name（给"代码里已经
-  # 改名、审计行还留着旧名"兜底）。那条回退同时会掩盖"新加了动作忘了写译文"
-  # ——所以这里正面盯住覆盖，而不是指望有人肉眼发现页面上冒出一个英文 key。
+  # Action names are translated on the page, and when no translation is found it falls
+  # back to the raw action_name (a safety net for "renamed in code, audit rows still carry
+  # the old name"). That fallback also masks "added a new action but forgot the
+  # translation" -- so here we check coverage head-on, rather than hoping someone spots
+  # an English key popping up on the page.
   test "每个会被写进审计的动作名都有中英文译文" do
     AuditLog.all_action_names.each do |name|
       %i[zh-CN en].each do |locale|

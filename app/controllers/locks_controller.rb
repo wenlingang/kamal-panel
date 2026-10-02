@@ -1,4 +1,5 @@
-# 部署锁状态。只读，三档角色都能看——它决定的是"现在能不能动这个应用"。
+# Deploy lock status. Read-only, visible to all three roles — it decides "whether this app can be
+# touched right now".
 class LocksController < ApplicationController
   def show
     @managed_app = ManagedApp.find(params[:managed_app_id])

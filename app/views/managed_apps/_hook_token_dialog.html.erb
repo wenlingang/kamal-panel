@@ -1,6 +1,6 @@
-<%# 明文只在这一次出现，所以端到脸前而不是让人自己在页面里找。
-    没有 JS 时 <dialog> 不会 showModal，但它仍然是可见的块级元素，
-    内容照样读得到、复制得到——只有"下载"那个按钮会失效。 %>
+<%# The plaintext appears only this once, so put it right in front of the user rather than making them look for it on the page.
+    Without JS the <dialog> does not showModal, but it is still a visible block-level element,
+    and the content can still be read and copied — only the "download" button stops working. %>
 <% script = HookScript.new(managed_app, base_url: request.base_url, token: token) %>
 <dialog class="token-dialog"
         data-controller="token-reveal"

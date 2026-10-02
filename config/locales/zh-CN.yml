@@ -1,15 +1,15 @@
-# 这里只放本仓库自己需要的译文。time_ago_in_words、"不能为空"这类
-# Rails 自带文案由 rails-i18n 提供，不要在这里重抄一遍——抄一份就多一份
-# 会悄悄和上游漂移的东西。
+# Only translations this repo itself needs go here. Rails' built-in strings such as
+# time_ago_in_words and "can't be blank" come from rails-i18n; don't copy them here again, since
+# every copy is one more thing that silently drifts from upstream.
 zh-CN:
-  # rails-i18n 的 blank 译作"不能为空字符"，在中文界面里读起来别扭；
-  # 只覆盖这一条，其余仍用上游译文。
+# rails-i18n translates blank as "不能为空字符", which reads awkwardly in a Chinese UI;
+# override only this one and keep upstream translations for the rest.
   errors:
     messages:
       blank: 不能为空
 
-  # 校验失败时 full_messages 会把属性名拼在最前面。不给译名的话，
-  # 中文的报错正文前面会挂一个英文列名（"Config yaml 无法解析：…"）。
+  # On validation failure, full_messages puts the attribute name first. Without a translated name,
+  # Chinese error text would be prefixed with an English column name ("Config yaml 无法解析：…").
   activerecord:
     errors:
       models:
@@ -61,23 +61,25 @@ zh-CN:
         value: 内容
         kind: 类型
 
-  # 角色的中文显示名。人员页与新建/编辑表单都用它，代码里的角色值仍是
-  # admin/developer/ops。
+  # Chinese display names for roles. Used by the people page and the new/edit forms; the role values
+  # in code are still admin/developer/ops.
   roles:
     admin: 超管
     developer: 开发者
     ops: 运维
 
-  # 审计页的动作与对象。动作名和 detail_key 都只是【键】，中文只活在这里
-  # ——审计行是只增不删的，往里写中文就等于把语言永久焊死在数据里。
+  # Actions and targets on the audit page. Action names and detail_key are both just [keys]; Chinese
+  # lives only here because audit rows are append-only, and writing Chinese into them would weld the
+  # language into the data permanently.
   common:
     save: 保存
     replace: 替换
     error_separator: "；"
     list_separator: "、"
-    # 枚举的连接符。中文用顿号、英文用逗号加空格，所以它也得是译文。
-    # 审计页也用它——原先在 audit.list_separator 下另有一份，两份同值的译文
-    # 迟早会漂开，合并到这里。
+    # Joiner for enumerations. Chinese uses the ideographic comma (、), English a comma plus space, so it too has to be a
+    # translation. The audit page uses it too; there used to be a separate copy under
+    # audit.list_separator, and two same-valued translations would sooner or later drift apart, so
+    # they are merged here.
 
   users:
     index:
@@ -121,8 +123,8 @@ zh-CN:
       apps_hint: 只对 developer 生效。admin 与 ops 的权限来自全站角色，勾选对他们没有任何作用。
 
   credentials:
-    # 私钥输入框的示意格式。首尾两行必须完整粘贴——只贴中间那段 base64
-    # 是最常见的粘贴错误。
+    # Example format for the private key input box. The first and last lines must be pasted in full;
+    # pasting only the middle base64 part is the most common paste mistake.
     value_placeholder: |-
       -----BEGIN OPENSSH PRIVATE KEY-----
       b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtz
@@ -347,9 +349,10 @@ zh-CN:
         生成之后脚本只显示这一次，离开页面就只能重新生成。这是可选增强，不配也不影响面板的其他功能。
 
   actions:
-    # 动作结束时由后台任务广播到 #action-result。文案和 actions.show 里那两句
-    # 是同一件事的两种渲染路径：页面加载时由视图按 result 渲染，执行过程中由
-    # RunActionJob 广播替换。两边都要有，不能只改一边。
+    # Broadcast to #action-result by the background job when the action finishes. The wording and
+    # the two sentences in actions.show are two render paths for the same thing: on page load the
+    # view renders by result, and during execution RunActionJob broadcasts a replacement. Both sides
+    # are needed; don't change only one.
     result:
       succeeded: 已完成 —— 面板正在重新采集确认
       failed: 失败
@@ -500,15 +503,16 @@ zh-CN:
 
   audit:
     actions:
-      # 部署动作（Actions::Base.registry）
+      # Deploy actions (Actions::Base.registry)
       restart: 重启
       stop: 停止
       start: 启动
       rollback: 回滚
       force_unlock: 强制解锁
       logs: 查看日志
-      # 权限动作（AuditLog::ACCESS_ACTIONS）。动作名里的点在 i18n 里就是
-      # 层级分隔符，所以这里按层级写，查询串仍是 audit.actions.user.create。
+      # Access actions (AuditLog::ACCESS_ACTIONS). A dot in an action name is the hierarchy
+      # separator in i18n, so they are written hierarchically here; the lookup string is still
+      # audit.actions.user.create.
       user:
         create: 创建成员
         update_role: 修改角色

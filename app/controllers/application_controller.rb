@@ -1,6 +1,6 @@
 class ApplicationController < ActionController::Base
   include Authentication
-  # Current.session 是 Authentication 的 before_action 设上去的。
+  # Current.session is set by the before_action in Authentication.
   include Localization
   allow_browser versions: :modern
 

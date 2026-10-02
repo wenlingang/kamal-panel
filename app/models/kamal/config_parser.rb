@@ -5,7 +5,7 @@ require "pathname"
 require "net/ssh/proxy/jump"
 require "resolv"
 
-# 在受限子进程中解析 deploy.yml。
+# Parse deploy.yml in a restricted subprocess.
 class Kamal::ConfigParser
   class ParseError < StandardError; end
 
@@ -13,24 +13,26 @@ class Kamal::ConfigParser
   SCRIPT = Rails.root.join("bin/parse_deploy_config").to_s
   TMPDIR_PREFIX = "kamal-panel-parse"
 
-  # destination 里出现 "/" 或 ".." 就是任意文件写入 + 任意 .yml 被 ERB 求值。
+  # A "/" or ".." in destination means arbitrary file write + arbitrary .yml evaluated by ERB.
   DESTINATION_FORMAT = /\A(?!-)[a-zA-Z0-9_-]{1,63}\z/
 
   SERVICE_FORMAT = DESTINATION_FORMAT
 
-  # 主机名/IPv4 字符集：字母数字、点、下划线、连字符。
+  # Host name / IPv4 character set: alphanumerics, dot, underscore, hyphen.
   HOST_FORMAT = /\A(?!-)[A-Za-z0-9_.-]{1,255}\z/
 
-  # IPv6 字符集交给 Resolv::IPv6::Regex，手写正则容易漏掉 "::" 压缩与嵌入 IPv4。
+  # The IPv6 character set is left to Resolv::IPv6::Regex; a hand-written regex easily misses "::"
+  # compression and embedded IPv4.
   IPV6_ZONE_ID = "%"
 
-  # 方括号包住的 IPv6 字面量，可选带 ":port"——"[::1]"、"[::1]:2222"。
+  # A bracketed IPv6 literal, optionally with ":port" — "[::1]", "[::1]:2222".
   BRACKETED_IPV6_FORMAT = /\A\[(?<addr>[^\]]*)\](?::(?<port>[0-9]{1,5}))?\z/
 
-  # 这类 SSHKit 认识但面板暂不支持的写法（报"暂不支持"）。
+  # Forms that SSHKit understands but the panel does not yet support (reported as "not yet
+  # supported").
   HOST_WITH_USER_OR_PORT_FORMAT = /\A(?:(?!-)[A-Za-z0-9_.-]{1,64}@)?(?!-)[A-Za-z0-9_.-]{1,255}(?::[0-9]{1,5})?\z/
 
-  # ssh.proxy：可选 "user@" + host（复用 HOST_FORMAT 字符集）+ 可选 ":port"。
+  # ssh.proxy: optional "user@" + host (reusing the HOST_FORMAT character set) + optional ":port".
   PROXY_FORMAT = /\A(?:(?<user>(?!-)[A-Za-z0-9_.-]{1,64})@)?(?<host>(?!-)[A-Za-z0-9_.-]{1,255})(?::(?<port>[0-9]{1,5}))?\z/
 
   PORT_FORMAT = /\A[1-9][0-9]{0,4}\z/
@@ -83,7 +85,8 @@ class Kamal::ConfigParser
     end
 
     def validate_service!(service)
-      # 同 validate_destination!：公开 API，不能假设调用方给得出合法 String。
+      # Same as validate_destination!: public API, so we cannot assume the caller can supply a valid
+      # String.
       return if service.is_a?(String) && service.match?(SERVICE_FORMAT)
 
       raise ParseError, "service 不合法：只能是字母、数字、下划线或连字符组成的短标识符（最多 63 个字符），" \
@@ -94,7 +97,8 @@ class Kamal::ConfigParser
       Pathname.new(dir).join("deploy.yml")
     end
 
-    # servers: 里的主机名来自用户粘贴的 deploy.yml，Kamal 只校验 String/Hash 形状。
+    # The host names in servers: come from a deploy.yml the user pasted, and Kamal only validates
+    # the String/Hash shape.
     def validate_hosts!(result)
       hosts = Array(result["app_hosts"]).dup
       hosts << result["primary_host"] if result["primary_host"]
@@ -116,7 +120,7 @@ class Kamal::ConfigParser
       end
     end
 
-    # servers: 里一台主机的合法形状：IPv4/主机名（HOST_FORMAT）、裸 IPv6。
+    # The valid shapes for a host in servers:: IPv4/host name (HOST_FORMAT), bare IPv6.
     def valid_host?(host)
       return false unless host.is_a?(String)
 
@@ -195,7 +199,8 @@ class Kamal::ConfigParser
       stdout = nil
 
       Open3.popen3(*command) do |stdin, out, err, wait_thread|
-        # 任一方超过管道缓冲区都会阻塞父进程，而那个阻塞在 join(timeout) 生效之前，硬超时拦不住。
+        # If either side exceeds the pipe buffer it blocks the parent process, and that block
+        # happens before join(timeout) takes effect, so the hard timeout cannot stop it.
         stdin_writer = Thread.new do
           stdin.write(input)
         rescue Errno::EPIPE

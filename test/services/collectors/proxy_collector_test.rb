@@ -74,10 +74,10 @@ class Collectors::ProxyCollectorTest < ExecutionLayerTest
     assert row.reachable
     assert_nil row.service_name
     assert_nil row.error
-    # 不再把 docker 的报错吞进 /dev/null：这里落的应该是 docker 那句
-    # "找不到这个容器"，而不是空字符串——否则这一行会跟"kamal-proxy
-    # 正常运行、只是没有任何路由"的那一行（raw 为 nil）长得一模一样
-    # （见 final review 分诊 2）。
+    # No longer swallow docker's error into /dev/null: what's recorded here should be docker's "no
+    # such container", not an empty string -- otherwise this row would look exactly like the
+    # "kamal-proxy running normally, just with no routes at all" row (raw is nil) (see final review
+    # triage 2).
     assert_predicate row.raw, :present?
   end
 

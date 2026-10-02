@@ -1,5 +1,5 @@
 module DeployEvents
-  # 把一条上报并进"一次部署尝试"里。
+  # Merge one report into "one deploy attempt".
   class Ingest
     STARTED   = "started".freeze
     SUCCEEDED = "succeeded".freeze
@@ -7,7 +7,7 @@ module DeployEvents
 
     DUPLICATE_WINDOW = 1.minute
 
-    # 认领窗口：多久之内到达的 post 还算同一次部署的收尾。
+    # Claim window: how long after, an arriving post still counts as the tail of the same deploy.
     CLAIM_WINDOW = 2.hours
 
     def self.call(managed_app:, phase:, attributes:)
@@ -30,7 +30,7 @@ module DeployEvents
       attr_reader :managed_app, :phase, :attributes
 
       def ingest_started
-        # 不是新的一次部署。
+        # not a new deploy.
         if (open = open_attempt)
           return { event: open, changed: false }
         end
@@ -48,7 +48,7 @@ module DeployEvents
           return { event: duplicate, changed: false }
         end
 
-        # pre 那次上报丢了（或压根没配 pre-deploy hook）。
+        # the report from pre was lost (or the pre-deploy hook was never configured at all).
         { event: create(succeeded_at: Time.current), changed: true }
       end
 

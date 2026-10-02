@@ -29,7 +29,7 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
         job.send(:claim_slot!, @app)
       end
     end
-    thread_count.times { start << true } # 尽量让所有线程同时启动，最大化竞争窗口
+    thread_count.times { start << true } # start all threads together to maximize the race window
 
     winners = threads.map(&:value).count(true)
 
@@ -51,14 +51,14 @@ class PollAllManagedAppsJobTest < ActiveSupport::TestCase
     PollAllManagedAppsJob.perform_now
     assert_enqueued_jobs 1, only: PollManagedAppJob
 
-    Rails.cache.delete(PollCadence.last_run_key(@app)) # 模拟缓存驱逐
+    Rails.cache.delete(PollCadence.last_run_key(@app)) # simulate cache eviction
 
     PollAllManagedAppsJob.perform_now
     assert_enqueued_jobs 2, only: PollManagedAppJob
   end
 
-  # setup 里那个应用是活着的，所以这里【不能】断言"一个都没入队"——那样测的
-  # 是别的东西。要断言的是：被停用的那一个没有出现在入队的参数里。
+  # The app in setup is alive, so here we [cannot] assert "nothing was enqueued" -- that would test
+  # something else. What to assert: the disabled one doesn't appear in the enqueued arguments.
   test "停用的应用不再被枚举采集" do
     gone = ManagedApp.create!(name: "gone-#{SecureRandom.hex(4)}",
                               config_yaml: file_fixture("simple_deploy.yml").read,

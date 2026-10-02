@@ -1,18 +1,20 @@
 class ChangeUserRolesToThreeTier < ActiveRecord::Migration[8.1]
-  # 一次性改值，不留兼容层。用 execute 而不是 User.update_all：迁移不该依赖
-  # 模型当下的样子（ROLES 已经在同一个提交里变了，模型校验会跟数据打架）。
+  # One-off value change, no compatibility layer. Use execute rather than User.update_all: a
+  # migration shouldn't depend on what the model looks like right now (ROLES already changed in the
+  # same commit, so model validation would fight the data).
   def up
     execute "UPDATE users SET role = 'admin' WHERE role = 'operator'"
     execute "UPDATE users SET role = 'ops'   WHERE role = 'viewer'"
-    # 默认值的含义是「没指定角色时给什么」，三档里权限最小的是 ops。
+    # The meaning of the default is "what to give when no role is specified"; the least privileged
+    # of the three tiers is ops.
     change_column_default :users, :role, from: "viewer", to: "ops"
   end
 
   def down
     execute "UPDATE users SET role = 'operator' WHERE role = 'admin'"
     execute "UPDATE users SET role = 'viewer'   WHERE role = 'ops'"
-    # developer 在旧模型里没有对应档位。回滚只能把它降到最小权限，
-    # 而不是悄悄升成 operator。
+    # developer had no corresponding tier in the old model. A rollback can only demote it to the
+    # least privilege, rather than quietly promoting it to operator.
     execute "UPDATE users SET role = 'viewer'   WHERE role = 'developer'"
     change_column_default :users, :role, from: "ops", to: "viewer"
   end

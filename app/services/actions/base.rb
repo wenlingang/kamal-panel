@@ -1,4 +1,4 @@
-# 封闭动作集（spec 7.3）。面板永远不执行任意命令。
+# The closed action set (spec 7.3). The panel never executes arbitrary commands.
 module Actions
   class Base
     class UnknownAction < StandardError; end
@@ -20,7 +20,8 @@ module Actions
       registry.fetch(name.to_s) { raise UnknownAction, "未知动作：#{name.inspect}" }
     end
 
-    # 动作只声明自己会不会改变线上状态；谁能执行由 ManagedAppPolicy#run? 解释。
+    # An action only declares whether it changes live state; who may run it is interpreted by
+    # ManagedAppPolicy#run?.
     def self.mutating? = true
     def self.requires_lock? = true
     def self.confirm_by_name? = false

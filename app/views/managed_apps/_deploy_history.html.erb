@@ -4,9 +4,9 @@
 
 <% events = managed_app.deploy_events.recent_first.limit(50) %>
 <% if events.empty? %>
-  <%# 空表格看不出所以然。401（token 不认）与 429（限流）拿不到应用上下文，
-      面板上看不见——所以这里直接给排查路径，这是那个盲点唯一的出口
-      （spec 03 第 8 节）。 %>
+  <%# An empty table explains nothing. 401 (token not recognized) and 429 (rate limited) get no app context
+      and are invisible on the panel — so the troubleshooting path is given right here, the one outlet for
+      that blind spot (spec 03 §8). %>
   <p class="empty-hint">
     <%= t(".empty") %>
     <% if managed_app.hook_reporting_enabled? %>
@@ -16,8 +16,8 @@
     <% end %>
   </p>
 <% else %>
-  <%# 只取最近 50 次，不做分页——但静默截断会让人以为这就是全部历史，
-      所以必须明说这是个截断，不是全量。 %>
+  <%# Only the most recent 50 are fetched, with no pagination — but silent truncation would make people think this is the entire history,
+      so it must be stated outright that this is truncated, not the full set. %>
   <p class="deploy-history-hint"><%= t(".truncated") %></p>
   <table class="deploy-history">
     <thead>
@@ -40,9 +40,9 @@
           <td><%= event.command.presence || "—" %></td>
           <td><%= event.started_at ? event.started_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
           <td><%= event.succeeded_at ? event.succeeded_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
-          <%# 留痕：告警消解之后，"那次到底是延迟了还是提前观测到的"仍然
-              查得出来。判断逻辑在 DeployEvent#observation_delay_text
-              （常态是 hook 上报晚于容器被轮询看到，delay 是负数）。 %>
+          <%# Leave a trace: after an alert is resolved, "was that delayed, or observed early" can still
+              be worked out. The logic is in DeployEvent#observation_delay_text
+              (normally the hook report is later than the container being seen by polling, and delay is negative). %>
           <td><%= event.observation_delay_text || t(".unverified") %></td>
         </tr>
       <% end %>

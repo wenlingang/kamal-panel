@@ -1,9 +1,10 @@
-# 先写后做（spec 7.5）：动作发起前就落一条 pending，执行完再更新。
+# Write first, then act (spec 7.5): a pending row is written before the action starts and updated
+# after it finishes.
 class AuditLog < ApplicationRecord
   belongs_to :user
-  # 权限变更不属于任何应用（见迁移 AllowSiteWideAuditLogs）。
+  # Permission changes do not belong to any app (see migration AllowSiteWideAuditLogs).
   belongs_to :managed_app, optional: true
-  # 被操作的人。动作类审计没有这个值，人员类审计必有。
+  # The person acted upon. Action-type audits do not have this value; people-type audits always do.
   belongs_to :target_user, class_name: "User", optional: true
 
   RESULTS = %w[pending success failure].freeze
@@ -15,22 +16,23 @@ class AuditLog < ApplicationRecord
     registry_credential.create registry_credential.rotate registry_credential.delete
   ].freeze
 
-  # 部署动作的名字由封闭动作集自己定义，不在这里重抄一遍。
+  # Deploy action names are defined by the closed action set itself and are not re-copied here.
   def self.all_action_names = Actions::Base.registry.keys + ACCESS_ACTIONS
 
   validates :action_name, presence: true
   validates :result, inclusion: { in: RESULTS }
 
   serialize :hosts, coder: JSON, type: Array
-  # 可翻译对象的插值参数。默认 {} 而不是 nil，省得每个读它的地方各写一次判空。
+  # Interpolation arguments for translatable objects. Defaults to {} rather than nil, saving every
+  # reader from writing its own nil check.
   serialize :detail_args, coder: JSON, type: Hash
 
-  # 审计日志不可删除，UI 也不提供删除入口。
+  # Audit logs cannot be deleted, and the UI offers no delete entry point.
   def destroy = raise(ActiveRecord::ReadOnlyRecord, "审计日志不可删除")
   def delete  = raise(ActiveRecord::ReadOnlyRecord, "审计日志不可删除")
 
-  # destroy/delete 只挡得住"先取出实例再删"。
-  # delete_all 直接拼 SQL、不实例化对象，所以在三个关系类上都封死它。
+  # destroy/delete only stop "fetch the instance first, then delete". delete_all assembles SQL
+  # directly without instantiating objects, so it is sealed off on all three relation classes.
   [
     ActiveRecord::Relation,
     ActiveRecord::AssociationRelation,
@@ -52,7 +54,7 @@ class AuditLog < ApplicationRecord
   def self.record_access!(user:, action_name:, target_user: nil,
                           managed_app: nil, managed_app_id: nil, detail: nil,
                           detail_key: nil, detail_args: nil)
-    # create! 的话，后写的 managed_app_id: nil 会覆盖掉先写的 managed_app 关联。
+    # with create!, a later managed_app_id: nil would overwrite the earlier managed_app association.
     managed_app_id ||= managed_app&.id
     create!(user:, action_name:, target_user:, managed_app_id:, detail:,
             detail_key:, detail_args: detail_args || {}, hosts: [],
@@ -64,7 +66,8 @@ class AuditLog < ApplicationRecord
       raise ArgumentError, "无效的 result：#{result.inspect}（必须是 #{RESULTS.join('/')}之一）"
     end
 
-    # 校验先做完再落库——不会出现「先写了一半，校验才发现不对」的中间状态。
+    # Finish validation before writing to the DB — there is no intermediate state of "half written,
+    # and validation only then finds it wrong".
     update_columns(result:, command:, output_digest: output_digest.to_s.truncate(4000),
                    duration_ms:, finished_at: Time.current)
   end

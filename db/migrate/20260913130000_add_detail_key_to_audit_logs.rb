@@ -1,9 +1,11 @@
 class AddDetailKeyToAuditLogs < ActiveRecord::Migration[8.1]
-  # 审计行只增不删，历史行里的 detail 是当时拼好的中文串，没法回溯翻译。
-  # 所以不改 detail，也不回填：新列只管新行，老行继续走 detail 原样显示。
+  # Audit rows are append-only, and detail in historical rows is a Chinese string composed at the
+  # time, which can't be translated retroactively. So detail is left alone and not backfilled: the
+  # new column covers only new rows, and old rows keep displaying detail as-is.
   #
-  # detail 因此有了明确分工：它装【不需要翻译的对象文本】——凭据名、应用名
-  # 这类专名，翻译了反而是错的——以及所有历史行。detail_key 装可翻译的那一类。
+  # detail thus gets a clear division of labor: it holds [object text that needs no translation]
+  # (proper names such as credential names and app names, where translating would actually be wrong)
+  # plus all historical rows. detail_key holds the translatable kind.
   def change
     add_column :audit_logs, :detail_key, :string
     add_column :audit_logs, :detail_args, :text

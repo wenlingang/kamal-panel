@@ -1,17 +1,17 @@
-<%# 这一块会被 PollManagedAppJob 每轮采集后整块替换（目标 id: host-status），
-    所以它必须是自包含的：需要的东西全部由 locals 传进来，不读 @ 变量。 %>
+<%# This block is replaced as a whole by PollManagedAppJob after every collection round (target id: host-status),
+    so it must be self-contained: everything it needs is passed in via locals, and it does not read @ variables. %>
 <div id="host-status">
   <p class="data-age">
     <% if status.observed_at %>
-      <%# 取的是"配置里每一台机器各自最旧的一次"，不是"最新一次成功采集"——
-          诚实的说法只能是"这里没有一条数据比这更旧"（见 Task 11 review）。 %>
+      <%# What is taken is "the oldest one among each machine in the config", not "the most recent successful collection" —
+          the only honest statement is "no data here is older than this" (see Task 11 review). %>
       <%= t(".oldest_from", time: time_ago_in_words(status.observed_at)) %>
       <%= t(".stale_suffix") if status.stale? %>
     <% elsif status.level == :unknown %>
       <%= t(".never_collected") %>
     <% else %>
-      <%# 配置里有机器一条观测都没有——这时候不给一个看起来精确、实则
-          不成立的数字（见 Task 11 review 第三轮）。 %>
+      <%# Some machine in the config has no observation at all — in that case do not give a number that looks precise but
+          does not hold (see Task 11 review, round three). %>
       <%= t(".partially_collected") %>
     <% end %>
   </p>

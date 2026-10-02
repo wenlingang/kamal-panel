@@ -37,7 +37,8 @@ Rails.application.configure do
   config.log_tags = [ :request_id ]
   config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
 
-  # Change to "debug" to log everything (including potentially personally-identifiable information!).
+  # Change to "debug" to log everything (including potentially personally-identifiable
+  # information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
   # Prevent health checks from clogging up the logs.
@@ -69,11 +70,11 @@ Rails.application.configure do
   #   authentication: :plain
   # }
 
-  # i18n 的 fallback 统一在 config/application.rb 里配成 [ :en ]，各环境一致。
-  # 这里原本是生成器留下的 `config.i18n.fallbacks = true`——environments 在
-  # application.rb 之后加载，那个 true 会把它覆盖成"回落到 default_locale"，
-  # 而 default_locale 就是 zh-CN，等于没有回落：缺译文时页面上会直接出现
-  # "translation missing"。
+  # The i18n fallback is configured as [ :en ] in config/application.rb, uniform across
+  # environments. Here there used to be the generator's `config.i18n.fallbacks = true`; environments
+  # load after application.rb, so that true would override it to "fall back to default_locale", and
+  # default_locale is zh-CN, which means no fallback at all: a missing translation shows up on the
+  # page as "translation missing".
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false

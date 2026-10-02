@@ -1,5 +1,5 @@
 module Actions
-  # 最小占位：完整实现见 Task 10。
+  # Minimal placeholder: see Task 10 for the full implementation.
   class ForceUnlock < Base
     def self.requires_lock? = false
     def self.confirm_by_name? = true

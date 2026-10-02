@@ -1,17 +1,19 @@
 require "test_helper"
 
 class FilterParameterLoggingTest < ActiveSupport::TestCase
-  # 两种凭据的表单都提交 credential[value] / registry_credential[value]。
-  # Rails 按子串匹配过滤参数名，:value 不在名单里时 "value" 谁都匹配不上——
-  # POST /credentials 与 PATCH /credentials/:id 会把整把 SSH 私钥、整条
-  # registry 密码以明文写进 production 日志（production 打到 STDOUT，
-  # 也就是直接进容器日志）。这一条曾经真实回归过：凭据还叫
-  # ssh_private_key 的年代它是被过滤的，改成 value 之后名单没跟着改。
+  # Both credential forms submit credential[value] / registry_credential[value]. Rails filters
+  # parameters by substring match on the name, and when :value isn't on the list nothing matches
+  # "value" -- POST /credentials and PATCH /credentials/:id would write the whole SSH private key
+  # and the whole registry password into the production log in plaintext (production logs to STDOUT,
+  # i.e. straight into the container logs). This has regressed for real before: back when the
+  # credential was still called ssh_private_key it was filtered, and after renaming it to value the
+  # list wasn't updated.
   #
-  # 断言的是【行为】而不是 config.filter_parameters 这个数组的形状：Rails 在
-  # 应用完全启动之后会把名单里的符号编译成 Regexp，数组里就不再有 :value 这个
-  # 符号了。`assert_includes ..., :value` 这种断言单跑一个文件是绿的、在完整
-  # 套件里是红的——它守的其实是执行顺序，不是"私钥不会被打进日志"。
+  # What's asserted is [behavior], not the shape of the config.filter_parameters array: once the app
+  # is fully booted Rails compiles the symbols in the list into a Regexp, so the array no longer
+  # contains the symbol :value. An assertion like `assert_includes ..., :value` is green when this
+  # file runs alone and red in the full suite -- what it actually guards is execution order, not
+  # "the private key won't end up in the log".
   test "凭据表单提交的密文在日志里被遮蔽，而不是留下明文" do
     filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
 

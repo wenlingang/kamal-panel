@@ -1,10 +1,12 @@
-/* ── 调色板 ──────────────────────────────────────────────────────────
-   暖蛋壳纸底 + 纯白卡片 + 暖黑墨。品牌金全站只出现在站名下的粗线与
-   当前导航的下划线上；状态色（drift/unhealthy/ok/…）各守其义，绝不
-   被借去做装饰——这个面板上的颜色是信息，不是情绪。
+/* ── Palette ─────────────────────────────────────────────────────────
+   Warm eggshell paper background + pure white cards + warm black ink. Brand
+   gold appears site-wide only in the thick rule under the site name and in the
+   underline of the current nav item; status colors (drift/unhealthy/ok/…) each
+   keep their own meaning and are never borrowed for decoration — on this
+   panel, color is information, not mood.
 
-   两套调色板各自验过 WCAG AA，验证钉在 test/assets/color_contrast_test.rb。
-   改任何一个值之前先跑那个测试。 */
+   Both palettes have been checked against WCAG AA; the check is pinned in
+   test/assets/color_contrast_test.rb. Run that test before changing any value. */
 :root {
   --surface: #f6f4ef;
   --ink: #2a2724;
@@ -14,10 +16,11 @@
 
   --brand: #f0a500;
 
-  /* 站标的三个用途。墨底上一块白牌，加一根金绳——绳与结是全站唯一一处品牌金
-     出现在图形里。这三个值受的是 WCAG 1.4.11（非文本对比 ≥ 3:1）的约束，
-     跟正文那档 4.5:1 不是同一条线，验证见 test/assets/color_contrast_test.rb
-     的 GRAPHIC_PAIRS。 */
+  /* The logo's three uses. A white tile on an ink base, plus a gold cord — the
+     cord and knot are the only place brand gold appears in graphics site-wide.
+     These three values fall under WCAG 1.4.11 (non-text contrast >= 3:1), which
+     is not the same line as the 4.5:1 tier for body text; see GRAPHIC_PAIRS in
+     test/assets/color_contrast_test.rb for the check. */
   --mark-tile: #2a2724;
   --mark-on: #ffffff;
   --mark-gold: #f0a500;
@@ -71,7 +74,7 @@
   --unknown-rule: #d8d5cf;
   --unknown-edge: #b3aca2;
 
-  /* 控件阴影。带颜色，所以必须进两个调色板块（同 --lift-raised）。 */
+  /* Control shadow. It carries color, so it must go in both palette blocks (same as --lift-raised). */
   --ring: 0 0 0 3px rgba(20, 98, 184, 0.35);
   --shadow-xs: 0 1px 2px rgba(42, 39, 36, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(42, 39, 36, 0.1), 0 2px 4px -2px rgba(42, 39, 36, 0.1);
@@ -80,11 +83,15 @@
 
   --lift-raised: 0 1px 2px rgba(42, 39, 36, 0.05), 0 10px 28px rgba(42, 39, 36, 0.07);
 
-  /* --card-raised 是主题相关的颜色 token，必须跟其余调色板变量一样进这个块：
-     浅色下 primary 靠阴影浮起来，背景与普通卡片相同；深色下阴影几乎不可见，
-     改用背景提亮一档（见深色 :root 块）。放进两个调色板块而不是排版/形状那个
-     与主题无关的块，是因为后者在文件里排在深色块之后——同名变量同优先级下
-     后出现者胜，放那儿会让深色值被静默覆盖（守卫见下方新增测试）。 */
+  /* --card-raised is a theme-dependent color token and must live in this block
+     like the other palette variables: in light mode, primary rises via its
+     shadow and its background matches an ordinary card; in dark mode the shadow
+     is nearly invisible, so the background is lifted one step instead (see the
+     dark :root block). It goes in the two palette blocks rather than the
+     theme-independent typography/shape block because the latter comes after the
+     dark block in the file — with equal specificity the later declaration of the
+     same variable wins, so putting it there would silently override the dark
+     value (guarded by the test added below). */
   --card-raised: #ffffff;
 }
 
@@ -98,8 +105,9 @@
 
     --brand: #f5b942;
 
-    /* 底板取 --rule 那一档暖灰而不是纯墨：纯墨落在 #1c1a18 的深色底上，
-       方块的边几乎看不见，标记会散成三个漂浮的形状。 */
+    /* The tile base uses the warm gray of the --rule tier rather than pure ink: pure ink on
+       the #1c1a18 dark background makes the tile's edges nearly invisible, and
+       the mark would scatter into three floating shapes. */
     --mark-tile: #38342f;
     --mark-on: #f6f4ef;
     --mark-gold: #f5b942;
@@ -159,95 +167,113 @@
     --popover-bg: #2b2825;
     --accent-bg: #353128;
 
-    /* spec §9 说深色下阴影几乎不可见，层级改靠背景提亮（见下面 --card-raised）。
-       这里仍给深色一组更黑的阴影，是偏离 spec 的刻意选择，不是漏改：深色下
-       阴影确实还能帮忙分离层次，但它是辅助，--card-raised 的亮度差才是主力。 */
+    /* Spec §9 says shadows are nearly invisible in dark mode, so hierarchy relies on a
+       brighter background instead (see --card-raised below). Dark mode still gets
+       a blacker set of shadows here; this is a deliberate deviation from the spec,
+       not an oversight: shadows do still help separate layers in dark mode, but
+       they are secondary — the brightness difference of --card-raised does the real work. */
     --lift-raised: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.45);
 
-    /* 刻意避开 --card-hover(#2e2a26)：两者若取同一个值，鼠标悬停在一张
-       standard 卡片上时它会长得和 primary 一模一样，把「我正指着它」误读
-       成「它更重要」。任何用亮度表达层级的地方，都要先让开表达交互状态的
-       那几档亮度。（这个块必须自己定义 --card-raised，不能指望排在它后面的
-       排版/形状块补——那个块的同名变量会覆盖这里，见 color_contrast_test.rb
-       新增的「与主题无关的 token 不会被深色块重定义」。） */
+    /* Deliberately avoids --card-hover (#2e2a26): if the two shared a value, a
+       standard card under the mouse would look identical to a primary one, and
+       "I'm pointing at it" would be misread as "it matters more". Anywhere
+       brightness expresses hierarchy, steer clear of the brightness steps that
+       express interaction state first. (This block must define --card-raised
+       itself and cannot count on the typography/shape block after it to fill in
+       — that block's same-named variable would override this one; see "theme-independent
+       tokens are not redefined by the dark block" added in color_contrast_test.rb.) */
     --card-raised: #332f2a;
   }
 }
 
-/* 排版尺度与形状。中文字面必须显式列出：缺了它，PingFang 之外的机器会
-   回落到一个和拉丁字面对不上的字体，行高与字重全都走样。 */
+/* Typography scale and shape. CJK typefaces must be listed explicitly: without them,
+   machines lacking PingFang fall back to a font that does not match the Latin
+   face, and line height and weight all go off. */
 :root {
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
              "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
                "Liberation Mono", monospace;
 
-  /* ── 排版尺度（设计 15 §3.1）──────────────────────────────────────
-     五档，不是六档。skill 给的 Web 档位是 12/14/16/18/20/24 六档，本项目
-     去掉 18px：六档挤在 12–24 之间，数学上不可能让相邻比值都不低于 1.2
-     （18/16 = 1.125），硬塞六档就是假装有区别而实际分不出来。
+  /* ── Type scale (design 15 §3.1) ──────────────────────────────────
+     Five steps, not six. The skill's web steps are 12/14/16/18/20/24 (six);
+     this project drops 18px: six steps squeezed between 12 and 24 cannot
+     mathematically keep every adjacent ratio at or above 1.2 (18/16 = 1.125),
+     and forcing in six steps pretends there is a difference that cannot
+     actually be told apart.
 
-     声音档是 24 / 20 / 16，比值 1.2 与 1.25，不靠字重也分得出来。
-     14 与 12 是辅助档，【刻意不靠尺寸区分】，靠场景：14 在正文流里，
-     12 只出现在不参与正文阅读的位置（表头、徽标内、单位、机器数据）。
+     The voice steps are 24 / 20 / 16, with ratios 1.2 and 1.25, distinguishable
+     even without font weight. 14 and 12 are auxiliary steps that [deliberately
+     are not distinguished by size] but by context: 14 sits in the body flow,
+     and 12 appears only where it takes no part in reading body text (table
+     headers, inside badges, units, machine data).
 
-     需要第六个字号时，那是分级没想清楚，不是尺度不够用。 */
-  --text-2xl:  1.5rem;    /* 24px 页标题，每页一个 */
-  --text-xl:   1.25rem;   /* 20px primary 区块标题 */
-  --text-base: 1rem;      /* 16px 正文；standard 区块标题（字重 600） */
-  --text-sm:   0.875rem;  /* 14px 表格正文、quiet 区块标题、按钮、说明行 */
-  --text-xs:   0.75rem;   /* 12px 表头、脚注、数据年龄、单位、徽标 */
+     When a sixth font size seems needed, the grading was not thought through;
+     the scale is not what falls short. */
+  --text-2xl:  1.5rem;    /* 24px page title, one per page */
+  --text-xl:   1.25rem;   /* 20px primary section title */
+  --text-base: 1rem;      /* 16px body text; standard section title (weight 600) */
+  --text-sm:   0.875rem;  /* 14px table body, quiet section title, buttons, description lines */
+  --text-xs:   0.75rem;   /* 12px table headers, footnotes, data age, units, badges */
 
   --radius-card:    0.75rem;    /* 12px */
   --radius-control: 0.5rem;     /* 8px */
-  --radius-pill:    999px;      /* 哨兵值，不是尺寸，故意不换算成 rem */
-  --radius-focus:   0.1875rem;  /* 3px 焦点圈；比控件圆角小一档，贴着轮廓走 */
-  /* 与 --radius-pill 同值但不合并：语义分离——一个给正圆点，一个给胶囊形的
-     徽章/按钮，共用一个名字会让下一个改胶囊圆角的人顺手把圆点也改了。 */
+  --radius-pill:    999px;      /* sentinel value, not a size; deliberately not converted to rem */
+  --radius-focus:   0.1875rem;  /* 3px focus ring; one step smaller than the control radius, hugging the outline */
+  /* Same value as --radius-pill but deliberately not merged: the semantics differ — one is
+     for round dots, the other for pill-shaped badges/buttons. Sharing one name
+     would let the next person who changes the pill radius change the dots too. */
   --radius-dot:      999px;
-  --radius-hairline: 0.125rem;  /* 2px 细线元素的圆角 */
+  --radius-hairline: 0.125rem;  /* 2px corner radius for hairline elements */
 
-  /* ── 线宽（设计 15 §5 修订）───────────────────────────────────────
-     --line-gold 有四个用处，两处是 border-bottom-width、两处是 height。
-     它们【必须同粗】——Turbo 进度条在视觉上就是站名下那条金线滑过页面顶端。
-     此前这个约束只靠注释提醒，四处各写各的 3px。 */
-  --line-gold:   3px;  /* 站名下的金线、当前导航下划线、Turbo 进度条、区块金短线 */
-  --line-status: 4px;  /* 总览表首列的状态色条 */
+  /* ── Line widths (design 15 §5 revision) ──────────────────────────
+     --line-gold has four uses: two are border-bottom-width, two are height.
+     They [must be the same thickness] — the Turbo progress bar visually is the
+     gold line under the site name sliding across the top of the page.
+     Previously this constraint was only a comment reminder, with 3px written
+     separately in four places. */
+  --line-gold:   3px;  /* gold line under the site name, current-nav underline, Turbo progress bar, section gold short rule */
+  --line-status: 4px;  /* status color bar in the first column of the overview table */
 
-  /* ── 间距（设计 15 §4）────────────────────────────────────────────
-     七档，按【关系】命名，不按级别命名。设计 14 的 gap-major / gap-block（旧名）
-     说的是「留多大」，这套说的是「这两个东西是什么关系」。
+  /* ── Spacing (design 15 §4) ────────────────────────────────────────
+     Seven steps, named by [relationship], not by level. Design 14's gap-major /
+     gap-block (the old names) said "how much room to leave"; this set says
+     "what relationship these two things have".
 
-     排序法则比具体数值重要：
-       label 与控件的距离 < 两个 group 的距离 < 两个 section 的距离
+     The ordering rule matters more than the concrete values:
+       label-to-control distance < distance between two groups < distance between two sections
 
-     配套三条（空间语法）：组件的 padding 由组件自己拥有，组件之间的 gap 由
-     父容器拥有；不重复 padding；光学校正要能解释。 */
-  --space-xxs: 0.125rem;  /* 2px  光学校正 */
-  --space-xs:  0.25rem;   /* 4px  同一控件的各部分 */
-  --space-sm:  0.5rem;    /* 8px  紧密相关的控件 */
-  --space-md:  0.75rem;   /* 12px 同一内容组 */
-  --space-lg:  1rem;      /* 16px 同一 section 的不同组 */
-  --space-xl:  1.5rem;    /* 24px 不同 section */
-  --space-xxl: 2rem;      /* 32px 主要区域边界 */
+     Three companion rules (spatial grammar): a component's padding is owned by
+     the component itself, and the gap between components is owned by the parent
+     container; do not duplicate padding; optical corrections must be explainable. */
+  --space-xxs: 0.125rem;  /* 2px  optical correction */
+  --space-xs:  0.25rem;   /* 4px  parts of the same control */
+  --space-sm:  0.5rem;    /* 8px  closely related controls */
+  --space-md:  0.75rem;   /* 12px the same content group */
+  --space-lg:  1rem;      /* 16px different groups in the same section */
+  --space-xl:  1.5rem;    /* 24px different sections */
+  --space-xxl: 2rem;      /* 32px major area boundary */
 
-  /* ── 控件尺寸（设计 15 §6）────────────────────────────────────────
-     两档，【整体切换，不单独改高度】。token 是高度值，配套的 .control-md /
-     .control-sm 类（第 2 批建）负责把它连同对应的字号与内边距一起套上去
-     ——改高度而不改字号和内边距，就是「只改外框高度」那种错。 */
-  --control-md: 2.25rem;  /* 36px 默认：表单、对话框、页面级操作 */
-  --control-sm: 1.75rem;  /* 28px 紧凑：表格行内操作、工具栏 */
+  /* ── Control sizes (design 15 §6) ───────────────────────────────────
+     Two steps, [switched as a whole; never change the height alone]. The token
+     is the height value; the companion .control-md / .control-sm classes (built
+     in batch 2) apply it together with the matching font size and padding
+     — changing the height without the font size and padding is exactly the
+     "only changed the outer frame height" mistake. */
+  --control-md: 2.25rem;  /* 36px default: forms, dialogs, page-level actions */
+  --control-sm: 1.75rem;  /* 28px compact: in-row table actions, toolbars */
 
-  /* ── 图标（设计 15 §14.2）─────────────────────────────────────────
-     与控件档和字号档配套，共享同一条 rem 缩放轴：用户调大字号时图标跟着长。
-     本批只定义，图标 partial 与 icon_tag 是第 2 批。 */
-  --icon-md: 1rem;      /* 16px 配 --control-md 与 --text-base */
-  --icon-sm: 0.875rem;  /* 14px 配 --control-sm 与 --text-sm */
+  /* ── Icons (design 15 §14.2) ─────────────────────────────────────────
+     Paired with the control steps and font-size steps, sharing the same rem
+     scaling axis: when the user enlarges the font size, icons grow with it.
+     This batch only defines them; the icon partial and icon_tag come in batch 2. */
+  --icon-md: 1rem;      /* 16px pairs with --control-md and --text-base */
+  --icon-sm: 0.875rem;  /* 14px pairs with --control-sm and --text-sm */
 
   --lift: 0 1px 2px rgba(42, 39, 36, 0.06);
 }
 
-/* ── 基础 ─────────────────────────────────────────────────────────── */
+/* ── Base ─────────────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -294,7 +320,7 @@ body {
   }
 }
 
-/* ── 顶栏 ─────────────────────────────────────────────────────────── */
+/* ── Top bar ─────────────────────────────────────────────────────────── */
 .chrome {
   display: flex;
   align-items: center;
@@ -312,10 +338,12 @@ body {
   gap: 1.5rem;
 }
 
-/* 站名下的金线与标记里那根金绳是同一条线索，别再往别处加金色。 */
-/* 这是字标（wordmark），不是正文标题——它是站名固定的视觉形象，字号仍
-   走 --text-xl，但不随该档的字重/字距规则走。按档位改成 700 会让站名比
-   设计意图轻一档，这里的 800/-0.02em 是刻意保留的豁免，不是漏改。 */
+/* The gold line under the site name and the gold cord in the mark are the same thread; do not add gold anywhere else. */
+/* This is the wordmark, not a body heading — the site name's fixed visual
+   identity. Its size still follows --text-xl, but it does not follow that
+   step's weight/letter-spacing rules. Changing it to 700 per the step would
+   make the site name one step lighter than the design intent; the 800/-0.02em
+   here is a deliberate exemption, not an oversight. */
 .chrome-brand {
   display: inline-flex;
   align-items: center;
@@ -328,16 +356,19 @@ body {
   border-bottom: var(--line-gold) solid var(--brand);
 }
 
-/* 标记是图形不是文字，不能跟着字面一起坐在基线上——那样看着会往下沉。
-   flex 的居中对齐让它对齐字面的视觉中线。 */
+/* The mark is a graphic, not text, so it must not sit on the baseline along
+   with the glyphs — it would look like it sinks. flex centering aligns it to
+   the glyphs' visual midline. */
 .mark {
   display: block;
   flex: none;
 }
 
-/* 采集中：结沿着绳上下滑，就是这件仪器被使用时的样子——把牌举稳，
-   让结在绳上找到对的位置。整枚标不旋转：旋转的 logo 是另一个年代的语气。
-   动画只动金色那两件，方牌是参照物，参照物不该晃。 */
+/* While collecting: the knot slides up and down the cord, which is what the
+   instrument looks like in use — hold the tile steady and let the knot find
+   the right spot on the cord. The whole mark does not rotate: a spinning logo is
+   the tone of another era. The animation moves only the two gold parts; the
+   square tile is the reference, and a reference should not wobble. */
 .mark--reading .mark-knot {
   animation: mark-reading 1.6s ease-in-out infinite;
   transform-origin: 12px 16.6px;
@@ -348,15 +379,17 @@ body {
   50%      { transform: translateY(-3.4px); }
 }
 
-/* 页面切换时 Turbo 自带的进度条。染成品牌金，粗细跟站名下那条线对齐——
-   它在视觉上就是那条线滑过页面顶端，不是另起一个加载指示。 */
+/* Turbo's built-in progress bar for page transitions. Dyed brand gold, with
+   thickness aligned to the line under the site name — visually it is that
+   line sliding across the top of the page, not a separate loading indicator. */
 .turbo-progress-bar {
   height: var(--line-gold);
   background: var(--brand);
 }
 
-/* 长期空状态：一枚压低的标压在文案上方。透明度让它退成水印——它是氛围，
-   不是要人去读的信息。 */
+/* Long-lived empty state: a lowered mark sits above the copy. The opacity
+   makes it recede like a watermark — it is atmosphere, not information
+   people need to read. */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -381,7 +414,7 @@ body {
   margin: 0;
 }
 
-/* 采集中那一行：标记与文字同一行、垂直居中。 */
+/* The row while collecting: the mark and text on one line, vertically centered. */
 .data-age--reading {
   display: flex;
   align-items: center;
@@ -454,7 +487,7 @@ body {
   color: var(--ink-muted);
 }
 
-/* ── 页面骨架 ─────────────────────────────────────────────────────── */
+/* ── Page skeleton ─────────────────────────────────────────────────────── */
 .page {
   max-width: 73.75rem;
   margin: 0 auto;
@@ -471,8 +504,9 @@ body {
   font-size: var(--text-sm);
 }
 
-/* 报头是这套界面唯一张扬的地方：大标题 + 一句大白话副标题，说清这一页
-   到底回答什么问题。别的地方一律安静。 */
+/* The page head is the one loud spot in this interface: a big title plus a
+   plain-language subtitle that says what question this page answers. Everywhere
+   else stays quiet. */
 .page-head {
   display: flex;
   align-items: flex-end;
@@ -520,8 +554,10 @@ h3 {
   margin: 1.5rem 0 0.5rem;
 }
 
-/* 2.25rem 不落在任何 --space-* 上：它是三级区块类落地之前的过渡默认值。
-   三级类还没有视图套用，这里先不动，等第 4 批各页面按三级归位后随之删除。 */
+/* 2.25rem does not land on any --space-* step: it is a transitional default from before the
+   three-tier section classes landed. No view applies the three tiers yet, so
+   this is left alone for now; it will be deleted in batch 4 once each page is
+   placed into its tier. */
 .section {
   margin-bottom: 2.25rem;
 }
@@ -568,27 +604,35 @@ h3 {
   margin-bottom: 0;
 }
 
-/* ── 区块三级（设计 14 §4）──────────────────────────────────────────
-   一个区块 = 标题 + 面板。三级不动用状态色（--drift-* / --unhealthy-* /
-   --ok-* 等）——那条通道已经被状态信息占满了（见文件开头的调色板注释）。
+/* ── Section tiers (design 14 §4) ───────────────────────────────────
+   A section = a title + a panel. The three tiers do not use status colors
+   (--drift-* / --unhealthy-* / --ok-* etc.) — that channel is already fully
+   taken by status information (see the palette comment at the top of the file).
 
-   但 --ink-muted 这类文本层级墨色不算状态色，它是既有的文本降级手段
-   （表头、脚注、单位用的就是它），quiet 标题用它降一档，用的是它本来的
-   用途。看到下面 .tier-quiet > h2 上的 color，不要读成「颜色也能用来
-   分级」——三级真正靠的是尺寸、阴影、间距；这一处颜色只是借用了已有的
-   文本层级，不是三级新开的一条通道。
+   But text-hierarchy ink colors like --ink-muted do not count as status
+   colors; they are the existing means of demoting text (table headers,
+   footnotes and units use it), and the quiet title uses it to drop a step,
+   which is its original purpose. When you see the color on .tier-quiet > h2
+   below, do not read it as "color can also be used for tiering" — the tiers
+   really rest on size, shadow, and spacing; this one color merely borrows an
+   existing text hierarchy and is not a new channel opened by the tiers.
 
-   quiet 是这套分级里最重要的一档，因为它是唯一做减法的：静态配置从「一张
-   白卡」退成「一条顶线下的几行小字」。一个区块被降到 quiet，页面上就腾出
-   了一块注意力，这块注意力才是 primary 能立起来的原因。只加 primary 不减
-   quiet，等于把所有东西一起放大，回到原点。
+   quiet is the most important step in this grading because it is the only one
+   that subtracts: static configuration goes from "a white card" down to "a few
+   lines of small text under a top rule". When a section is demoted to quiet, a
+   chunk of attention is freed on the page, and that freed attention is what
+   lets primary stand out. Adding primary without subtracting quiet just
+   enlarges everything together, back to square one.
 
-   判据：一页至多一个 primary。两个区块都想当 primary，说明这一页该拆成两页，
-   或者其中一个其实是 standard。 */
+   Criterion: at most one primary per page. If two sections both want to be
+   primary, either the page should be split in two, or one of them is really
+   standard. */
 
-/* primary 与 standard 用同一档间距（原先 3rem 与 2.5rem，两档不同）。这不是
-   遗漏：间距表达的是「这个区块结束、下一个开始」这一种关系，对两者是同一种
-   关系。分级由区块自身的内边距、抬升、标题档位承担，不由它与邻居的距离承担。 */
+/* primary and standard use the same spacing step (originally 3rem and 2.5rem, two different steps). This is not an
+   omission: spacing expresses the single relationship "this section ends, the
+   next begins", which is the same relationship for both. The tiering is carried
+   by the section's own padding, elevation, and title step, not by its distance
+   from neighbors. */
 .tier-primary {
   margin-bottom: var(--space-xl);
 }
@@ -608,7 +652,7 @@ h3 {
   margin-bottom: var(--space-xl);
 }
 
-/* standard 就是现状：.panel 自己的那套值，这里只管间距与标题档位。 */
+/* standard is the status quo: the values .panel already has; here we only handle spacing and title step. */
 .tier-standard > h2,
 .tier-standard > .section-head h2 {
   font-size: var(--text-base);
@@ -637,14 +681,15 @@ h3 {
   padding: 0.875rem 0 0;
 }
 
-/* 连续的 quiet 区块是一组，收紧间距（设计 14 §5）。 */
+/* Consecutive quiet sections form a group; tighten the spacing (design 14 §5). */
 .tier-quiet:has(+ .tier-quiet) {
   margin-bottom: var(--space-md);
 }
 
-/* 品牌金的第三个用途，到此为止（设计 14 §6）：次级区块标题下的短金线。
-   金色只用来标记结构，永远不标记状态（那是五支状态色的事），也永远不标记
-   可点击性（那是 --action 的事）。 */
+/* The third use of brand gold, and it ends here (design 14 §6): the short gold
+   rule under a secondary section title. Gold only marks structure, never
+   status (that is the job of the five status colors), and never clickability
+   (that is the job of --action). */
 .rule-gold::after {
   content: "";
   display: block;
@@ -677,7 +722,7 @@ p,
   color: var(--ink-muted);
 }
 
-/* ── 链接与按钮 ───────────────────────────────────────────────────── */
+/* ── Links and buttons ───────────────────────────────────────────────────── */
 a {
   color: var(--action);
   font-weight: 600;
@@ -688,12 +733,14 @@ a:hover {
   text-decoration: underline;
 }
 
-/* 底边比其他三边厚一档——按钮看起来有厚度、可以按下去。Basecamp 这一手
-   在浅色深色下都成立，因为它靠的是边框而不是阴影。 */
-/* 浏览器给 [hidden] 的 display: none 来自 UA 样式表，任何作者样式里的
-   display 都会盖掉它——比如下面那条给 input[type="submit"] 的
-   display: inline-block。于是 el.hidden = true 会静默失效：属性在、元素照显。
-   这条规则把 [hidden] 的语义拿回来。 */
+/* The bottom border is one step thicker than the other three — the button
+   looks thick and pressable. Basecamp's trick works in both light and dark,
+   because it relies on the border rather than a shadow. */
+/* The browser's display: none for [hidden] comes from the UA stylesheet, and any
+   author-style display overrides it — for example the display: inline-block
+   given to input[type="submit"] below. So el.hidden = true silently fails: the
+   attribute is there, the element still shows. This rule takes back the
+   semantics of [hidden]. */
 [hidden] {
   display: none !important;
 }
@@ -784,8 +831,8 @@ input[type="submit"].btn-quiet {
   padding: 0 var(--space-sm);
 }
 
-/* 顶栏里的「退出」不该长得像个待办的操作——那里它只是个出口，
-   所以只在这一处退回无边框的链接感。 */
+/* The "Sign out" in the top bar should not look like a pending action — there it is
+   just an exit, so only in this one place does it fall back to a borderless link feel. */
 .chrome-user .btn-quiet,
 .chrome-user input[type="submit"].btn-quiet {
   border-color: transparent;
@@ -811,7 +858,7 @@ input[type="submit"].btn-quiet:hover {
   margin: 0;
 }
 
-/* ── 表单 ─────────────────────────────────────────────────────────── */
+/* ── Forms ─────────────────────────────────────────────────────────── */
 label {
   display: block;
   font-weight: 700;
@@ -868,11 +915,11 @@ textarea {
   line-height: 1.6;
 }
 
-/* outline 留成透明的 2px 而不是 none：高对比度模式丢掉 box-shadow，只认 outline。 */
+/* Leave outline as a transparent 2px rather than none: high-contrast mode drops box-shadow and only honors outline. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
-/* 各浏览器对"鼠标点开 select 算不算 focus-visible"判断不一致，补一条 :focus。 */
+/* Browsers disagree on whether opening a select with the mouse counts as focus-visible; add a :focus rule. */
 select:focus {
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -887,7 +934,7 @@ select:disabled {
   cursor: not-allowed;
 }
 
-/* 没有 JS 时看到的是原生 select：去掉系统箭头，自己画一个对齐的。 */
+/* Without JS you see the native select: remove the system arrow and draw an aligned one ourselves. */
 select {
   appearance: none;
   -webkit-appearance: none;
@@ -898,10 +945,11 @@ select {
   background-size: var(--icon-md) var(--icon-md);
 }
 
-/* ── 总览页筛选 ───────────────────────────────────────────────────────
-   一行控件，窄屏折行。控件的 label 只给读屏软件——占位符和"全部状态"
-   这个默认项已经说清了各自是什么，再摆两个可见的标签只会把这一行撑散，
-   但看不见不等于可以没有。 */
+/* ── Overview filter ─────────────────────────────────────────────────
+   One row of controls, wrapping on narrow screens. The controls' labels are for
+   screen readers only — the placeholder and the "All statuses" default item
+   already say what each is, and two visible labels would only stretch this row
+   apart, but invisible does not mean they can be absent. */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -910,8 +958,8 @@ select {
   margin-bottom: 0.875rem;
 }
 
-/* 表单控件默认 24rem 宽，那是给独占一行的输入框定的；这一行里它们得
-   按自己的内容排。 */
+/* Form controls default to 24rem wide, which was set for inputs that take a whole
+   row; in this row they have to size to their own content. */
 .filter-bar input[type="search"] {
   width: auto;
 }
@@ -945,7 +993,7 @@ form div {
   margin-bottom: 1rem;
 }
 
-/* ── 表格 ─────────────────────────────────────────────────────────── */
+/* ── Tables ─────────────────────────────────────────────────────────── */
 table {
   border-collapse: collapse;
   margin-bottom: 1.5rem;
@@ -960,8 +1008,9 @@ td {
   vertical-align: top;
 }
 
-/* 表头只是列名，不是内容——它靠的是尺寸和颜色的降级，不是字母间距和
-   全大写；后者在中文列名上根本不起作用，只会把字挤开。 */
+/* The table head is only column names, not content — it relies on demotion by size and
+   color, not letter-spacing and all caps; the latter does nothing on Chinese
+   column names and only pushes the characters apart. */
 th {
   font-weight: 600;
   font-size: var(--text-xs);
@@ -979,7 +1028,7 @@ th {
   padding-bottom: 0;
 }
 
-/* 总览表是这个面板存在的理由：行更高、应用名更重、整行可 hover。 */
+/* The overview table is the reason this panel exists: taller rows, heavier app names, the whole row hoverable. */
 table.overview-grid {
   width: 100%;
   font-size: var(--text-sm);
@@ -1044,8 +1093,8 @@ table.overview-grid {
   padding-top: 0;
 }
 
-/* 机器名、版本号、指纹是要一行行纵向比对的机器数据，等宽在这里是信息
-   编码，不是装饰。 */
+/* Host names, version numbers, and fingerprints are machine data to be compared
+   row by row vertically; monospace here is information encoding, not decoration. */
 .host-table td:first-child,
 .overview-grid td:nth-child(3),
 .deploy-history td:first-child {
@@ -1084,8 +1133,8 @@ pre code {
   line-height: 1.6;
 }
 
-/* ── 状态徽章 ─────────────────────────────────────────────────────── */
-/* 圆点是颜色的冗余强化，不是信息本身——文字永远在（spec 8.6）。 */
+/* ── Status badges ─────────────────────────────────────────────────────── */
+/* The dot is redundant reinforcement of the color, not the information itself — the text is always there (spec 8.6). */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1150,7 +1199,7 @@ pre code {
   font-weight: 700;
 }
 
-/* ── 消息条 ───────────────────────────────────────────────────────── */
+/* ── Flash messages ───────────────────────────────────────────────────────── */
 .flash,
 .flash-alert,
 .flash-notice,
@@ -1208,7 +1257,7 @@ pre code {
   pointer-events: none;
 }
 
-/* 特异性要压过 .filter-bar input[type="search"] 的 width: auto。 */
+/* Specificity must beat the width: auto of .filter-bar input[type="search"]. */
 .field-with-icon input[type="search"],
 .field-with-icon input[type="text"] {
   width: 18rem;
@@ -1268,7 +1317,7 @@ pre code {
   margin-top: 1.25rem;
 }
 
-/* ── 执行输出 ─────────────────────────────────────────────────────── */
+/* ── Action output ─────────────────────────────────────────────────────── */
 .action-output {
   min-height: 6rem;
   max-height: 28rem;
@@ -1309,8 +1358,8 @@ pre code {
   color: var(--ink);
 }
 
-/* ── 列表 ─────────────────────────────────────────────────────────── */
-/* 卡片内的整行链接：留白吃满卡片的内边距，整行都可点。 */
+/* ── Lists ─────────────────────────────────────────────────────────── */
+/* Full-row links inside a card: the whitespace fills the card padding, so the whole row is clickable. */
 .record-list {
   list-style: none;
   margin: -0.5rem -1.5rem;
@@ -1343,7 +1392,7 @@ pre code {
   font-size: var(--text-sm);
 }
 
-/* ── 折叠的危险操作 ───────────────────────────────────────────────── */
+/* ── Collapsed dangerous actions ───────────────────────────────────────────────── */
 details.force-unlock,
 details.stop-app {
   margin-top: 1rem;
@@ -1390,17 +1439,18 @@ details.stop-app[open] summary {
   font-family: var(--font-ui);
 }
 
-/* ── 认证页 ───────────────────────────────────────────────────────── */
-/* 全站唯一的居中版式：这里没有数据要扫，只有一件事要做。 */
+/* ── Auth pages ───────────────────────────────────────────────────────── */
+/* The only centered layout site-wide: there is no data to scan here, just one thing to do. */
 .auth {
   max-width: 26.25rem;
   margin: 12vh auto 0;
 }
 
-/* 登录页是全站唯一一处标记该被放大的地方：这一页是空的，它撑得住。 */
-/* 同 .chrome-brand，这也是字标而非正文标题，字号走 --text-xl，但字重
-   字距不跟随该档的排版尺度——字标有自己独立于正文层级的视觉重量，故意
-   不改成 700。 */
+/* The login page is the one place site-wide where the mark should be enlarged: this page is empty, and it can carry it. */
+/* Like .chrome-brand, this is also a wordmark rather than a body heading; the
+   size follows --text-xl, but weight and letter-spacing do not follow that
+   step's typographic scale — the wordmark has its own visual weight independent
+   of the body hierarchy, so it is deliberately not changed to 700. */
 .auth-brand {
   display: flex;
   flex-direction: column;
@@ -1466,11 +1516,12 @@ details.stop-app[open] summary {
   font-size: var(--text-sm);
 }
 
-/* ── 表格行内的操作 ───────────────────────────────────────────────── */
-/* button_to 生成的是 <form>，块级元素：和 <a> 并排放在一个单元格里，它会
-   自己掉到下一行。这里把这一格的操作排成一行。flex 放在内层 div 上而不是
-   td 上——给 td 换掉 display: table-cell 会连带影响整张表的列对齐。 */
-/* 行内操作靠右，和页头/区块头的按钮组一致；gap 走 token。 */
+/* ── In-row table actions ───────────────────────────────────────────────── */
+/* button_to generates a <form>, a block-level element: placed beside an <a> in one
+   cell, it drops to the next line on its own. Here the actions in this cell are
+   laid out in one row. flex goes on the inner div rather than the td — changing
+   a td's display from table-cell would affect column alignment of the whole table. */
+/* In-row actions are right-aligned, consistent with the button groups in page/section heads; gap goes through tokens. */
 .row-actions {
   display: flex;
   align-items: center;
@@ -1478,13 +1529,13 @@ details.stop-app[open] summary {
   gap: var(--space-sm);
 }
 
-/* 站点级的 `form div { margin-bottom: 1rem }` 会把这里撑开半行。 */
+/* The site-wide `form div { margin-bottom: 1rem }` would stretch this out by half a row. */
 .row-actions form,
 .row-actions form div {
   margin: 0;
 }
 
-/* ── 添加成员：密码设置方式 ────────────────────────────────────────── */
+/* ── Add member: how the password is set ────────────────────────────────────────── */
 .password-setup {
   border: 1px solid var(--rule);
   border-radius: var(--radius-control);
@@ -1511,8 +1562,8 @@ details.stop-app[open] summary {
   margin: 0;
 }
 
-/* 选中「我直接设置密码」才展开两个密码框。:has() 不被支持时它们保持可见，
-   那是安全的降级——真正决定行为的是提交上来的 password_setup。 */
+/* Only when "Set the password myself" is selected do the two password fields expand. When :has() is unsupported they stay visible,
+   which is a safe degradation — what actually decides behavior is the submitted password_setup. */
 .password-setup-manual {
   margin-top: 0.75rem;
 }
@@ -1527,7 +1578,7 @@ details.stop-app[open] summary {
   }
 }
 
-/* ── 窄屏 ─────────────────────────────────────────────────────────── */
+/* ── Narrow screens ─────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   .chrome {
     padding: 0.75rem 1rem;
@@ -1547,9 +1598,10 @@ details.stop-app[open] summary {
     padding: 1.125rem;
   }
 
-  /* 媒体查询不提升特异性：上面这条 .panel 的特异性是 (0,1,0)，压不过
-     .tier-primary .panel 的 (0,2,0)，所以窄屏上 primary 面板会原样保留
-     1.75rem/2rem 的内边距，正文可用宽度被吃掉将近 4rem。这里单独重申。 */
+  /* A media query does not raise specificity: the .panel rule above has specificity (0,1,0), which cannot beat
+     .tier-primary .panel at (0,2,0), so on narrow screens the primary panel would keep
+     its 1.75rem/2rem padding as-is, eating nearly 4rem of usable body width.
+     Restated here on its own. */
   .tier-primary .panel {
     padding: 1.125rem;
   }
@@ -1562,15 +1614,16 @@ details.stop-app[open] summary {
     padding: 0.875rem 1.125rem;
   }
 
-  /* 宽表在窄屏上自己横向滚动，页面本身绝不横向滚。 */
+  /* Wide tables scroll horizontally on their own on narrow screens; the page itself never scrolls horizontally. */
   .panel {
     overflow-x: auto;
   }
 }
 
-/* 下拉：触发器与菜单面板由 select_controller.js 建。 */
-/* margin 归零：站点级的 `form div { margin-bottom: 1rem }` 会打到它，
-   让外边距盒比本体高 16px，在 align-items: center 的一行里本体就上移 8px。 */
+/* Dropdown: the trigger and menu panel are built by select_controller.js. */
+/* margin reset to zero: the site-wide `form div { margin-bottom: 1rem }` would hit it,
+   making the margin box 16px taller than the element itself, and in an align-items: center
+   row the element would shift up 8px. */
 .sel {
   position: relative;
   display: inline-flex;
@@ -1699,8 +1752,9 @@ details.stop-app[open] summary {
   min-width: 4.5rem;
 }
 
-/* 页头与区块头里的操作按钮成一组靠右。不加这一层的话，space-between 会把
-   标题和每个按钮平摊到整行宽度上——两个按钮时中间那个就落在行中央。 */
+/* The action buttons in page heads and section heads form a right-aligned group. Without this wrapper, space-between would spread
+   the title and each button evenly across the full row width — with two buttons, the
+   middle one would land in the center of the row. */
 .head-actions {
   display: flex;
   align-items: center;
@@ -1714,8 +1768,8 @@ details.stop-app[open] summary {
 }
 
 
-/* 二次确认对话框。Turbo 的 data-turbo-confirm 默认走原生 confirm()，
-   由 app/javascript/confirm_dialog.js 换成这个。 */
+/* Confirmation dialog. Turbo's data-turbo-confirm defaults to the native confirm();
+   app/javascript/confirm_dialog.js swaps it for this. */
 .confirm-dialog {
   max-width: 28rem;
   padding: var(--space-xl);
@@ -1752,7 +1806,7 @@ details.stop-app[open] summary {
   margin-top: var(--space-xl);
 }
 
-/* 上报脚本的模态框。比确认框宽，要装两段脚本。 */
+/* Modal for the reporting scripts. Wider than the confirm box, since it holds two scripts. */
 .token-dialog {
   width: min(48rem, calc(100vw - var(--space-xxl) * 2));
   max-height: calc(100vh - var(--space-xxl) * 2);
@@ -1779,8 +1833,8 @@ details.stop-app[open] summary {
   margin: var(--space-lg) 0 var(--space-sm);
 }
 
-/* 这句是整个弹窗里最要紧的一句：脚本只出现这一次。用告警色 + 左侧粗边，
-   让它在两段等宽代码块之间仍然抢得过注意力。 */
+/* This is the most important line in the whole dialog: the script appears only this once. Uses the alert color + a thick left border
+   so it still outcompetes for attention between the two monospace code blocks. */
 .token-warning {
   margin: 0;
   padding: var(--space-md) var(--space-lg);
@@ -1797,13 +1851,13 @@ details.stop-app[open] summary {
   margin: var(--space-lg) 0 0;
 }
 
-/* 模态框打开时锁住底层滚动。scrollbar-gutter 让滚动条消失时页面不横跳。 */
+/* Lock the underlying scroll while a modal is open. scrollbar-gutter keeps the page from shifting sideways when the scrollbar disappears. */
 .scroll-locked {
   overflow: hidden;
   scrollbar-gutter: stable;
 }
 
-/* 弹窗里的脚本要看着就是代码块：深底 + 浅墨，和执行页的输出同一套。 */
+/* Scripts in the dialog should look like code blocks: dark background + light ink, the same set as the output on the action page. */
 .token-scripts pre {
   margin: 0;
   padding: var(--space-md) var(--space-lg);

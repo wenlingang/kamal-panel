@@ -10,8 +10,8 @@
 <section class="section">
   <div class="panel">
     <%= form_with model: @user do |form| %>
-      <%# 错误展示照搬 managed_apps/new.html.erb 的写法：这个仓库里没有
-          shared/_errors，为这一处新造一个站点级 partial 属于本任务之外的重构。 %>
+      <%# The error display copies the way managed_apps/new.html.erb does it: this repo has no
+          shared/_errors, and creating a new site-level partial for this one spot would be a refactor outside this task. %>
       <% if @user.errors.any? %>
         <ul class="errors">
           <% @user.errors.full_messages.each do |message| %>
@@ -37,9 +37,9 @@
         <p class="hint"><%= t(".role_hint") %></p>
       </div>
 
-      <%# 展开/收起纯靠 CSS :has()，不引 JS。样式没加载上时两个密码框会
-          直接显示出来，那是安全的降级：password_setup 仍是单选的真值，
-          控制器只认 "manual" 那一档。 %>
+      <%# Expand/collapse relies purely on CSS :has(), with no JS. If styles fail to load, both password fields
+          simply show, which is a safe degradation: password_setup is still the radio's true value,
+          and the controller only recognizes the "manual" tier. %>
       <fieldset class="password-setup">
         <legend><%= t(".password_setup") %></legend>
 

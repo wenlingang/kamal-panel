@@ -1,8 +1,9 @@
 require "test_helper"
 
-# 前面三个动作类此前只有 cli_args，从未对真实主机执行过。
-# 这里断言的是【审计被正确收尾】，不是【命令成功】——fake host 上
-# 没有真实的 Kamal 部署，`kamal app stop` 以非零状态结束是预期的。
+# The three action classes above previously had only cli_args and were never executed against a real
+# host. What's asserted here is that [the audit is closed out correctly], not that [the command
+# succeeds] -- the fake host has no real Kamal deployment, so `kamal app stop` ending with a
+# non-zero status is expected.
 class Actions::ExecutionTest < ExecutionLayerTest
   def build_app
     yaml = <<~YAML
@@ -48,7 +49,8 @@ class Actions::ExecutionTest < ExecutionLayerTest
     refute_equal "pending", log.result, "执行完必须更新审计，不能停在 pending"
     assert_predicate log.duration_ms, :present?
     assert_match(/\Akamal app stop\b/, log.command)
-    # 证明真的走到了远端而不是在本地早退：kamal 的 SSHKit 输出会带上主机名
+    # Proves it really reached the remote rather than exiting early locally: kamal's SSHKit output
+    # includes the hostname
     assert_match "127.0.0.1", log.output_digest
   end
 

@@ -3,14 +3,17 @@ require "tmpdir"
 require "fileutils"
 
 module KamalCli
-  # 临时目录必须是完整的 kamal 项目布局，否则用户 hook 不触发、且 secrets 报 Secret not found。
+  # The temp directory must be a complete kamal project layout, otherwise user hooks do not fire and
+  # secrets report Secret not found.
   class Invocation
     DEFAULT_TIMEOUT = 10.minutes
 
-    # 临时目录前缀。刻意与 Kamal::ConfigParser::TMPDIR_PREFIX（"kamal-panel-parse"）
+    # Temp directory prefix. Deliberately distinct from Kamal::ConfigParser::TMPDIR_PREFIX
+    # ("kamal-panel-parse")
     TMPDIR_PREFIX = "kamal-panel-run-"
 
-    # 子进程退出后，还允许 grandchild 继续持有管道写端多久。
+    # After the subprocess exits, how long a grandchild is still allowed to keep holding the write
+    # end of the pipe.
     READER_GRACE = 5
 
     MAX_OUTPUT_BYTES = 1_000_000
@@ -18,7 +21,7 @@ module KamalCli
     TIMEOUT_NOTICE = "\n[面板] 执行超时，已终止".freeze
     TIMEOUT_STATUS = 124
 
-    # 子进程能看见的环境变量白名单。
+    # Allowlist of environment variables the subprocess can see.
     ENV_ALLOWLIST = %w[
       PATH HOME LANG LC_ALL LC_CTYPE TZ TMPDIR
       GEM_HOME GEM_PATH BUNDLE_GEMFILE RUBYOPT RUBYLIB
@@ -29,14 +32,15 @@ module KamalCli
       @timeout = timeout
     end
 
-    # 最后一次 run 使用的 ssh-agent。
+    # The ssh-agent used by the most recent run.
     attr_reader :agent
 
     def run(args, &block)
       Dir.mktmpdir(TMPDIR_PREFIX) do |dir|
         write_project_files(dir)
 
-        # ensure 不会运行，剩下的孤儿 agent 会自己在这个时限后忘掉密钥。
+        # ensure will not run, and the remaining orphaned agent will forget the key by itself after
+        # this time limit.
         Agent.with(private_key, lifetime: timeout.to_i + 60) do |agent|
           @agent = agent
           execute(dir, agent.auth_sock, args, &block)
@@ -84,14 +88,15 @@ module KamalCli
         FileUtils.mkdir_p(hooks_dir, mode: 0o700)
 
         hooks.each do |name, body|
-          # 拼一次 File.join 时不做任何通配/转义，是因为它不可能含 "/"。
+          # when File.join is called once there is no globbing/escaping, because it cannot possibly
+          # contain "/".
           path = File.join(hooks_dir, name)
           File.write(path, body)
           File.chmod(0o700, path)
         end
       end
 
-      # secrets-common 有两个来源：应用自己那段自由文本，以及（如果选了）
+      # secrets-common has two sources: the free text of the app itself, and (if chosen)
       def secrets_common_content
         free_text = managed_app.kamal_secrets.presence
         line = registry_secret_line
@@ -124,10 +129,11 @@ module KamalCli
         status = nil
         block_error = nil
 
-        # pgroup: true —— 子进程自成一个进程组。
+        # pgroup: true — the subprocess makes itself a process group.
         Open3.popen2e(child_env(auth_sock), *cmd,
                       chdir: dir, unsetenv_others: true, pgroup: true) do |stdin, out, wait_thread|
-          # 「写阻塞」的窟窿。真要写东西的地方（ssh-add）在 Agent 里单独限时。
+          # the hole of "write blocking". The place that really has to write something (ssh-add) is
+          # time-limited separately in Agent.
           stdin.close
 
           reader = Thread.new do
@@ -173,7 +179,7 @@ module KamalCli
         { status: status, output: output }
       end
 
-      # -pid 就是"这一组"。取不到进程组时退回只杀直接子进程，总比不杀好。
+      # -pid is "this group". When the process group cannot be obtained, fall back to killing only the direct child, which is better than not killing.
       def signal_group(pid, name)
         Process.kill(name, -Process.getpgid(pid))
       rescue Errno::ESRCH, Errno::EPERM, RangeError
@@ -184,7 +190,7 @@ module KamalCli
         end
       end
 
-      # reader.join 不能无界。
+      # reader.join must not be unbounded.
       def finish_reader(reader, out)
         return if reader.join(READER_GRACE)
 
@@ -196,7 +202,7 @@ module KamalCli
 
         return if reader.join(READER_GRACE)
 
-        # 还在回调调用方块的线程比这次调用活得更久。
+        # a thread still invoking the caller block would outlive this call.
         reader.kill
         reader.join
       end

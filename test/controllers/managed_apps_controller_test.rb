@@ -1,7 +1,7 @@
 require "test_helper"
 
 class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
-  setup { sign_in_as(users(:two)) } # admin：接入应用属于写操作
+  setup { sign_in_as(users(:two)) } # admin: onboarding an app is a write operation
 
   def valid_yaml
     file_fixture("simple_deploy.yml").read
@@ -28,8 +28,8 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal registry, app.registry_credential
   end
 
-  # 创建凭据只剩凭据页一条路径。两条创建路径意味着两套校验、两份测试，
-  # 以及它们迟早不一致。
+  # Creating credentials now has only one path, the credentials page. Two creation paths mean two
+  # sets of validation, two sets of tests, and that they will sooner or later disagree.
   test "接入表单不再接受当场粘贴的私钥" do
     sign_in_as users(:two)
 
@@ -43,7 +43,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "docker ps 输出解析不了时，逐主机文案是「输出无法解析」而不是「失联」" do
-    Rails.cache.clear # cached_app_hosts 缓存键含 id，SQLite 回滚后可能复用 id
+    Rails.cache.clear # cached_app_hosts cache key contains the id, and SQLite may reuse ids after rollback
 
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
                              destination: "production")
@@ -96,10 +96,11 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "表单填写的 kamal_secrets / kamal_hooks 确实落到 Invocation 的临时目录里" do
-    # 光看 ManagedApp 模型或 Invocation 单测都不能证明用户真的有路可以填这两
-    # 个字段——表单/控制器如果没接上，这两列就是「存在但永远是 nil」的死列，
-    # 任何证明 Invocation 会用到它们的测试都在测一条用户到不了的路径。这里从
-    # HTTP 表单提交开始，一路走到 kamal 子进程真的读到这些内容为止。
+    # Looking at the ManagedApp model or the Invocation unit tests alone can't prove users really
+    # have a way to fill in these two fields -- if the form/controller isn't wired up, these two
+    # columns are dead columns that "exist but are always nil", and any test proving Invocation uses
+    # them tests a path users can't reach. Here we start from the HTTP form submission and go all
+    # the way until the kamal subprocess actually reads this content.
     FakeHost.ensure_ready!
     FakeHost.reset_all!
 
@@ -125,9 +126,9 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
       assert_equal({ "pre-connect" => "#!/bin/sh\nenv > #{marker}\n" }, managed_app.kamal_hooks_scripts)
       assert_equal "KAMAL_REGISTRY_PASSWORD=s3cr3t-from-form\n", managed_app.kamal_secrets
 
-      # 走一次真正的 kamal 子进程调用——不是读模型属性，而是确认这两列
-      # 真的被 Invocation 物化进临时目录，并被 kamal 读到。
-      # 临时目录里没有 git 仓库，带 hook 的命令需要显式传 --version。
+      # Do a real kamal subprocess invocation -- not reading model attributes, but confirming these
+      # two columns are really materialized into the temp dir by Invocation and read by kamal. The
+      # temp dir has no git repo, so commands with hooks need an explicit --version.
       KamalCli::Invocation.new(managed_app).run(%w[app details --version v1]) { |_line| }
 
       assert File.exist?(marker), "表单填写的 kamal_hooks 对应的 hook 应被 kamal 执行"
@@ -168,7 +169,8 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p.warning", text: /registry/, count: 0
   end
 
-  # server 留空是允许的（它在 deploy.yml 里本来就有），那就无从比对，也就不提示。
+  # Leaving server blank is allowed (it's already in deploy.yml), so there's nothing to compare
+  # against, and no hint.
   test "凭据没填 registry 地址时不提示" do
     registry = RegistryCredential.create!(name: "没填地址的", value: "s3cr3t")
     app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("simple_deploy.yml").read,
@@ -180,11 +182,11 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p.warning", text: /registry/, count: 0
   end
 
-  # ---- 编辑应用（分支 app-edit）-------------------------------------------
+  # ---- Editing apps (branch app-edit) -------------------------------------------
   #
-  # 接入之前这个应用是永久不可变的：没有 update、没有 destroy。凭据进池共享
-  # 之后这成了一个硬伤——被引用的凭据删不掉，而"先把应用换成别的凭据"这件事
-  # 在面板里根本做不到。
+  # Before this, an app was permanently immutable once onboarded: no update, no destroy. After
+  # credentials went into a shared pool this became a real flaw -- a referenced credential can't be
+  # deleted, and "first switch the app to another credential" can't be done in the panel at all.
 
   def editable_app(**attrs)
     ManagedApp.create!({ name: "blog", config_yaml: valid_yaml, destination: "production" }.merge(attrs))
@@ -226,9 +228,10 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "blog", app.reload.name
   end
 
-  # 改绑凭据实质上是"把哪把私钥交给这个应用用"，而凭据是 admin 独占管理的。
-  # 视图里把下拉藏起来只是少一次注定失败的点击；真正的防线必须在参数层，
-  # 否则一条手工构造的 PATCH 就能让 developer 给自己的应用换上池子里任何一把钥匙。
+  # Rebinding a credential is in effect "which private key to hand to this app", and credentials are
+  # managed by admin alone. Hiding the dropdown in the view only saves one doomed click; the real
+  # defense must be at the params layer, otherwise a hand-crafted PATCH would let a developer swap
+  # their app onto any key in the pool.
   test "developer 伪造带凭据 id 的请求会被参数层丢弃" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "别人的钥匙")
     app = editable_app
@@ -257,8 +260,8 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal registry, app.registry_credential
   end
 
-  # destination 决定了容器名，而已有的观测与部署事件都是按旧 destination 记的。
-  # 改了它，历史会变成误导。
+  # destination determines the container name, and existing observations and deploy events were all
+  # recorded under the old destination. Changing it would make the history misleading.
   test "destination 改不动，哪怕被 POST 上来" do
     app = editable_app
 
@@ -267,8 +270,9 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "production", app.reload.destination
   end
 
-  # cached_app_hosts 的缓存键是三段配置内容的哈希。这条测试守的是那套失效机制：
-  # 改了配置却还拿旧解析去连机器，是这个缓存方案存在的全部理由要防的事。
+  # The cache key of cached_app_hosts is a hash of three pieces of config content. This test guards
+  # that invalidation mechanism: changing the config yet still connecting to machines with the old
+  # parse is exactly what this cache scheme exists to prevent.
   test "改了配置之后采集的目标机器跟着变" do
     app = editable_app(config_yaml: file_fixture("two_host_deploy.yml").read)
     assert_equal 2, app.cached_app_hosts.size
@@ -278,8 +282,9 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, app.reload.cached_app_hosts.size
   end
 
-  # last_poll_error 记的是【旧内容】的罪。不清掉的话，改完配置后详情页会继续
-  # 指控新配置，直到下一轮采集（最长一个 IDLE 周期）。新配置若也坏，下一轮会重新记。
+  # last_poll_error records the sins of the [old content]. If it isn't cleared, after the config is
+  # changed the detail page keeps accusing the new config until the next collection round (at most
+  # one IDLE period). If the new config is also broken, the next round records it again.
   test "改了配置就清掉旧的轮询错误" do
     app = editable_app
     app.update_columns(last_poll_error: "旧配置解析失败", last_poll_error_at: 1.hour.ago,
@@ -302,8 +307,9 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "配置确实还坏着", app.reload.last_poll_error
   end
 
-  # 改绑凭据决定这个应用能用哪把钥匙，是一次权限变更；这个仓库的规矩是权限
-  # 变更必须留痕。detail 只记字段名——记值就等于把密文写进审计表。
+  # Rebinding a credential decides which key this app can use, which is a permission change; the
+  # rule in this repo is that permission changes must leave a trace. detail records only field names
+  # -- recording values would write secrets into the audit table.
   test "编辑写一条审计，只记改了哪些字段而不记值" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群")
     app = editable_app
@@ -314,8 +320,9 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
 
     log = AuditLog.where(action_name: "app.update").sole
     assert_equal app, log.managed_app
-    # 存字段名【数组】而不是拼好的字符串：显示时要按当前语言逐个翻译再拼，
-    # 拼好的串没法再拆开翻。
+    # Store the field names as an [array] rather than a joined string: display needs to translate
+    # each one by the current language and then join, and a joined string can't be split back apart
+    # for translation.
     assert_includes log.detail_args["fields"], "name"
     assert_includes log.detail_args["fields"], "ssh_credential_id"
     refute_includes log.detail_args.to_s, "blog-renamed", "审计只记字段名，不记值"
@@ -331,7 +338,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  # ---- 停用与启用（分支 app-deactivate）------------------------------------
+  # ---- Deactivating and activating (branch app-deactivate) ------------------------------------
 
   test "admin 停用应用：释放凭据、写审计" do
     credential = Credential.create!(kind: "ssh_key", value: valid_key, name: "生产集群")

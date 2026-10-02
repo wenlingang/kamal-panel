@@ -1,11 +1,13 @@
 require "test_helper"
 
-# 「docker ps 通了但输出读不懂」和「机器失联」是两回事，逐主机文案不能共用。
+# "docker ps worked but the output can't be understood" and "the machine is unreachable" are two
+# different things, and per-host copy can't be shared.
 #
-# 这个判断此前写在 _host_table.html.erb 里，靠 include?("输出无法解析") 匹配
-# 采集器产出的那句散文——两个文件各存一份同样的五个字，谁改了谁那份，另一边
-# 会静默退化成「失联」。现在短语只有一个出处（采集器的常量），判断在这里做，
-# 视图只读一个布尔值。
+# This decision used to live in _host_table.html.erb, matching on include?("输出无法解析") against the
+# prose the collector produces -- two files each kept a copy of the same five characters, and
+# whoever changed theirs left the other side silently degrading to "unreachable". Now the phrase has
+# a single source (the collector's constant), the decision is made here, and the view only reads a
+# boolean.
 class ManagedAppStatusUnparseableTest < ActiveSupport::TestCase
   setup do
     @managed_app = ManagedApp.create!(name: "blog",

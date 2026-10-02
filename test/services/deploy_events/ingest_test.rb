@@ -82,8 +82,9 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
   test "超出去重窗口的同版本 post 仍然建新行" do
     ingest("started")
     first = ingest("succeeded")[:event]
-    # 把上一行的 succeeded_at 拨到窗口之外，模拟"很久以后才到的重试"，
-    # 而不是真的等 1 分钟——这样测试不用 sleep 也不用依赖 travel 的当前时刻假设。
+    # Move the previous row's succeeded_at outside the window, simulating "a retry that arrives much
+    # later", rather than really waiting 1 minute -- so the test needs no sleep and doesn't depend
+    # on assumptions about travel's current instant.
     first.update!(succeeded_at: (DeployEvents::Ingest::DUPLICATE_WINDOW + 1.second).ago)
 
     result = ingest("succeeded")

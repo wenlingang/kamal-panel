@@ -1,8 +1,9 @@
 require "test_helper"
 
-# 改自己的界面语言【不是】人员管理。人员管理 admin 独占，语言人人都得能改
-# ——把它当成 UsersController#update 的一个字段的话，developer 和 ops 就永远
-# 换不了自己的语言，而他们恰恰是人数最多的那部分用户。
+# Changing your own UI language is [not] user management. User management is admin-only, while
+# everyone must be able to change language
+# -- if it were a field of UsersController#update, developers and ops could never
+# change their own language, and they are exactly the largest group of users.
 class LocalesControllerTest < ActionDispatch::IntegrationTest
   test "任何已登录角色都能改自己的语言" do
     [ users(:one), users(:two), users(:three) ].each do |user|
@@ -21,8 +22,8 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   end
 
-  # 没有「帮别人换语言」这条路径：控制器根本不收 user id，所以这里断言的是
-  # 多给一个 id 参数也影响不到别人。
+  # There is no "change someone else's language" path: the controller doesn't take a user id at all,
+  # so what's asserted here is that passing an extra id param can't affect anyone else.
   test "只改得了自己" do
     sign_in_as users(:one)
 
@@ -49,9 +50,10 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to users_path
   end
 
-  # 用首页而不是人员页：users(:one) 是 ops，开 /users 会被重定向，页头压根
-  # 不渲染——那样断言是假绿，无论切换器写对写错都会通过。所以每条都先断言
-  # 页头确实在，再断言切换器。
+  # Use the home page rather than the users page: users(:one) is ops, opening /users would redirect,
+  # and the header wouldn't render at all -- that assertion would be a false green, passing whether
+  # or not the switcher is right. So each case first asserts that the header is actually there, then
+  # asserts the switcher.
   test "页头的切换器是个下拉，每种可选语言一个选项" do
     sign_in_as users(:one)
 
@@ -71,8 +73,8 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chrome-locale select option[selected][value=en]"
   end
 
-  # 没有 JS 时也得能切：select 自己不会提交表单。有 JS 时这个按钮由
-  # auto-submit 控制器藏起来，换成"选了就走"。
+  # It must also work without JS: the select doesn't submit the form by itself. With JS this button
+  # is hidden by the auto-submit controller, replaced by "go as soon as you pick".
   test "下拉旁边有一个真的提交按钮，作为没有 JS 时的退路" do
     sign_in_as users(:one)
 
@@ -82,8 +84,9 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".chrome-locale form input[name=_method][value=patch]", count: 1
   end
 
-  # 只有一种可选语言时整个不渲染：给一个只有一个选项的切换器，等于让人以为
-  # 还有别的可选。设计 13 的前四批就活在这个状态里——机制可测、入口不暴露。
+  # With only one selectable language, render nothing: a switcher with a single option would make
+  # people think there are other choices. The first four batches of design 13 live in exactly this
+  # state -- the mechanism is testable, the entry point isn't exposed.
   test "只有一种可选语言时页头不出现切换器" do
     with_selectable_locales(%w[zh-CN]) do
       sign_in_as users(:one)

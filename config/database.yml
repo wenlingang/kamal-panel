@@ -19,12 +19,12 @@ development:
 test:
   <<: *default
   database: storage/test.sqlite3
-  # 比默认 5000ms 更宽——这个套件里的测试会真的 fork+exec 一串子进程
-  # （ssh-agent、ssh-add、kamal、kamal 自己再 fork 的 hook/docker），每次
-  # fork 都会短暂复制一份持有 sqlite3 连接的文件描述符，直到 exec() 替换掉
-  # 进程映像为止；这个窗口偶尔会让另一个线程/连接看见 SQLITE_BUSY。这里的
-  # timeout 就是 sqlite3 自带的忙等重试时间，调大它只是把"重试到成功"的
-  # 上限放宽，不改变任何隔离语义。
+  # Wider than the default 5000ms: tests in this suite really fork+exec a chain of subprocesses
+  # (ssh-agent, ssh-add, kamal, and the hooks/docker that kamal itself forks); each
+  # fork briefly duplicates a file descriptor holding the sqlite3 connection, until exec() replaces
+  # the process image; this window occasionally lets another thread/connection see SQLITE_BUSY. The
+  # timeout here is sqlite3's own busy-wait retry time; raising it only loosens the upper bound on
+  # "retry until success" and changes no isolation semantics.
   timeout: 15000
 
 # Store production database in the storage/ directory, which by default

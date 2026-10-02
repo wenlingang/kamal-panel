@@ -6,12 +6,13 @@ require "support/fake_host_helper"
 
 module ActiveSupport
   class TestCase
-    # 刻意不启用 parallelize。fake host（test/support/fake_host_helper.rb）是
-    # 跨测试共享的全局状态：两台容器、一份 docker daemon 各一个。
-    # ExecutionLayerTest 的 reset_all! 会把节点上的容器全部清空，
-    # 一旦并行 worker 数超过 Rails 的自动并行阈值，多个 worker 会同时
-    # 清空/写入同一批容器，产生看起来毫无关联的间歇性失败。
-    # 在 fake host 支持按 worker 命名空间隔离之前，请勿重新打开并行。
+    # Deliberately not enabling parallelize. The fake host (test/support/fake_host_helper.rb)
+    # is global state shared across tests: two containers, one docker daemon.
+    # ExecutionLayerTest's reset_all! wipes all containers on the nodes, so once the number
+    # of parallel workers exceeds Rails' automatic parallelization threshold, several
+    # workers would clear/write the same set of containers at once, producing intermittent
+    # failures that look entirely unrelated.
+    # Do not turn parallelism back on until the fake host supports per-worker namespace isolation.
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
@@ -20,8 +21,8 @@ module ActiveSupport
   end
 end
 
-# 需要真实 SSH 的测试继承这个基类。
-# 它保证 fake host 就绪，并在每个测试前清空容器。
+# Tests that need a real SSH connection inherit from this base class.
+# It guarantees the fake host is ready and empties the containers before each test.
 class ExecutionLayerTest < ActiveSupport::TestCase
   setup do
     FakeHost.ensure_ready!

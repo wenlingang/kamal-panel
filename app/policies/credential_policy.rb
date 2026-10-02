@@ -1,4 +1,5 @@
-# 有一个唯一的落点，而不是让 Current.user.admin? 散在控制器和视图里。
+# has a single landing point, rather than scattering Current.user.admin? across controllers and
+# views.
 class CredentialPolicy
   def initialize(user, subject = nil)
     @user = user
