@@ -1,0 +1,190 @@
+<p class="breadcrumb"><%= link_to t(".back"), root_path %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= @managed_app.name %></h1>
+    <%# 副标题不碰 parsed_config：配置解析失败时这一页仍要能渲染出来
+        （见下面 last_poll_error 分支的注释）。 %>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <div class="head-actions">
+    <%= allowed_to(:act, @managed_app) do %>
+      <%= link_to t(".edit"), edit_managed_app_path(@managed_app), class: "btn" %>
+    <% end %>
+    <%= allowed_to(:deactivate, @managed_app) do %>
+      <% if @managed_app.deactivated? %>
+        <%= button_to t(".reactivate"), reactivate_managed_app_path(@managed_app), method: :post,
+                      form: { data: { turbo_confirm: t(".reactivate_confirm", name: @managed_app.name) } } %>
+      <% else %>
+        <%= button_to t(".deactivate"), deactivate_managed_app_path(@managed_app), method: :post,
+                      form: { data: { turbo_confirm: t(".deactivate_confirm", name: @managed_app.name),
+                                      confirm_danger: true } } %>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<% if @managed_app.deactivated? %>
+  <%# 停用之后这一页仍然打得开——看不见就没法启用它——但要说清它现在是什么状态。 %>
+  <p class="callout callout-warn">
+    <%= t(".deactivated_html",
+          link: link_to(t(".deactivated_link"), edit_managed_app_path(@managed_app))).html_safe %>
+  </p>
+<% end %>
+
+<%# 采集完成后由 PollManagedAppJob 广播替换 #host-status %>
+<%= turbo_stream_from "managed_app_#{@managed_app.id}" %>
+
+<%= render "managed_apps/deploy_alerts", managed_app: @managed_app %>
+
+<% if @managed_app.last_poll_error.present? %>
+  <%# 配置解析失败必须在 UI 上大声说话，不能只有一行日志——否则轮询会
+      永久静默停摆，操作者只会看到数据越来越旧，却不知道为什么
+      （见 final review I4）。 %>
+  <div class="config-parse-error-banner" role="alert">
+    <strong><%= t(".parse_error_title") %></strong>
+    <p><%= t(".parse_error_body", since: time_ago_in_words(@managed_app.first_poll_error_at)) %></p>
+    <pre><code><%= @managed_app.last_poll_error %></code></pre>
+  </div>
+
+  <%# 配置解析不了时，下面几乎所有原本的展示都依赖重新解析配置
+      （服务名、Registry、角色列表、按配置算出的"数据年龄"/"部分主机
+      尚未采集"）——继续调用它们会在这个模板里再炸一次 ParseError，
+      而这次是在渲染阶段，不会被 job 的 rescue 接住（这正是本项修复
+      过程中发现并需要一并堵上的口子）。所以这里退化成只读原始观测，
+      不再触碰 parsed_config。 %>
+  <section class="section">
+    <h2><%= t(".basics") %></h2>
+    <div class="panel">
+      <dl>
+        <dt><%= t(".destination") %></dt>
+        <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section">
+  <h2><%= t(".last_good_observations") %></h2>
+  <div class="panel">
+  <p class="hint"><%= t(".last_good_hint") %></p>
+  <table class="host-table">
+    <thead>
+      <tr>
+        <th><%= t(".host") %></th>
+        <th><%= t(".version") %></th>
+        <th><%= t(".docker_status") %></th>
+        <th><%= t(".reachable") %></th>
+        <th><%= t(".observed_at") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% Observation.latest_for(@managed_app).sort_by(&:host).each do |o| %>
+        <tr>
+          <td><%= o.host %></td>
+          <td><%= o.version || "—" %></td>
+          <td><%= o.docker_status || "—" %></td>
+          <td><%= o.reachable ? t(".yes") : t(".no") %></td>
+          <td><%= t(".ago", time: time_ago_in_words(o.observed_at)) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+  </section>
+<% else %>
+<section class="section">
+  <h2><%= t(".basics") %></h2>
+  <div class="panel">
+    <dl>
+      <dt><%= t(".service") %></dt>     <dd><%= @managed_app.service %></dd>
+      <dt><%= t(".destination") %></dt> <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+      <dt><%= t(".registry") %></dt>    <dd><%= @managed_app.parsed_config.registry_server %></dd>
+      <dt><%= t(".ssh_credential") %></dt>
+      <dd><%= @managed_app.ssh_credential&.fingerprint || t(".ssh_credential_none") %></dd>
+      <dt><%= t(".members") %></dt>
+      <dd>
+        <%# 只读。成员关系的写入口只有人员页一处（设计 11 第 5.2 节）。 %>
+        <%= joined_list(@managed_app.members.map(&:display_name), empty: t(".members_none")) %>
+      </dd>
+    </dl>
+
+    <%# 软提示不是校验：deploy.yml 里的 server 随时可能改，硬拦会拦错人。
+        凭据没填 server 时无从比对，也就不提示。 %>
+    <% if (cred = @managed_app.registry_credential) && cred.server.present? &&
+          cred.server != @managed_app.parsed_config.registry_server %>
+      <p class="warning">
+        <%= t(".registry_mismatch", credential: cred.name, credential_server: cred.server,
+                                    app_server: @managed_app.parsed_config.registry_server) %>
+      </p>
+    <% end %>
+  </div>
+</section>
+
+  <section class="section">
+  <h2><%= t(".roles") %></h2>
+  <div class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th><%= t(".role") %></th>
+        <th><%= t(".role_hosts") %></th>
+        <th><%= t(".container_prefix") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @managed_app.parsed_config.roles.each do |role| %>
+        <tr>
+          <td><%= role[:name] %></td>
+          <td><%= role[:hosts].join(", ") %></td>
+          <td><code><%= role[:container_prefix] %></code></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+  <section class="section">
+  <div class="section-head">
+    <h2><%= t(".host_status") %></h2>
+    <%# 面板本来就在轮询（有人看这一页时是 10 秒一轮）。这个按钮是给"现在就要
+        知道"的场合用的：把节奏顶到 burst 档并立刻入队一次采集，结果由
+        PollManagedAppJob 的广播替换回来，不刷整页。 %>
+    <div class="head-actions">
+      <%= button_to t(".refresh_now"), managed_app_refreshes_path(@managed_app), method: :post %>
+      <%= allowed_to(:view_logs, @managed_app) do %>
+        <%= button_to t(".view_logs"), managed_app_actions_path(@managed_app),
+                      method: :post, params: { name: "logs" } %>
+      <% end %>
+    </div>
+  </div>
+  <div class="panel">
+
+  <% status = ManagedAppStatus.new(@managed_app) %>
+
+  <%= render "managed_apps/host_status", managed_app: @managed_app, status: status %>
+  </div>
+</section>
+<% end %>
+
+<%# 配置解析不了的应用没有 service/destination/primary_host 可用——
+    KamalLock 会在这个分支里直接抛 Kamal::ConfigParser::ParseError（见
+    上面 last_poll_error 分支自己的注释）。这个 unless 把"锁状态+操作
+    按钮"整体跳过，代价是解析失败后到下一次轮询之间那一小段时间窗口里
+    操作按钮会连带消失，不只是数据变旧——这个窗口的宽度取决于
+    PollCadence 里最快的那档轮询间隔（当前是 BURST = 2 秒），不是一个
+    永远成立的常量：以后如果调宽轮询间隔，这个窗口会跟着悄悄变宽，
+    到时候需要重新评估这里是否还够用（task-5 review 的 minor）。 %>
+<%# 锁状态要真的 SSH 上去读，一台不可达的主机会让它等满连接超时（实测 3.4 秒），
+    而这一页其余内容全部来自数据库（25ms 以内）。所以把它连同挂在它上面的操作区
+    一起放进懒加载的 frame：页面先出来，锁状态随后到。 %>
+<%# 不用 loading: :lazy——锁那块在首屏下方，lazy 会一直等到有人滚下来才开始读，
+    于是"慢"从打开页面挪到了滚动那一刻。即时加载：主文档 340ms 就可交互，
+    这个请求并行跑完再把内容填进来。 %>
+<%= turbo_frame_tag :lock_and_actions, src: managed_app_lock_path(@managed_app) do %>
+  <p class="lock-loading"><%= t(".lock_reading") %></p>
+<% end %>
+
+<%= render "managed_apps/deploy_history", managed_app: @managed_app %>
+
+<%= render "managed_apps/deploy_reporting", managed_app: @managed_app %>

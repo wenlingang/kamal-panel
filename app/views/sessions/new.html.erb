@@ -1,0 +1,29 @@
+<%# 认证页是整个面板唯一一个"居中卡片"的版式：这里没有任何运维数据要扫，
+    只有一件事要做。内页反过来一律左对齐、高密度（主设计 8.6 的密度分级）。 %>
+<div class="auth">
+  <p class="auth-brand">
+    <%= render "shared/mark", size: "28px" %>
+    Kamal Panel
+  </p>
+
+  <div class="auth-card">
+    <h1><%= t(".title") %></h1>
+
+    <%= tag.div(flash[:alert], class: "flash-alert") if flash[:alert] %>
+    <%= tag.div(flash[:notice], class: "flash-notice") if flash[:notice] %>
+
+    <%= form_with url: session_path do |form| %>
+      <div>
+        <%= label_tag :email_address, t(".email") %>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %>
+      </div>
+      <div>
+        <%= label_tag :password, t(".password") %>
+        <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72 %>
+      </div>
+      <%= form.submit t(".submit"), class: "btn-primary" %>
+    <% end %>
+  </div>
+
+  <p class="auth-aside"><%= link_to t(".forgot"), new_password_path %></p>
+</div>

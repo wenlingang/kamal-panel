@@ -1,0 +1,8 @@
+<%# frame 的名字必须和 show 里那个一致，否则 Turbo 找不到要替换的区域。 %>
+<%= turbo_frame_tag :lock_and_actions do %>
+  <% if @managed_app.last_poll_error.present? %>
+    <%# 配置解析不了时没有 service/destination/primary_host 可用，KamalLock 会直接抛。 %>
+  <% else %>
+    <%= render "managed_apps/lock_and_actions", managed_app: @managed_app %>
+  <% end %>
+<% end %>

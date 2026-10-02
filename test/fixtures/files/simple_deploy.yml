@@ -1,0 +1,26 @@
+service: blog
+image: example/blog
+
+servers:
+  web:
+    - 127.0.0.1
+  worker:
+    hosts:
+      - 127.0.0.1
+    cmd: bin/jobs
+
+registry:
+  server: registry.example.com
+  username: someone
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+
+ssh:
+  user: deploy
+  port: 2201
+
+proxy:
+  host: blog.example.com

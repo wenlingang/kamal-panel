@@ -1,0 +1,85 @@
+<table class="host-table">
+  <thead>
+    <tr>
+      <th><%= t(".host") %></th>
+      <th><%= t(".role") %></th>
+      <th><%= t(".version") %></th>
+      <th><%= t(".docker_status") %></th>
+      <%# 容器在运行 ≠ 在接流量，两列必须分开（spec 8.2） %>
+      <th><%= t(".routed") %></th>
+      <th><%= t(".collection") %></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% status.last_known_rows.each do |row| %>
+      <tr class="<%= "row-unreachable" if row[:reachable] == false %>">
+        <td><%= row[:host] %></td>
+        <td><%= row[:role] || "—" %></td>
+        <td><%= row[:version] || "—" %></td>
+        <td>
+          <%= row[:docker_status] || "—" %>
+          <%= t(".health_suffix", health: row[:health]) if row[:health].present? %>
+        </td>
+        <td>
+          <%# 接流量是三态：nil 是「面板不知道」，不能被渲染成确定的"否"
+              （见 final review I2）。 %>
+          <% if row[:routed].nil? %>
+            <%= t(".unknown") %>
+          <% else %>
+            <%= row[:routed] ? t(".yes") : t(".no") %>
+          <% end %>
+        </td>
+        <td>
+          <% if row[:reachable] %>
+            <%= t(".ok") %>
+            <%# 安静的数据年龄提示——不是警报，只是信息（见 Task 11 review）：
+                一个应用里各台机器各自的采集时间可能不一样新，总览页/详情页
+                顶部那一个"数据年龄"数字取的是最旧的一台，单看那一个数字
+                看不出"是这一台旧"还是"所有机器都这么旧"，所以这里逐行补上，
+                用 <small> 保持视觉安静，不抢正常状态的注意力。 %>
+            <% if row[:observed_at] %>
+              <br><small><%= t(".collected_ago", time: time_ago_in_words(row[:observed_at])) %></small>
+            <% end %>
+          <% elsif row[:reachable].nil? %>
+            <%# 配置里有这台机器，但从没问过它——不能说"失联"，那暗示了
+                "曾经联系上、现在断了"，而面板压根没试过（见 Task 11）。 %>
+            <%= t(".never_collected") %>
+          <% elsif row[:unparseable_output] %>
+            <%# 主机 SSH 通了，只是 docker ps 的输出读不懂——这不是"机器没了"，
+                不能跟真失联共用一套文案。这个判断此前在这里 include? 匹配采集器
+                产出的那句中文，等于同样的五个字存了两份；现在由 ManagedAppStatus
+                统一判定（见 Collectors::ContainerCollector::UNPARSEABLE_OUTPUT_MARKER）。 %>
+            <strong><%= t(".unparseable") %></strong>
+            <br><small><%= t(".unparseable_detail") %></small>
+          <% else %>
+            <strong><%= t(".unreachable") %></strong>
+            <% if row[:stale_since] %>
+              — <%= t(".stale_since", time: time_ago_in_words(row[:stale_since])) %>
+            <% else %>
+              <%# 回落找不到落点：这台机器从没有过一条可达的观测，"保留
+                  上次已知状态"没有"上次"可保留。宁可诚实地说清楚，也不要
+                  留一行看起来什么都没写的空白（见 Task 11 review）。 %>
+              — <%= t(".no_history") %>
+            <% end %>
+            <% if row[:error].present? %>
+              <br><small><%= row[:error] %></small>
+            <% end %>
+          <% end %>
+        </td>
+      </tr>
+      <% unless row[:configured] %>
+        <tr class="row-decommissioned">
+          <td colspan="6">
+            <small>
+              <%# deploy.yml 是唯一真相：这台机器已经不在当前配置里了，
+                  不再是这个应用的一部分——不删掉这一行（删掉等于悄悄丢弃
+                  "它曾经存在过"这条信息），但绝不能让它挂着"正常"却没有
+                  任何限定语（见 Task 11 review）。 %>
+              <%= t(".decommissioned", host: row[:host]) %>
+            </small>
+          </td>
+        </tr>
+      <% end %>
+    <% end %>
+  </tbody>
+</table>

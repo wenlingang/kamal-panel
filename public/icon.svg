@@ -1,0 +1,21 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kamal Panel">
+  <!-- favicon。形状与 app/views/shared/_mark.html.erb 相同，改一处要同步另一处。
+       这一份不能用 --mark-* 变量：标签栏里的图标拿不到页面的自定义属性，
+       所以颜色是字面值，深浅两套靠 SVG 内部自带的媒体查询切换。 -->
+  <style>
+    .tile { fill: #2a2724 }
+    .card { fill: #ffffff }
+    .cord { fill: #f0a500 }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #38342f }
+      .card { fill: #f6f4ef }
+      .cord { fill: #f5b942 }
+    }
+  </style>
+  <rect width="24" height="24" rx="6" class="tile"/>
+  <rect x="3.4" y="5.2" width="17.2" height="7.2" rx="2.2" class="card"/>
+  <circle cx="12" cy="8.8" r="1.25" class="tile"/>
+  <rect x="10.75" y="12.4" width="2.5" height="7.6" rx="1.25" class="cord"/>
+  <circle cx="12" cy="16.6" r="2.7" class="cord"/>
+  <circle cx="12" cy="16.6" r="1.05" class="tile"/>
+</svg>

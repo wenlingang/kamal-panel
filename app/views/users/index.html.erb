@@ -1,0 +1,52 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <%= link_to t(".add"), new_user_path, class: "btn-primary" %>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th><%= t(".nickname") %></th>
+          <th><%= t(".email") %></th>
+          <th><%= t(".role") %></th>
+          <th><%= t(".apps") %></th>
+          <th><%= t(".status") %></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @users.each do |user| %>
+          <tr>
+            <td><%= user.nickname.presence || "—" %></td>
+            <td><%= link_to user.email_address, edit_user_path(user) %></td>
+            <td><%= t("roles.#{user.role}") %></td>
+            <td>
+              <%# admin 与 ops 的权限来自全站角色，不靠成员表——这里如实说明，
+                  免得有人以为给 admin 加成员才是完整配置。 %>
+              <% if user.developer? %>
+                <%= app_name_list(user.managed_apps, empty: t(".no_apps")) %>
+              <% else %>
+                <%= t(".site_wide") %>
+              <% end %>
+            </td>
+            <td><%= user.deactivated? ? t(".deactivated") : t(".active") %></td>
+            <td>
+              <% if user.deactivated? %>
+                <%= button_to t(".reactivate"), reactivate_user_path(user),
+                              method: :post, class: "btn-quiet" %>
+              <% else %>
+                <%= button_to t(".deactivate"), deactivate_user_path(user),
+                              method: :post, class: "btn-quiet" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

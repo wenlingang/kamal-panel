@@ -1,0 +1,14 @@
+<p class="breadcrumb"><%= link_to t(".back"), managed_apps_path %></p>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<%# 这是整个产品最危险的一个输入框，警告不能只是一行小字。 %>
+<p class="callout callout-warn"><%= t(".erb_warning_html").html_safe %></p>
+
+<%= render "form", managed_app: @managed_app,
+                   submit_label: t(".submit"), new_record: true %>

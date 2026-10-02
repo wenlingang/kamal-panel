@@ -1,0 +1,24 @@
+service: blog
+image: example/blog
+
+servers:
+  web:
+    - 10.0.0.1
+    - 10.0.0.2
+  worker:
+    hosts:
+      - 10.0.0.1
+      - 10.0.0.2
+    cmd: bin/jobs
+
+registry:
+  server: registry.example.com
+  username: someone
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+
+ssh:
+  user: deploy

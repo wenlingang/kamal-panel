@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+# 从 stdin 读 JSON: {"config_file": "/path/to/deploy.yml", "destination": "production"|null}
+# 向 stdout 写 JSON: {"ok": true, ...} 或 {"ok": false, "error": "..."}
+#
+# 本脚本在独立子进程中运行，因为 Kamal 解析 deploy.yml 时会做 ERB 求值
+# 与 YAML.unsafe_load，两者都是任意代码执行路径。见 spec 7.6。
+#
+# 本脚本本身不创建、不删除任何文件——config_file（以及同目录下 Kamal
+# 按 destination 约定去找的伴随文件，如果有的话）由父进程（Kamal::ConfigParser）
+# 写入一个临时目录并负责清理。原因：本脚本可能因解析超时被 SIGKILL，
+# SIGKILL 会跳过所有 ensure/at_exit，如果清理逻辑在这里，被杀时
+# 用户粘贴的 deploy.yml 内容就会以临时文件形式留在磁盘上。父进程永远
+# 不会被杀，所以清理必须由父进程持有和执行。
+
+require "json"
+require "pathname"
+
+def emit(hash)
+  $stdout.write(JSON.generate(hash))
+  $stdout.flush
+end
+
+# deploy.yml 里 `registry.password: [FOO]` 方括号里是一个【环境变量名】，
+# 可以叫任何名字。面板要按这个名字把密码写进 .kamal/secrets-common。
+#
+# 【不能调 config.registry.password】：那个方法会去解析 secret，而解析阶段
+# .kamal/secrets 根本不存在，一份完全正常的 deploy.yml 会解析失败。所以读
+# 原始配置。
+#
+# 两种情形：数组 → 取第一项；字面量字符串 → nil（配置里已有明文，面板没有
+# 可注入的位置）。
+#
+# 没有 registry 段的第三种情形【在 Kamal 这里不可能发生】：哪怕整段不写
+# registry:，Kamal 自己的校验也会先报
+# `Kamal::ConfigurationError: registry/username: is required`，本方法根本
+# 走不到、上面这个 config 对象也从没成功构造出来过。下面那句
+# `return nil if registry.nil?` 因此是子进程边界上的廉价防御（万一 Kamal
+# 未来放宽这条必填校验），不是一条被测试覆盖、支持中的路径——不要据此以为
+# 面板支持没有 registry 段的应用。
+def registry_password_env(config)
+  raw = config.raw_config
+  registry = raw[:registry] || raw["registry"]
+  return nil if registry.nil?
+
+  password = registry["password"] || registry[:password]
+  password.is_a?(Array) ? password.first.to_s.presence : nil
+end
+
+begin
+  input = JSON.parse($stdin.read)
+
+  require "kamal"
+
+  # version 必须显式传入：否则 Kamal::Configuration#version 会回落到
+  # git_version，去 shell 调 git —— 面板环境里没有用户应用的 git 仓库。
+  config = Kamal::Configuration.create_from(
+    config_file: Pathname.new(input.fetch("config_file")),
+    destination: input["destination"],
+    version: "unused-by-parsing"
+  )
+
+  emit(
+    ok: true,
+    service: config.service,
+    destination: config.destination,
+    roles: config.roles.map { |role|
+      { name: role.name, hosts: role.hosts, container_prefix: role.container_prefix }
+    },
+    app_hosts: config.app_hosts,
+    primary_host: config.primary_host,
+    registry_server: config.registry.server,
+    registry_password_env: registry_password_env(config),
+    # 只把 ssh: 段里的原始字符串交出去，绝不在这里构造 Net::SSH::Proxy::Jump
+    # 之类的对象——本脚本的输出要穿过 JSON 边界回到父进程，任何对象都会被
+    # 隐式 #to_s 成 "#<Net::SSH::Proxy::Jump:0x...>" 这种没意义的字符串
+    # （Jump 没有定义有意义的 #to_s），父进程再把这段字符串原样交给
+    # Net::SSH.start 的 :proxy 选项，会在运行时炸成
+    # "NoMethodError: private method 'open' called for an instance of String"。
+    # 真正的对象构造和格式校验交给父进程（Kamal::ConfigParser#build_ssh_options）
+    # 在自己的进程里完成——那里不需要 ERB/YAML.unsafe_load，可以安全地做。
+    ssh_options: {
+      user: config.ssh.user,
+      port: config.ssh.port,
+      proxy: config.ssh.ssh_config["proxy"],
+      proxy_command_present: !config.ssh.ssh_config["proxy_command"].nil?
+    }
+  )
+rescue StandardError => e
+  emit(ok: false, error: "#{e.class}: #{e.message}")
+end

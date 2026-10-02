@@ -1,0 +1,32 @@
+<%# 明文只在这一次出现，所以端到脸前而不是让人自己在页面里找。
+    没有 JS 时 <dialog> 不会 showModal，但它仍然是可见的块级元素，
+    内容照样读得到、复制得到——只有"下载"那个按钮会失效。 %>
+<% script = HookScript.new(managed_app, base_url: request.base_url, token: token) %>
+<dialog class="token-dialog"
+        data-controller="token-reveal"
+        data-token-reveal-filename-value="kamal-hooks-<%= managed_app.name %>.txt"
+        data-action="close->token-reveal#discard">
+  <h2><%= t("managed_apps.deploy_reporting.reveal_title") %></h2>
+
+  <p class="token-warning"><%= t("managed_apps.deploy_reporting.once_only_html").html_safe %></p>
+
+  <div class="token-scripts">
+    <h3>.kamal/hooks/pre-deploy</h3>
+    <pre><code data-token-reveal-target="script"
+               data-path=".kamal/hooks/pre-deploy"><%= script.pre_deploy %></code></pre>
+    <h3>.kamal/hooks/post-deploy</h3>
+    <pre><code data-token-reveal-target="script"
+               data-path=".kamal/hooks/post-deploy"><%= script.post_deploy %></code></pre>
+  </div>
+
+  <p class="hint"><%= t("managed_apps.deploy_reporting.executable_bit_html").html_safe %></p>
+
+  <div class="confirm-actions">
+    <button type="button" data-action="token-reveal#close">
+      <%= t("managed_apps.deploy_reporting.reveal_close") %>
+    </button>
+    <button type="button" class="btn-primary" data-action="token-reveal#download">
+      <%= t("managed_apps.deploy_reporting.reveal_download") %>
+    </button>
+  </div>
+</dialog>

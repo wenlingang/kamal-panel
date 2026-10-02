@@ -1,0 +1,12 @@
+<%# 两套数据源矛盾时把矛盾摆到台面上，而不是挑一个来信任（主设计 6.4）。 %>
+<% alerts = DeployAlerts.new(managed_app).list %>
+<% if alerts.any? %>
+  <div class="deploy-alerts" role="alert">
+    <% alerts.each do |alert| %>
+      <p class="deploy-alert deploy-alert-<%= alert[:kind] %>">
+        <strong><%= alert[:kind] == :unobserved ? t(".unobserved") : t(".unfinished") %></strong>
+        —— <%= alert[:message] %>
+      </p>
+    <% end %>
+  </div>
+<% end %>
