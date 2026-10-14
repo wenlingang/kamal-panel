@@ -34,7 +34,8 @@ Then create the first admin account: [Deploying the panel](https://wenlingang.gi
 ```sh
 bin/setup
 bin/rails db:encryption:init                              # add the keys to development credentials
-bin/rails demo:seed                                       # optional: five apps in every state
+bin/rails demo:seed                                       # optional: one demo app per state
+bin/rails demo:refresh                                    # bring the demo back to "now" before a look
 docker compose -f docker-compose.test.yml up -d --build  # fake SSH hosts the tests run against
 bin/rails test:all                                        # foreground, single process
 ```

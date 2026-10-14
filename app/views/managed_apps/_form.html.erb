@@ -42,13 +42,14 @@
     <div class="panel">
       <div>
         <%= form.label :config_yaml, t(".config_yaml") %>
-        <%= form.text_area :config_yaml, rows: 20 %>
+        <%= form.text_area :config_yaml, rows: 20, spellcheck: false, autocapitalize: "off",
+                                          placeholder: t(".config_yaml_placeholder") %>
       </div>
 
       <div>
         <%= form.label :destination_config_yaml, t(".destination_config_yaml") %>
         <p class="hint"><%= t(".destination_config_hint") %></p>
-        <%= form.text_area :destination_config_yaml, rows: 10 %>
+        <%= form.text_area :destination_config_yaml, rows: 10, spellcheck: false, autocapitalize: "off" %>
       </div>
     </div>
   </section>
@@ -82,25 +83,28 @@
 
       <div>
         <%= label_tag "managed_app_kamal_secrets", t(".kamal_secrets") %>
-        <p class="hint">
-          <%= t(".kamal_secrets_hint") %>
-          <%= t(".kamal_secrets_blank_warning") if new_record %>
-          <%= t(".write_only_hint") %>
-        </p>
-        <%= text_area_tag "managed_app[kamal_secrets]", nil, rows: 6, autocomplete: "off" %>
+        <p class="hint"><%= t(".kamal_secrets_hint") %> <%= t(".write_only_hint") %></p>
+        <% if new_record %>
+          <p class="hint hint-consequence"><%= t(".kamal_secrets_blank_warning") %></p>
+        <% end %>
+        <%= text_area_tag "managed_app[kamal_secrets]", nil, rows: 6, autocomplete: "off", spellcheck: false,
+                          autocapitalize: "off", placeholder: t(".kamal_secrets_placeholder") %>
       </div>
 
       <div>
         <%= label_tag "managed_app_kamal_hooks", t(".kamal_hooks") %>
-        <p class="hint">
-          <%= t(".kamal_hooks_hint_html").html_safe %>
-          <%= t(".kamal_hooks_blank_warning") if new_record %>
-          <%= t(".write_only_hint") %>
-        </p>
-        <%= text_area_tag "managed_app[kamal_hooks]", nil, rows: 6, autocomplete: "off" %>
+        <p class="hint"><%= t(".kamal_hooks_hint") %> <%= t(".write_only_hint") %></p>
+        <% if new_record %>
+          <p class="hint hint-consequence"><%= t(".kamal_hooks_blank_warning") %></p>
+        <% end %>
+        <%= text_area_tag "managed_app[kamal_hooks]", nil, rows: 6, autocomplete: "off", spellcheck: false,
+                          autocapitalize: "off", placeholder: t(".kamal_hooks_placeholder") %>
       </div>
     </div>
   </section>
 
-  <%= form.submit submit_label, class: "btn-primary" %>
+  <div class="form-actions">
+    <%= form.submit submit_label, class: "btn-primary" %>
+    <%= link_to t(".cancel"), new_record ? root_path : managed_app, class: "btn" %>
+  </div>
 <% end %>

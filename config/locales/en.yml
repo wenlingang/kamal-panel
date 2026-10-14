@@ -190,20 +190,8 @@ en:
       value: New password
 
   managed_apps:
-    index:
-      title: Apps
-      subtitle: Every app this panel is watching. Open one to see the state of each machine and what you can do to it.
-      add: Onboard an app
-      empty: Nothing here yet. Onboard your first app and the panel will start collecting the state of each of its machines.
-      host_count:
-        one: '%{count} host'
-        other: '%{count} hosts'
-      config_broken: Config cannot be parsed
-      deactivated_section: Deactivated
-      deactivated_hint: Deactivating released the credential bindings. After reactivating you have to pick credentials again before collection resumes.
-      deactivated_badge: Deactivated
     new:
-      back: ← Apps
+      back: ← Overview
       title: Onboard an app
       subtitle: Paste the deploy.yml and an SSH key that can reach these machines. The panel only reads state; deploys still go through your own kamal deploy.
       erb_warning_html: The deploy.yml you paste is handed to Kamal, and Kamal runs ERB over it — <strong>which means pasting a config is equivalent to running code on the machine this panel lives on</strong>. Only paste configs you trust.
@@ -222,21 +210,30 @@ en:
       config_section: Config files
       config_yaml: deploy.yml
       destination_config_yaml: deploy.<destination>.yml (optional)
-      destination_config_hint: Only needed if you use a destination. Leaving it empty loses that destination's overrides for servers and the like (for example staging and production running on different machines).
+      destination_config_hint: Only needed when you use a destination. Left blank, that destination's overrides (servers and so on, e.g. different machines for staging and production) are lost.
       credentials_section: Credentials and files written alongside the config
       ssh_credential: SSH key
       none_selected: (none)
       ssh_credential_hint: The panel uses it to reach these machines and collect state.
       go_to_credentials: Add one on the credentials page
       registry_credential: Registry password
-      registry_credential_hint_html: 'Once selected, the panel writes the password into .kamal/secrets-common under the variable name this app''s deploy.yml references in <code>registry.password</code>. Leave it empty and the panel injects no registry password — the .kamal/secrets below has to supply it. Providing the same variable in both places is rejected on save.'
+      registry_credential_hint_html: The panel writes the password into .kamal/secrets-common, under the variable named by <code>registry.password</code> in deploy.yml. Leave it unselected and .kamal/secrets below has to provide it; the same variable can't come from both.
       kamal_secrets: .kamal/secrets contents (optional)
-      kamal_secrets_hint: The contents of your project's .kamal/secrets file, for per-app things like RAILS_MASTER_KEY. Use the dropdown above for the registry password instead of repeating it here.
-      kamal_secrets_blank_warning: 'If you leave it empty: any variable referenced in deploy.yml that the registry credential above does not supply will make kamal fail with "Secret not found" during app boot / rollback.'
+      kamal_secrets_hint: The text of your project's .kamal/secrets, for per-app variables such as RAILS_MASTER_KEY. The registry password goes in the dropdown above, not here.
+      kamal_secrets_blank_warning: 'Left blank, any variable deploy.yml references that the registry credential above doesn''t provide makes app boot / rollback fail with "Secret not found".'
       kamal_hooks: .kamal/hooks scripts (optional, JSON)
-      kamal_hooks_hint_html: 'The scripts in your project''s .kamal/hooks/ directory, as a JSON object: keys are hook names (pre-deploy, post-deploy, pre-connect and so on), values are the full text of each script, for example <code>{"pre-deploy": "#!/bin/sh\necho hi"}</code>.'
-      kamal_hooks_blank_warning: 'If you leave it empty: your pre-deploy / post-deploy hooks will never fire. The panel will run the deploy normally and will not tell you the hooks were skipped.'
+      kamal_hooks_blank_warning: "Left blank, these hooks don't run: deploys go ahead as usual and the panel won't tell you a hook was skipped."
       write_only_hint: Never shown again after saving, only replaced wholesale.
+      kamal_hooks_hint: "The scripts in your project's .kamal/hooks/, as one JSON object: keys are hook names (pre-deploy, post-deploy, pre-connect…), values are each script's full text."
+      cancel: Cancel
+      config_yaml_placeholder: |-
+        service: my-app
+        image: my-org/my-app
+        servers:
+          web:
+            - 192.0.2.10
+      kamal_secrets_placeholder: "RAILS_MASTER_KEY=…"
+      kamal_hooks_placeholder: '{"pre-deploy": "#!/bin/sh\necho deploying"}'
     show:
       back: ← Overview
       subtitle: What is running on each machine of this app, and what you can do to it.
@@ -420,6 +417,9 @@ en:
 
   overviews:
     show:
+      deactivated_section: Deactivated
+      deactivated_hint: Deactivating released the credential bindings. After reactivating you have to pick credentials again before collection resumes.
+      deactivated_badge: Deactivated
       title: Overview
       subtitle: Which version each app is running, how many machines are running it, and how old that data is. Anything wrong sorts to the top by colour.
       add: Onboard an app

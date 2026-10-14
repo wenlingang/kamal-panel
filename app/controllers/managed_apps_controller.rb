@@ -4,9 +4,10 @@ class ManagedAppsController < ApplicationController
   before_action :set_managed_app, only: %i[ edit update ]
   before_action :set_managed_app_for_lifecycle, only: %i[ deactivate reactivate ]
 
+  # The app list was folded into the overview (which also lists deactivated apps); the old address
+  # stays as a permanent redirect so bookmarks and links keep working.
   def index
-    @managed_apps = ManagedApp.active.order(:name)
-    @deactivated_apps = ManagedApp.where.not(deactivated_at: nil).order(:name)
+    redirect_to overview_path, status: :moved_permanently
   end
 
   def show

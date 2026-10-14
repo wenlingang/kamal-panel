@@ -31,7 +31,8 @@ bin/kamal setup                # 之后用 bin/kamal deploy
 ```sh
 bin/setup
 bin/rails db:encryption:init                              # 把密钥加进 development credentials
-bin/rails demo:seed                                       # 可选：五个应用，覆盖全部状态
+bin/rails demo:seed                                       # 可选：每种状态一个演示应用
+bin/rails demo:refresh                                    # 看之前把演示数据刷新到当前时间
 docker compose -f docker-compose.test.yml up -d --build  # 测试要连的假 SSH 主机
 bin/rails test:all                                        # 前台、单进程运行
 ```

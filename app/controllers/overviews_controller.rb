@@ -7,6 +7,7 @@ class OverviewsController < ApplicationController
     all_apps.each { |app| PollCadence.mark_viewed!(app) }
 
     @any_managed_apps = all_apps.any?
+    @deactivated_apps = ManagedApp.where.not(deactivated_at: nil).order(:name)
     @filter = OverviewFilter.new(q: params[:q], status: params[:status])
     @managed_apps = @filter.apply(all_apps)
     @statuses = @managed_apps.index_with { |app| ManagedAppStatus.new(app) }

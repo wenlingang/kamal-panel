@@ -95,14 +95,44 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     refute_match "失联", @response.body
   end
 
-  test "still lists the other apps on /apps when one app's deploy.yml is broken" do
+  test "the onboarding and edit forms each offer a way back without saving" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+
+    get new_managed_app_path
+    assert_select ".form-actions a[href=?]", root_path, text: I18n.t("managed_apps.form.cancel")
+
+    get edit_managed_app_path(app)
+    assert_select ".form-actions a[href=?]", managed_app_path(app), text: I18n.t("managed_apps.form.cancel")
+  end
+
+  test "the old app list address redirects to the overview" do
+    get managed_apps_path
+
+    assert_redirected_to overview_path
+    assert_equal 301, response.status
+  end
+
+  # Deactivated apps aren't in the overview grid, but they must stay findable: hidden, they could
+  # never be re-enabled. They moved here from the old app list.
+  test "the overview lists deactivated apps in their own section" do
+    app = ManagedApp.create!(name: "retired", config_yaml: valid_yaml, destination: "production")
+    app.update!(deactivated_at: Time.current)
+
+    get overview_path
+
+    assert_select "section.deactivated-apps a[href=?]", managed_app_path(app), text: /retired/
+    assert_select ".overview-grid a", text: "retired", count: 0
+  end
+
+  test "still lists the other apps on the overview when one app's deploy.yml is broken" do
     good = ManagedApp.create!(name: "good", config_yaml: file_fixture("simple_deploy.yml").read,
                               destination: "production")
     broken = ManagedApp.create!(name: "broken", config_yaml: file_fixture("simple_deploy.yml").read,
                                 destination: "production")
     broken.update_column(:config_yaml, "不是配置")
+    broken.update_columns(last_poll_error: "boom", last_poll_error_at: Time.current, first_poll_error_at: Time.current)
 
-    get managed_apps_path
+    get overview_path
 
     assert_response :success
     assert_match "good", @response.body

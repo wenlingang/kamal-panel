@@ -1026,6 +1026,20 @@ select {
   width: auto;
 }
 
+/* Submit and its way out sit together, primary first. */
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* What happens if a field is left blank: a separate, smaller line under the field's description,
+   so the consequence isn't buried mid-paragraph. */
+.hint-consequence {
+  font-size: var(--text-xs);
+  margin-top: var(--space-xs);
+}
+
 /* "Older entries" under a paged list: part of the same group as the table it continues. */
 .pager {
   margin-top: var(--space-lg);

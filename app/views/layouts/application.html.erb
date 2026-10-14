@@ -36,10 +36,9 @@
           <%= link_to root_path, class: "chrome-brand" do %>
             <%= render "shared/mark", size: "20px" %>Kamal Panel
           <% end %>
-          <%= nav_link_to t(".overview"), root_path, controllers: "overviews", icon: "layout-grid" %>
-          <%# The "Apps" tab also contains actions (the output page of a given action); they are all
-              pages under /apps/..., so the highlight should stay on "Apps". %>
-          <%= nav_link_to t(".apps"), managed_apps_path, controllers: %w[managed_apps actions], icon: "box" %>
+          <%# The app list was folded into the overview, so every page under /apps/... (an app, its
+              action output, its lock) belongs to "Overview". %>
+          <%= nav_link_to t(".overview"), root_path, controllers: %w[overviews managed_apps actions locks], icon: "layout-grid" %>
           <%= nav_link_to t(".audit"), audit_logs_path, controllers: "audit_logs", icon: "scroll-text" %>
           <%# Only admin sees the people entry — the check uses the same UserPolicy as the controller. %>
           <%= allowed_to(:manage, User) do %>

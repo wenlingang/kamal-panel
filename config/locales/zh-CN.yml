@@ -205,20 +205,8 @@ zh-CN:
       value: 新的密码
 
   managed_apps:
-    index:
-      title: 应用
-      subtitle: 面板正在盯着的所有应用。点进去看每台机器的状态，以及能对它做的操作。
-      add: 接入一个应用
-      empty: 这里还是空的。接入第一个应用，面板就会开始采集它每台机器的状态。
-      host_count:
-        one: "%{count} 台机器"
-        other: "%{count} 台机器"
-      config_broken: 配置无法解析
-      deactivated_section: 已停用
-      deactivated_hint: 停用时释放了凭据绑定。启用之后需要重新选一次凭据才能恢复采集。
-      deactivated_badge: 已停用
     new:
-      back: ← 应用
+      back: ← 总览
       title: 接入一个应用
       subtitle: 粘贴 deploy.yml 与一把能登上这些机器的 SSH 私钥。面板只读取状态，部署仍然走你原来的 kamal deploy。
       erb_warning_html: 粘贴的 deploy.yml 会交给 Kamal 解析，而 Kamal 会对它做 ERB 求值——<strong>也就是说，粘贴配置等同于在面板所在的机器上执行代码</strong>。只粘贴你信任的配置文件。
@@ -237,21 +225,30 @@ zh-CN:
       config_section: 配置文件
       config_yaml: deploy.yml 原文
       destination_config_yaml: deploy.<destination>.yml 原文（可选）
-      destination_config_hint: 仅在你使用 destination 时需要填写；留空会丢失该 destination 对 servers 等配置的覆盖（例如 staging/production 使用不同机器）。
+      destination_config_hint: 只有用 destination 时才需要。留空会丢掉该 destination 对 servers 等配置的覆盖（比如 staging 和 production 用不同的机器）。
       credentials_section: 凭据与随配置一起写入的文件
       ssh_credential: SSH 私钥
       none_selected: （不选）
       ssh_credential_hint: 面板靠它登上这些机器采集状态。
       go_to_credentials: 去凭据页添加
       registry_credential: Registry 密码
-      registry_credential_hint_html: 选中之后，面板会按这个应用 deploy.yml 里 <code>registry.password</code> 引用的变量名，把密码写进 .kamal/secrets-common。留空则面板不注入任何 registry 密码，得由下面的 .kamal/secrets 自己提供——两处都提供同一个变量时保存会被拒绝。
+      registry_credential_hint_html: 面板会把密码写进 .kamal/secrets-common，变量名取自 deploy.yml 的 <code>registry.password</code>。不选的话由下面的 .kamal/secrets 提供；两处不能同时提供同一个变量。
       kamal_secrets: .kamal/secrets 文件内容（可选）
-      kamal_secrets_hint: 对应你项目里 .kamal/secrets 文件的原文，用来放 RAILS_MASTER_KEY 这类一个应用一份的东西。registry 密码请用上面那个下拉，不必在这里重写一遍。
-      kamal_secrets_blank_warning: 留空的后果：deploy.yml 里引用到、而上面的 registry 凭据又没提供的变量，kamal 在 app boot / rollback 时会直接报 "Secret not found" 而失败。
+      kamal_secrets_hint: 项目里 .kamal/secrets 的原文，放 RAILS_MASTER_KEY 这类每个应用各自一份的变量。registry 密码用上面的下拉，不用在这里重复。
+      kamal_secrets_blank_warning: '留空时，deploy.yml 引用到、上面又没提供的变量，会让 app boot / rollback 直接报 "Secret not found"。'
       kamal_hooks: .kamal/hooks 脚本内容（可选，JSON）
-      kamal_hooks_hint_html: '对应你项目里 .kamal/hooks/ 目录下的脚本，格式是一个 JSON 对象：键是 hook 名（pre-deploy、post-deploy、pre-connect 等），值是该脚本的完整文本，例如 <code>{"pre-deploy": "#!/bin/sh\necho hi"}</code>。'
-      kamal_hooks_blank_warning: 留空的后果：你的 pre-deploy / post-deploy 等 hook 永远不会被触发——面板会正常执行部署，但不会告诉你 hook 被跳过了。
+      kamal_hooks_blank_warning: 留空时这些 hook 不会执行：部署照常进行，面板也不会提示 hook 被跳过。
       write_only_hint: 保存后不再显示，只能整体替换。
+      kamal_hooks_hint: 项目里 .kamal/hooks/ 下的脚本，写成一个 JSON 对象：键是 hook 名（pre-deploy、post-deploy、pre-connect 等），值是脚本全文。
+      cancel: 取消
+      config_yaml_placeholder: |-
+        service: my-app
+        image: my-org/my-app
+        servers:
+          web:
+            - 192.0.2.10
+      kamal_secrets_placeholder: "RAILS_MASTER_KEY=…"
+      kamal_hooks_placeholder: '{"pre-deploy": "#!/bin/sh\necho deploying"}'
     show:
       back: ← 总览
       subtitle: 这个应用每台机器上现在跑的是什么，以及能对它做哪些操作。
@@ -439,6 +436,9 @@ zh-CN:
 
   overviews:
     show:
+      deactivated_section: 已停用
+      deactivated_hint: 停用时释放了凭据绑定。启用之后需要重新选一次凭据才能恢复采集。
+      deactivated_badge: 已停用
       title: 总览
       subtitle: 每个应用当前跑的是哪一版、几台机器在跑、这些数据有多旧。有问题的排在颜色上。
       add: 接入一个应用

@@ -25,16 +25,21 @@ class NavigationTest < ActionDispatch::IntegrationTest
 
   test "highlights its own tab on each section's home page" do
     assert_current_nav "总览", root_path
-    assert_current_nav "应用", managed_apps_path
     assert_current_nav "审计", audit_logs_path
     assert_current_nav "人员", users_path
     assert_current_nav "凭据", credentials_path
   end
 
-  test "keeps the Apps tab highlighted on app sub-pages" do
-    assert_current_nav "应用", new_managed_app_path
-    assert_current_nav "应用", managed_app_path(@managed_app)
-    assert_current_nav "应用", edit_managed_app_path(@managed_app)
+  # The app list was folded into the overview, so every app page now belongs to "Overview".
+  test "keeps the Overview tab highlighted on app pages" do
+    assert_current_nav "总览", new_managed_app_path
+    assert_current_nav "总览", managed_app_path(@managed_app)
+    assert_current_nav "总览", edit_managed_app_path(@managed_app)
+  end
+
+  test "has no separate Apps tab any more" do
+    get root_path
+    assert_select "nav.chrome-nav a[href=?]", managed_apps_path, count: 0
   end
 
   test "keeps the Users tab highlighted on user sub-pages" do

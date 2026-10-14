@@ -62,3 +62,24 @@
     </div>
   </section>
 <% end %>
+
+<%# Deactivated apps are not in the grid above (it answers "what does production look like right
+    now"), but they must stay findable here: hidden, they could never be re-enabled. %>
+<% if @deactivated_apps.any? %>
+  <section class="section deactivated-apps">
+    <h2><%= t(".deactivated_section") %></h2>
+    <div class="panel">
+      <p class="hint"><%= t(".deactivated_hint") %></p>
+      <ul class="record-list">
+        <% @deactivated_apps.each do |app| %>
+          <li>
+            <%= link_to app, class: "record-row" do %>
+              <span><%= app.name %></span>
+              <%= status_badge("unknown", t(".deactivated_badge")) %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
+<% end %>
