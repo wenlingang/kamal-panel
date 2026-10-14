@@ -36,6 +36,16 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     app
   end
 
+  test "an app whose data is only stale is badged as stale, not as an unreachable host" do
+    app = app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
+    Observation.where(managed_app: app).update_all(observed_at: 2.hours.ago)
+
+    get overview_path
+
+    assert_select "tr.status-unreachable .status-badge", text: I18n.t("statuses.stale")
+    assert_select ".status-badge", text: I18n.t("statuses.unreachable"), count: 0
+  end
+
   test "lists all apps when there are no filter params" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "shop", versions: %w[bbbbbbb ccccccc])

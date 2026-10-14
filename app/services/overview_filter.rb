@@ -11,8 +11,13 @@ class OverviewFilter
     STATUS_KEYS.map { |key| [ label_for(key), key ] }
   end
 
+  # The unreachable tier also holds apps whose data is merely stale, so the option says both.
   def self.label_for(key)
-    key == PARSE_ERROR ? I18n.t("statuses.parse_error") : ManagedAppStatus.label_for(key)
+    case key
+    when PARSE_ERROR then I18n.t("statuses.parse_error")
+    when "unreachable" then I18n.t("statuses.unreachable_or_stale")
+    else ManagedAppStatus.label_for(key)
+    end
   end
 
   attr_reader :q, :status

@@ -8,6 +8,29 @@ zh-CN:
     messages:
       blank: 不能为空
 
+  # rails-i18n glues numbers to Chinese units ("22天前", "大约1个月前") while the rest of this UI
+  # spaces them ("1 台机器", "最近 50 次"), so the units read as a different typeface. Same exemption
+  # as blank above: override only the counted phrases, keep upstream for the rest.
+  datetime:
+    distance_in_words:
+      about_x_hours: 约 %{count} 小时
+      about_x_months: 约 %{count} 个月
+      about_x_years: 约 %{count} 年
+      almost_x_years: 接近 %{count} 年
+      less_than_x_seconds: 不到 %{count} 秒
+      less_than_x_minutes: 不到 %{count} 分钟
+      over_x_years: "%{count} 年多"
+      x_seconds: "%{count} 秒"
+      x_minutes: "%{count} 分钟"
+      x_days: "%{count} 天"
+      x_months: "%{count} 个月"
+      x_years: "%{count} 年"
+
+  # One absolute format everywhere a moment is shown in full (audit log, deploy history).
+  time:
+    formats:
+      panel: "%Y-%m-%d %H:%M"
+
   # On validation failure, full_messages puts the attribute name first. Without a translated name,
   # Chinese error text would be prefixed with an English column name ("Config yaml 无法解析：…").
   activerecord:
@@ -91,12 +114,13 @@ zh-CN:
       role: 角色
       apps: 名下应用
       status: 状态
-      no_apps: （还没有）
+      no_apps: 还没有
       site_wide: 全站
       deactivated: 已停用
       active: 正常
       reactivate: 启用
       deactivate: 停用
+      you: 当前账号
     new:
       back: ← 人员
       title: 添加成员
@@ -143,7 +167,7 @@ zh-CN:
       fingerprint: 指纹
       registry: Registry
       used_by: 使用服务
-      unused: （没有）
+      unused: 没有
       delete: 删除
     new:
       title: 添加私钥
@@ -199,7 +223,7 @@ zh-CN:
       name: 名称
       destination_optional: Destination（可留空）
       destination: Destination
-      destination_none: （无）
+      destination_none: 无
       destination_locked_hint: 接入之后不能改。已有的观测与部署事件都是按这个 destination 记的，改了它，历史会变成误导。要换环境请另外接入一个应用。
       config_section: 配置文件
       config_yaml: deploy.yml 原文
@@ -248,12 +272,12 @@ zh-CN:
       basics: 基本信息
       service: 服务名
       destination: Destination
-      destination_none: （无）
+      destination_none: 无
       registry: Registry
       ssh_credential: SSH 私钥
-      ssh_credential_none: （未配置）
+      ssh_credential_none: 未配置
       members: 能动这个应用的人
-      members_none: （只有 admin）
+      members_none: 只有 admin
       registry_mismatch: 选中的 registry 凭据「%{credential}」是给 %{credential_server} 用的，而这个应用的 registry 是 %{app_server}。确认一下是不是选错了——选错的后果是部署时拉不动镜像。
       roles: 解析出的角色
       role: 角色
@@ -291,7 +315,7 @@ zh-CN:
       unfinished: 部署未收尾
     host_status:
       oldest_from: 最旧的数据来自 %{time}前
-      stale_suffix: （已过期）
+      stale_suffix: 已过期
       never_collected: 尚未采集
       partially_collected: 部分主机尚未采集
     host_table:
@@ -304,7 +328,7 @@ zh-CN:
       unknown: 未知
       "yes": 是
       "no": 否
-      health_suffix: （%{health}）
+      health_suffix: "%{health}"
       ok: 正常
       collected_ago: "%{time}前采集"
       never_collected: 尚未采集
@@ -327,7 +351,7 @@ zh-CN:
       started: 开始
       finished: 完成
       observation: 观测
-      not_received: （未收到）
+      not_received: 未收到
       unverified: 未验证
     deploy_reporting:
       title: 部署上报
@@ -419,9 +443,9 @@ zh-CN:
       config_broken: 配置无法解析
       config_broken_detail: 自 %{since}前起 deploy.yml 无法解析，采集已停止
       see_app_page: 详情见应用页
-      version_drift: （%{count} 个版本并存）
+      version_drift: "%{count} 个版本并存"
       ago: "%{time}前"
-      stale: （已过期）
+      stale: 已过期
       never_collected: 从未采集
       partially_collected: 部分主机尚未采集
 
@@ -445,6 +469,9 @@ zh-CN:
     drift: 版本不一致
     unhealthy: 容器异常
     unreachable: 机器失联
+    stale: 数据过期
+    unparseable: 输出无法解析
+    unreachable_or_stale: 失联或数据过期
     ok: 正常
     unknown: 尚未采集
     parse_error: 配置无法解析
@@ -500,6 +527,7 @@ zh-CN:
       reactivated: 已启用 %{email}
       last_admin_demote: 不能降级最后一个 admin
       last_admin_deactivate: 不能停用最后一个 admin
+      self_deactivate: 不能停用自己，请让另一位 admin 操作
 
   audit:
     actions:

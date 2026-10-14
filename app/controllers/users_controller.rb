@@ -75,6 +75,11 @@ class UsersController < ApplicationController
   end
 
   def deactivate
+    # Deactivating yourself ends your own session on the spot; ask another admin instead.
+    if @user == Current.user
+      return redirect_to users_path, alert: t("flash.user.self_deactivate")
+    end
+
     if last_admin?(@user)
       return redirect_to users_path, alert: t("flash.user.last_admin_deactivate")
     end

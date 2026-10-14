@@ -18,7 +18,7 @@
         <td><%= row[:version] || "—" %></td>
         <td>
           <%= row[:docker_status] || "—" %>
-          <%= t(".health_suffix", health: row[:health]) if row[:health].present? %>
+          <%= tag.span(t(".health_suffix", health: row[:health]), class: "suffix") if row[:health].present? %>
         </td>
         <td>
           <%# Receiving traffic is tri-state: nil is "the panel does not know" and must not be rendered as a definite "no"

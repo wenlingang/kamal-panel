@@ -18,6 +18,8 @@ module ApplicationHelper
     "drift" => "triangle-alert",
     "unhealthy" => "circle-x",
     "unreachable" => "plug",
+    "stale" => "clock",
+    "unparseable" => "circle-help",
     "unknown" => "circle-help"
   }.freeze
 
@@ -25,9 +27,11 @@ module ApplicationHelper
 
   def flash_icon(type) = FLASH_ICONS.fetch(type.to_s, "info")
 
-  def status_badge(level, label)
+  # icon_key picks the icon when it differs from the colour tier (stale data sits in the
+  # unreachable tier but gets its own icon).
+  def status_badge(level, label, icon_key: level)
     tag.span(class: "status-badge status-#{level}") do
-      icon_tag(STATUS_ICONS.fetch(level.to_s, "circle-help"), size: :sm) + label.to_s
+      icon_tag(STATUS_ICONS.fetch(icon_key.to_s, "circle-help"), size: :sm) + label.to_s
     end
   end
 
@@ -38,6 +42,15 @@ module ApplicationHelper
     link_to path, class: ("is-current" if current) do
       icon ? icon_tag(icon, size: :sm) + label.to_s : label.to_s
     end
+  end
+
+  # An absent value ("not configured", "none yet"): muted so it reads as absence rather than data.
+  # Not wrapped in brackets: a leading full-width bracket pushes the text off its column.
+  def placeholder(text) = tag.span(text, class: "placeholder")
+
+  # A moment shown in full: one format across pages, with the exact instant on hover.
+  def timestamp(time)
+    time_tag(time, l(time, format: :panel), title: time.iso8601)
   end
 
   def joined_list(items, empty: nil)

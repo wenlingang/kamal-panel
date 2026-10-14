@@ -30,7 +30,7 @@
           <%= form.text_field :destination %>
         <% else %>
           <%= form.label :destination, t(".destination") %>
-          <p><%= managed_app.destination.presence || t(".destination_none") %></p>
+          <p><%= managed_app.destination.presence || placeholder(t(".destination_none")) %></p>
           <p class="hint"><%= t(".destination_locked_hint") %></p>
         <% end %>
       </div>

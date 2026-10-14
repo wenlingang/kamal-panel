@@ -136,6 +136,37 @@ class ManagedAppStatusTest < ActiveSupport::TestCase
       "Stale and unreachable share the same yellow tier; no sixth state is added (see ManagedAppStatus#level comment)"
   end
 
+  test "stale-only data keeps the unreachable tier but is labelled as stale, not as a lost host" do
+    observe(host: "10.0.0.1", version: "aaaaaaa", observed_at: @now - 1.hour)
+    observe(host: "10.0.0.2", version: "aaaaaaa", observed_at: @now - 1.hour)
+
+    status = ManagedAppStatus.new(@app)
+
+    assert_equal :unreachable, status.level
+    assert status.stale_only?
+    assert_equal "stale", status.badge_key
+    assert_equal I18n.t("statuses.stale"), status.label
+  end
+
+  test "a host that really cannot be reached is still labelled as unreachable" do
+    observe(host: "10.0.0.1", version: "aaaaaaa")
+    observe(host: "10.0.0.2", reachable: false)
+
+    status = ManagedAppStatus.new(@app)
+
+    assert_equal :unreachable, status.level
+    assert_not status.stale_only?
+    assert_equal "unreachable", status.badge_key
+    assert_equal I18n.t("statuses.unreachable"), status.label
+  end
+
+  test "badge key is the level itself outside the unreachable tier" do
+    observe(host: "10.0.0.1", version: "aaaaaaa")
+    observe(host: "10.0.0.2", version: "aaaaaaa")
+
+    assert_equal "ok", ManagedAppStatus.new(@app).badge_key
+  end
+
   test "unknown when never polled" do
     assert_equal :unknown, ManagedAppStatus.new(@app).level
   end

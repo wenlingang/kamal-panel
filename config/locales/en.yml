@@ -30,6 +30,11 @@
 en:
   hello: "Hello world"
 
+  # One absolute format everywhere a moment is shown in full (audit log, deploy history).
+  time:
+    formats:
+      panel: "%Y-%m-%d %H:%M"
+
   # The UI's primary language is Chinese; this English file is where i18n.fallbacks lands, and also
   # the starting point for bilingual switching later. Attribute names are listed in full here,
   # otherwise the field names for app.update degrade to what Rails auto-humanizes, "Ssh credential
@@ -96,12 +101,13 @@ en:
       role: Role
       apps: Assigned apps
       status: Status
-      no_apps: (none yet)
+      no_apps: none yet
       site_wide: Site-wide
       deactivated: Deactivated
       active: Active
       reactivate: Reactivate
       deactivate: Deactivate
+      you: You
     new:
       back: ← People
       title: Add member
@@ -146,7 +152,7 @@ en:
       fingerprint: Fingerprint
       registry: Registry
       used_by: Used by
-      unused: (none)
+      unused: none
       delete: Delete
     new:
       title: Add SSH key
@@ -202,7 +208,7 @@ en:
       name: Name
       destination_optional: Destination (optional)
       destination: Destination
-      destination_none: (none)
+      destination_none: none
       destination_locked_hint: Cannot be changed after onboarding. Existing observations and deploy events are all recorded against this destination; changing it would turn the history into something misleading. To switch environments, onboard a separate app.
       config_section: Config files
       config_yaml: deploy.yml
@@ -251,12 +257,12 @@ en:
       basics: Basics
       service: Service
       destination: Destination
-      destination_none: (none)
+      destination_none: none
       registry: Registry
       ssh_credential: SSH key
-      ssh_credential_none: (not configured)
+      ssh_credential_none: not configured
       members: Who can act on this app
-      members_none: (admins only)
+      members_none: admins only
       registry_mismatch: The selected registry credential "%{credential}" is for %{credential_server}, but this app's registry is %{app_server}. Double-check you picked the right one — the cost of picking wrong is images failing to pull at deploy time.
       roles: Parsed roles
       role: Role
@@ -294,7 +300,7 @@ en:
       unfinished: Deploy never finished
     host_status:
       oldest_from: Oldest data is from %{time} ago
-      stale_suffix: (stale)
+      stale_suffix: stale
       never_collected: Not collected yet
       partially_collected: Some hosts have not been collected yet
     host_table:
@@ -307,7 +313,7 @@ en:
       unknown: Unknown
       "yes": Yes
       "no": No
-      health_suffix: (%{health})
+      health_suffix: "%{health}"
       ok: OK
       collected_ago: collected %{time} ago
       never_collected: Not collected yet
@@ -330,7 +336,7 @@ en:
       started: Started
       finished: Finished
       observation: Observation
-      not_received: (not received)
+      not_received: not received
       unverified: Not verified
     deploy_reporting:
       title: Deploy reporting
@@ -418,9 +424,9 @@ en:
       config_broken: Config cannot be parsed
       config_broken_detail: deploy.yml has been unparseable since %{since} ago, and collection has stopped
       see_app_page: See the app page
-      version_drift: (%{count} versions side by side)
+      version_drift: "%{count} versions side by side"
       ago: '%{time} ago'
-      stale: (stale)
+      stale: stale
       never_collected: Never collected
       partially_collected: Some hosts not collected yet
 
@@ -451,6 +457,9 @@ en:
     drift: Version mismatch
     unhealthy: Container unhealthy
     unreachable: Host unreachable
+    stale: Data stale
+    unparseable: Output unreadable
+    unreachable_or_stale: Unreachable or stale
     ok: OK
     unknown: Not collected yet
     parse_error: Config cannot be parsed
@@ -506,6 +515,7 @@ en:
       reactivated: Reactivated %{email}
       last_admin_demote: Cannot demote the last admin
       last_admin_deactivate: Cannot deactivate the last admin
+      self_deactivate: You can’t deactivate yourself; ask another admin
 
   audit:
     actions:

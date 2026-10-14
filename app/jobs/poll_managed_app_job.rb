@@ -85,19 +85,22 @@ class PollManagedAppJob < ApplicationJob
       managed_app.reload
       status = ManagedAppStatus.new(managed_app)
 
-      html = ApplicationController.render(
-        partial: "managed_apps/host_status",
-        locals: { managed_app: managed_app, status: status }
-      )
+      locals = { managed_app: managed_app, status: status }
+      replacements = {
+        "host-status" => ApplicationController.render(partial: "managed_apps/host_status", locals:),
+        "app-status" => ApplicationController.render(partial: "managed_apps/status_badge", locals:)
+      }
 
-      deliver_host_status_refresh(managed_app, html)
+      deliver_host_status_refresh(managed_app, replacements)
     end
 
-    def deliver_host_status_refresh(managed_app, html)
-      Turbo::StreamsChannel.broadcast_stream_to(
-        "managed_app_#{managed_app.id}",
-        content: Turbo::StreamsChannel.turbo_stream_action_tag(:replace, target: "host-status", template: html)
-      )
+    # One broadcast carrying both replacements, so the header badge and the table never disagree.
+    def deliver_host_status_refresh(managed_app, replacements)
+      content = replacements.map do |target, html|
+        Turbo::StreamsChannel.turbo_stream_action_tag(:replace, target:, template: html)
+      end.join
+
+      Turbo::StreamsChannel.broadcast_stream_to("managed_app_#{managed_app.id}", content:)
     rescue StandardError => e
       Rails.logger.error("[poll] 详情页广播投递失败：#{e.class}: #{e.message}")
     end

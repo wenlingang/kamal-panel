@@ -44,7 +44,7 @@
           </td>
           <td>
             <%# Status never relies on color alone: text and shape are each a signal independent of color %>
-            <%= status_badge(status.level, status.label) %>
+            <%= status_badge(status.level, status.label, icon_key: status.badge_key) %>
           </td>
           <td>
             <% if status.versions.empty? %>
@@ -52,7 +52,7 @@
             <% else %>
               <%= status.versions.join(" / ") %>
               <% if status.drift? %>
-                <strong><%= t(".version_drift", count: status.versions.size) %></strong>
+                <strong class="suffix"><%= t(".version_drift", count: status.versions.size) %></strong>
               <% end %>
             <% end %>
           </td>
@@ -61,7 +61,7 @@
             <% if status.observed_at %>
               <%= t(".ago", time: time_ago_in_words(status.observed_at)) %>
               <% if status.stale? %>
-                <strong><%= t(".stale") %></strong>
+                <strong class="suffix"><%= t(".stale") %></strong>
               <% end %>
             <% elsif status.level == :unknown %>
               <%= t(".never_collected") %>

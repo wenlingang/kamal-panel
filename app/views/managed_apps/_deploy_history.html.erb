@@ -38,8 +38,8 @@
           <td><%= event.source_text %></td>
           <td><%= event.performer.presence || "—" %></td>
           <td><%= event.command.presence || "—" %></td>
-          <td><%= event.started_at ? event.started_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
-          <td><%= event.succeeded_at ? event.succeeded_at.strftime("%m-%d %H:%M") : t(".not_received") %></td>
+          <td><%= event.started_at ? timestamp(event.started_at) : placeholder(t(".not_received")) %></td>
+          <td><%= event.succeeded_at ? timestamp(event.succeeded_at) : placeholder(t(".not_received")) %></td>
           <%# Leave a trace: after an alert is resolved, "was that delayed, or observed early" can still
               be worked out. The logic is in DeployEvent#observation_delay_text
               (normally the hook report is later than the container being seen by polling, and delay is negative). %>

@@ -34,6 +34,23 @@ class ManagedAppStatusUnparseableTest < ActiveSupport::TestCase
     refute row[:unparseable_output]
   end
 
+  test "the app-level badge says the output is unreadable, not that the host is unreachable" do
+    observe(error: Collectors::ContainerCollector.unparseable_output_error(3))
+    status = ManagedAppStatus.new(@managed_app)
+
+    assert_equal :unreachable, status.level
+    assert_equal "unparseable", status.badge_key
+    assert_equal I18n.t("statuses.unparseable"), status.label
+  end
+
+  test "a real connection failure keeps the unreachable wording" do
+    observe(error: "Net::SSH::ConnectionTimeout")
+    status = ManagedAppStatus.new(@managed_app)
+
+    assert_equal "unreachable", status.badge_key
+    assert_equal I18n.t("statuses.unreachable"), status.label
+  end
+
   private
     def observe(error:, reachable: false)
       Observation.create!(managed_app: @managed_app, host: @host, reachable: reachable,

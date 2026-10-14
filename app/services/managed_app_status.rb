@@ -28,7 +28,26 @@ class ManagedAppStatus
   end
 
   def label
-    self.class.label_for(level)
+    case badge_key
+    when "stale", "unparseable" then I18n.t("statuses.#{badge_key}")
+    else self.class.label_for(level)
+    end
+  end
+
+  # Stale data shares the unreachable tier (same colour, sort and filter), but saying "host
+  # unreachable" when every host answered last time is simply wrong. Only the wording and icon differ.
+  def stale_only?
+    level == :unreachable && !unreachable?
+  end
+
+  # Which icon/label variant to show; the CSS tier stays `level`. Within the unreachable tier the
+  # wording follows the actual cause: stale data, or hosts that answered with output we can't read.
+  def badge_key
+    return level.to_s unless level == :unreachable
+    return "stale" if stale_only?
+    return "unparseable" if only_unparseable_failures?
+
+    "unreachable"
   end
 
   def drift?
@@ -95,9 +114,7 @@ class ManagedAppStatus
           health: observation.health,
           reachable: observation.reachable,
           error: observation.error,
-          unparseable_output: observation.error.to_s.include?(
-            Collectors::ContainerCollector::UNPARSEABLE_OUTPUT_MARKER
-          ),
+          unparseable_output: unparseable?(observation),
           routed: routed_status(observation.host, observation.container_name),
           observed_at: observation.observed_at,
           configured: managed_app.cached_app_hosts.include?(observation.host)
@@ -153,6 +170,16 @@ class ManagedAppStatus
 
     def unreachable?
       observations.any? { |o| !o.reachable } || missing_configured_hosts.any?
+    end
+
+    def only_unparseable_failures?
+      failed = observations.reject(&:reachable)
+      missing_configured_hosts.empty? && failed.any? &&
+        failed.all? { |o| unparseable?(o) }
+    end
+
+    def unparseable?(observation)
+      observation.error.to_s.include?(Collectors::ContainerCollector::UNPARSEABLE_OUTPUT_MARKER)
     end
 
     def missing_configured_hosts

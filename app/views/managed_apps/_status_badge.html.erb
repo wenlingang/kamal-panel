@@ -1,0 +1,10 @@
+<%# The overall verdict from the overview, repeated in the detail header so nobody has to work it out
+    from the tables below. Replaced by PollManagedAppJob together with #host-status (target id:
+    app-status), so it reads only its locals. %>
+<span id="app-status" class="page-status">
+  <% if managed_app.last_poll_error.present? %>
+    <%= status_badge("unreachable", t("statuses.parse_error"), icon_key: "unknown") %>
+  <% else %>
+    <%= status_badge(status.level, status.label, icon_key: status.badge_key) %>
+  <% end %>
+</span>

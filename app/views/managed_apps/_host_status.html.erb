@@ -6,7 +6,7 @@
       <%# What is taken is "the oldest one among each machine in the config", not "the most recent successful collection" —
           the only honest statement is "no data here is older than this" (see Task 11 review). %>
       <%= t(".oldest_from", time: time_ago_in_words(status.observed_at)) %>
-      <%= t(".stale_suffix") if status.stale? %>
+      <%= tag.span(t(".stale_suffix"), class: "suffix") if status.stale? %>
     <% elsif status.level == :unknown %>
       <%= t(".never_collected") %>
     <% else %>

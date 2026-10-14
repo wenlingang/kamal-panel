@@ -2,7 +2,11 @@
 
 <div class="page-head">
   <div class="page-title">
-    <h1><%= @managed_app.name %></h1>
+    <h1>
+      <%= @managed_app.name %>
+      <%= render "managed_apps/status_badge", managed_app: @managed_app,
+                 status: (ManagedAppStatus.new(@managed_app) unless @managed_app.last_poll_error.present?) %>
+    </h1>
     <%# The subtitle does not touch parsed_config: when config parsing fails this page must still render
         (see the comment on the last_poll_error branch below). %>
     <p class="page-sub"><%= t(".subtitle") %></p>
@@ -58,7 +62,7 @@
     <div class="panel">
       <dl>
         <dt><%= t(".destination") %></dt>
-        <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+        <dd><%= @managed_app.destination.presence || placeholder(t(".destination_none")) %></dd>
       </dl>
     </div>
   </section>
@@ -97,14 +101,14 @@
   <div class="panel">
     <dl>
       <dt><%= t(".service") %></dt>     <dd><%= @managed_app.service %></dd>
-      <dt><%= t(".destination") %></dt> <dd><%= @managed_app.destination.presence || t(".destination_none") %></dd>
+      <dt><%= t(".destination") %></dt> <dd><%= @managed_app.destination.presence || placeholder(t(".destination_none")) %></dd>
       <dt><%= t(".registry") %></dt>    <dd><%= @managed_app.parsed_config.registry_server %></dd>
       <dt><%= t(".ssh_credential") %></dt>
-      <dd><%= @managed_app.ssh_credential&.fingerprint || t(".ssh_credential_none") %></dd>
+      <dd><%= @managed_app.ssh_credential&.fingerprint || placeholder(t(".ssh_credential_none")) %></dd>
       <dt><%= t(".members") %></dt>
       <dd>
         <%# Read-only. The only write entry for membership is the people page (design 11 §5.2). %>
-        <%= joined_list(@managed_app.members.map(&:display_name), empty: t(".members_none")) %>
+        <%= joined_list(@managed_app.members.map(&:display_name), empty: placeholder(t(".members_none"))) %>
       </dd>
     </dl>
 

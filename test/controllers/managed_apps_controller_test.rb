@@ -11,6 +11,23 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     File.read(Rails.root.join("test/fake_host/id_ed25519"))
   end
 
+  test "the detail page header shows the app's overall status" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+
+    get managed_app_path(app)
+
+    assert_select ".page-head #app-status .status-badge", text: I18n.t("statuses.unknown")
+  end
+
+  test "the detail page header says the config is broken when it cannot be parsed" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+    app.update_columns(last_poll_error: "boom", last_poll_error_at: Time.current, first_poll_error_at: Time.current)
+
+    get managed_app_path(app)
+
+    assert_select ".page-head #app-status .status-badge", text: I18n.t("statuses.parse_error")
+  end
+
   test "picks a credential from the pool when onboarding" do
     credential = Credential.create!(kind: "ssh_key", value: FakeHost.private_key, name: "生产集群")
     registry = RegistryCredential.create!(name: "Docker Hub", value: "s3cr3t")

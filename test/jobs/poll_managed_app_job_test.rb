@@ -153,6 +153,8 @@ class PollManagedAppJobTest < ExecutionLayerTest
       "The replace target must be #host-status; if this id changes, the detail page stays stuck on stale data"
     assert_includes message, "aaaaaaa",
       "The broadcast should carry the re-rendered host status, showing the version just collected"
+    assert_includes message, 'target="app-status"',
+      "The header status badge must refresh in the same broadcast, or it contradicts the table below it"
   end
 
   # Broadcast failure -- only the "delivery" step (Solid Cable hiccups, serialization

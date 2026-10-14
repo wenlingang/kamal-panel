@@ -29,14 +29,16 @@
               <%# admin and ops get their permissions from the site-wide role, not the membership table — say so honestly here,
                   so nobody thinks adding members for an admin is the complete configuration. %>
               <% if user.developer? %>
-                <%= app_name_list(user.managed_apps, empty: t(".no_apps")) %>
+                <%= app_name_list(user.managed_apps, empty: placeholder(t(".no_apps"))) %>
               <% else %>
                 <%= t(".site_wide") %>
               <% end %>
             </td>
             <td><%= user.deactivated? ? t(".deactivated") : t(".active") %></td>
             <td>
-              <% if user.deactivated? %>
+              <% if user == Current.user %>
+                <span class="muted"><%= t(".you") %></span>
+              <% elsif user.deactivated? %>
                 <%= button_to t(".reactivate"), reactivate_user_path(user),
                               method: :post, class: "btn-quiet" %>
               <% else %>

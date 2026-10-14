@@ -314,8 +314,31 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     post deactivate_user_path(users(:two))
 
+    # Only admins deactivate people, so the last admin can only be targeted by themselves: the
+    # self-deactivation rule fires first. The last-admin check stays as a second line of defence.
     refute_predicate users(:two).reload, :deactivated?
-    assert_equal "不能停用最后一个 admin", flash[:alert]
+    assert_equal I18n.t("flash.user.self_deactivate"), flash[:alert]
+  end
+
+  # Deactivating yourself signs you out on the spot, with no way back in. Other admins existing
+  # doesn't make that any less of a trap, so it is refused even when the last-admin rule wouldn't fire.
+  test "cannot deactivate yourself even when other admins exist" do
+    User.create!(email_address: "other-admin@example.com", password: "password-123", role: "admin")
+    sign_in_as users(:two)
+
+    post deactivate_user_path(users(:two))
+
+    refute_predicate users(:two).reload, :deactivated?
+    assert_equal I18n.t("flash.user.self_deactivate"), flash[:alert]
+  end
+
+  test "the people list offers no deactivate button on your own row" do
+    sign_in_as users(:two)
+
+    get users_path
+
+    assert_select "form[action=?]", deactivate_user_path(users(:two)), count: 0
+    assert_select "form[action=?]", deactivate_user_path(users(:one))
   end
 
   test "cannot downgrade the last admin" do

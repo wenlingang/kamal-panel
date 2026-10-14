@@ -22,7 +22,7 @@
   <tbody>
     <% @audit_logs.each do |log| %>
       <tr>
-        <td><%= log.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+        <td><%= timestamp(log.created_at) %></td>
         <td><%= user_identity(log.user) %></td>
         <td><%= log.managed_app&.name || t(".site_wide") %></td>
         <td><%= audit_action_label(log) %></td>
