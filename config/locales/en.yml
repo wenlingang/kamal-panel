@@ -85,9 +85,15 @@ en:
     developer: Developer
     ops: Ops
 
+  duration:
+    ms: "%{count} ms"
+    seconds: "%{count} s"
+    minutes: "%{minutes} min %{seconds} s"
+
   common:
     save: Save
     replace: Replace
+    edit: Edit
     error_separator: "; "
     list_separator: ", "
 
@@ -154,6 +160,9 @@ en:
       used_by: Used by
       unused: none
       delete: Delete
+      delete_confirm: |-
+        Delete %{name}?
+        This can’t be undone; you would have to add it again.
     new:
       title: Add SSH key
       subtitle: The panel uses it to reach the managed machines and collect status. It is never shown again after saving, only replaced wholesale.
@@ -261,7 +270,7 @@ en:
       registry: Registry
       ssh_credential: SSH key
       ssh_credential_none: not configured
-      members: Who can act on this app
+      members: Members
       members_none: admins only
       registry_mismatch: The selected registry credential "%{credential}" is for %{credential_server}, but this app's registry is %{app_server}. Double-check you picked the right one — the cost of picking wrong is images failing to pull at deploy time.
       roles: Parsed roles
@@ -274,6 +283,11 @@ en:
       lock_reading: Reading the deploy lock…
       lock_unknown: Lock state unknown
       lock_unknown_detail: cannot reach the primary host, operations are disabled
+      no_ssh_key: No SSH key configured
+      no_ssh_key_detail: the panel can’t read the deploy lock, so operations are disabled.
+      no_ssh_key_link: Edit the app to pick a key
+      actions_no_permission: You can see the status, but you don’t have permission to operate this app.
+      actions_parse_error: The config can’t be parsed, so operations are disabled.
       lock_held: Deploy in progress
       force_unlock: Force unlock
       force_unlock_warning: Only do this once you are sure the lock is a dead lock left behind by a crashed CI run. A deploy that is actually in progress will be interrupted.
@@ -348,7 +362,7 @@ en:
       executable_bit_html: 'Both files need the executable bit: <code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>'
       rejected: A report was rejected
       rejected_ago: '%{time} ago'
-      regenerate: Regenerate token (the old one stops working immediately)
+      regenerate: Regenerate token…
       regenerate_confirm: |-
         Regenerate the reporting token for %{name}?
         The old token stops working immediately. Any hook script still using it will have its next report rejected until you swap the new one in. The new scripts are shown only once.

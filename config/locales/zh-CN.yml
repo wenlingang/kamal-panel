@@ -94,9 +94,15 @@ zh-CN:
   # Actions and targets on the audit page. Action names and detail_key are both just [keys]; Chinese
   # lives only here because audit rows are append-only, and writing Chinese into them would weld the
   # language into the data permanently.
+  duration:
+    ms: "%{count} 毫秒"
+    seconds: "%{count} 秒"
+    minutes: "%{minutes} 分 %{seconds} 秒"
+
   common:
     save: 保存
     replace: 替换
+    edit: 编辑
     error_separator: "；"
     list_separator: "、"
     # Joiner for enumerations. Chinese uses the ideographic comma (、), English a comma plus space, so it too has to be a
@@ -169,6 +175,9 @@ zh-CN:
       used_by: 使用服务
       unused: 没有
       delete: 删除
+      delete_confirm: |-
+        删除 %{name}？
+        删除后无法恢复，需要时只能重新添加。
     new:
       title: 添加私钥
       subtitle: 面板靠它登上被管的机器采集状态。保存后不再显示，只能整体替换。
@@ -276,8 +285,8 @@ zh-CN:
       registry: Registry
       ssh_credential: SSH 私钥
       ssh_credential_none: 未配置
-      members: 能动这个应用的人
-      members_none: 只有 admin
+      members: 可操作成员
+      members_none: 仅超管
       registry_mismatch: 选中的 registry 凭据「%{credential}」是给 %{credential_server} 用的，而这个应用的 registry 是 %{app_server}。确认一下是不是选错了——选错的后果是部署时拉不动镜像。
       roles: 解析出的角色
       role: 角色
@@ -289,6 +298,11 @@ zh-CN:
       lock_reading: 正在读取部署锁……
       lock_unknown: 锁状态未知
       lock_unknown_detail: 无法连接 primary host，操作已禁用
+      no_ssh_key: 未配置 SSH 私钥
+      no_ssh_key_detail: 面板读不了部署锁，操作已禁用。
+      no_ssh_key_link: 去编辑应用选一把私钥
+      actions_no_permission: 你能查看状态，但没有操作这个应用的权限。
+      actions_parse_error: 配置无法解析，操作已禁用。
       lock_held: 部署进行中
       force_unlock: 强制解锁
       force_unlock_warning: 只有在确认锁是 CI 崩溃遗留的死锁时才这样做。正在进行的部署会被打断。
@@ -363,7 +377,7 @@ zh-CN:
       executable_bit_html: 两个文件都要有可执行位：<code>chmod +x .kamal/hooks/pre-deploy .kamal/hooks/post-deploy</code>
       rejected: 有上报被拒收
       rejected_ago: "%{time}前"
-      regenerate: 重新生成 token（旧的立即失效）
+      regenerate: 重新生成 token…
       regenerate_confirm: |-
         重新生成 %{name} 的上报 token？
         旧 token 当场失效。凡是还在用旧 token 的 hook 脚本，下一次部署的上报都会被拒收，直到你把新 token 换进去。新脚本只显示这一次。

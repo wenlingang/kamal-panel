@@ -20,7 +20,7 @@
         <%= button_to t(".reactivate"), reactivate_managed_app_path(@managed_app), method: :post,
                       form: { data: { turbo_confirm: t(".reactivate_confirm", name: @managed_app.name) } } %>
       <% else %>
-        <%= button_to t(".deactivate"), deactivate_managed_app_path(@managed_app), method: :post,
+        <%= button_to t(".deactivate"), deactivate_managed_app_path(@managed_app), method: :post, class: "btn-danger",
                       form: { data: { turbo_confirm: t(".deactivate_confirm", name: @managed_app.name),
                                       confirm_danger: true } } %>
       <% end %>
@@ -185,9 +185,16 @@
 <%# Do not use loading: :lazy — the lock block is below the first screen, and lazy would wait until someone scrolls down before starting to read,
     so the "slowness" moves from opening the page to the moment of scrolling. Load immediately: the main document is interactive in 340ms,
     and this request finishes in parallel and then fills in the content. %>
-<%= turbo_frame_tag :lock_and_actions, src: managed_app_lock_path(@managed_app) do %>
-  <p class="lock-loading"><%= t(".lock_reading") %></p>
-<% end %>
+<%# The section and its panel stay put while the frame loads, so the page doesn't jump when the lock
+    status arrives. %>
+<section class="section actions">
+  <h2><%= t(".actions") %></h2>
+  <div class="panel">
+    <%= turbo_frame_tag :lock_and_actions, src: managed_app_lock_path(@managed_app) do %>
+      <p class="hint"><%= t(".lock_reading") %></p>
+    <% end %>
+  </div>
+</section>
 
 <%= render "managed_apps/deploy_history", managed_app: @managed_app %>
 

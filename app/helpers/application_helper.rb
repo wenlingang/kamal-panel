@@ -48,6 +48,16 @@ module ApplicationHelper
   # Not wrapped in brackets: a leading full-width bracket pushes the text off its column.
   def placeholder(text) = tag.span(text, class: "placeholder")
 
+  # How long an action ran, in the unit people think in: "380 ms", "3.0 s", "1 min 5 s".
+  def duration_text(ms)
+    return "—" if ms.nil?
+    return t("duration.ms", count: ms) if ms < 1000
+    return t("duration.seconds", count: format("%.1f", ms / 1000.0)) if ms < 60_000
+
+    minutes, seconds = (ms / 1000).divmod(60)
+    t("duration.minutes", minutes:, seconds:)
+  end
+
   # A moment shown in full: one format across pages, with the exact instant on hover.
   def timestamp(time)
     time_tag(time, l(time, format: :panel), title: time.iso8601)

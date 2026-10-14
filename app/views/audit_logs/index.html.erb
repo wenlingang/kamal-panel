@@ -6,7 +6,8 @@
 </div>
 
 <section class="section">
-  <%= form_with url: audit_logs_path, method: :get, class: "filter-bar" do |form| %>
+  <%= form_with url: audit_logs_path, method: :get, class: "filter-bar",
+                data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
     <%= form.label :app_id, t(".filter_app"), class: "visually-hidden" %>
     <%= form.select :app_id,
                     options_for_select([ [ t(".site_wide"), AuditLogFilter::SITE_WIDE ] ] +
@@ -23,7 +24,8 @@
                     options_for_select(AuditLog::RESULTS.map { |result| [ t(result == "pending" ? ".filter_pending" : ".#{result}"), result ] }, @filter.result),
                     { include_blank: t(".filter_all_results") } %>
 
-    <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
+    <%# Filters apply as soon as they change; the button is the no-JS fallback. %>
+    <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
 
     <% if @filter.active? %>
       <%= link_to t(".filter_clear"), audit_logs_path, class: "filter-clear" %>
@@ -49,7 +51,7 @@
             <th><%= t(".action") %></th>
             <th><%= t(".object") %></th>
             <th><%= t(".result") %></th>
-            <th><%= t(".duration") %></th>
+            <th class="num"><%= t(".duration") %></th>
           </tr>
         </thead>
         <tbody>
@@ -71,10 +73,10 @@
                 <% when "success" %>
                   <%= t(".success") %>
                 <% else %>
-                  <strong><%= t(".failure") %></strong>
+                  <strong class="result-failure"><%= t(".failure") %></strong>
                 <% end %>
               </td>
-              <td><%= log.duration_ms ? "#{log.duration_ms} ms" : "—" %></td>
+              <td class="num"><%= duration_text(log.duration_ms) %></td>
             </tr>
           <% end %>
         </tbody>

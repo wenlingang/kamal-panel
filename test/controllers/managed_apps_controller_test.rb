@@ -11,6 +11,24 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     File.read(Rails.root.join("test/fake_host/id_ed25519"))
   end
 
+  test "a host running several containers is listed once, its rows grouped together" do
+    Rails.cache.clear
+    app = ManagedApp.create!(name: "blog", config_yaml: file_fixture("two_host_deploy.yml").read,
+                             destination: "production")
+    observed_at = Time.current # one collection round
+    [ [ "10.0.0.1", "aaaaaaa", "running" ], [ "10.0.0.2", "aaaaaaa", "running" ], [ "10.0.0.1", "bbbbbbb", "exited" ] ].each do |host, version, docker_status|
+      Observation.create!(managed_app: app, host:, role: "web", container_name: "blog-web-production-#{version}",
+                          version:, docker_status:, reachable: true, observed_at:)
+    end
+
+    get managed_app_path(app)
+
+    hosts = css_select(".host-table tbody tr td:first-child").map { |td| td.text.strip }
+    assert_equal [ "10.0.0.1", "10.0.0.1", "10.0.0.2" ], hosts, "rows of one host sit together"
+    assert_select ".host-table tr.row-same-host", 1
+    assert_select ".host-table tr.row-same-host td:first-child .visually-hidden", text: "10.0.0.1"
+  end
+
   test "the detail page header shows the app's overall status" do
     app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
 

@@ -332,6 +332,16 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_equal I18n.t("flash.user.self_deactivate"), flash[:alert]
   end
 
+  test "every row offers an explicit Edit link rather than hiding it behind the email" do
+    sign_in_as users(:two)
+
+    get users_path
+
+    User.find_each do |user|
+      assert_select ".row-actions a[href=?]", edit_user_path(user), text: I18n.t("common.edit")
+    end
+  end
+
   test "the people list offers no deactivate button on your own row" do
     sign_in_as users(:two)
 

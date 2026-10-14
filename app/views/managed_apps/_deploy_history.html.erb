@@ -34,7 +34,7 @@
     <tbody>
       <% events.each do |event| %>
         <tr>
-          <td><code><%= event.version %></code></td>
+          <td><%= event.version %></td>
           <td><%= event.source_text %></td>
           <td><%= event.performer.presence || "—" %></td>
           <td><%= event.command.presence || "—" %></td>

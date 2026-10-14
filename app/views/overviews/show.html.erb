@@ -26,7 +26,8 @@
   </section>
 <% else %>
   <section class="section">
-    <%= form_with url: overview_path, method: :get, class: "filter-bar" do |form| %>
+    <%= form_with url: overview_path, method: :get, class: "filter-bar",
+                data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
       <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
       <span class="field-with-icon">
         <%= icon_tag("search", size: :sm) %>
@@ -40,7 +41,8 @@
                       { include_blank: t(".filter_all_statuses") },
                       class: "filter-status" %>
 
-      <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
+      <%# Filters apply as soon as they change; the button is the no-JS fallback. %>
+    <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
 
       <% if @filter.active? %>
         <%= link_to t(".filter_clear"), overview_path, class: "filter-clear" %>

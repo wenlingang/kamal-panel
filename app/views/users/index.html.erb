@@ -23,7 +23,7 @@
         <% @users.each do |user| %>
           <tr>
             <td><%= user.nickname.presence || "—" %></td>
-            <td><%= link_to user.email_address, edit_user_path(user) %></td>
+            <td><%= user.email_address %></td>
             <td><%= t("roles.#{user.role}") %></td>
             <td>
               <%# admin and ops get their permissions from the site-wide role, not the membership table — say so honestly here,
@@ -36,15 +36,18 @@
             </td>
             <td><%= user.deactivated? ? t(".deactivated") : t(".active") %></td>
             <td>
-              <% if user == Current.user %>
-                <span class="muted"><%= t(".you") %></span>
-              <% elsif user.deactivated? %>
-                <%= button_to t(".reactivate"), reactivate_user_path(user),
-                              method: :post, class: "btn-quiet" %>
-              <% else %>
-                <%= button_to t(".deactivate"), deactivate_user_path(user),
-                              method: :post, class: "btn-quiet" %>
-              <% end %>
+              <div class="row-actions">
+                <%= link_to t("common.edit"), edit_user_path(user), class: "btn-quiet" %>
+                <% if user == Current.user %>
+                  <span class="muted"><%= t(".you") %></span>
+                <% elsif user.deactivated? %>
+                  <%= button_to t(".reactivate"), reactivate_user_path(user),
+                                method: :post, class: "btn-quiet" %>
+                <% else %>
+                  <%= button_to t(".deactivate"), deactivate_user_path(user),
+                                method: :post, class: "btn-quiet btn-danger" %>
+                <% end %>
+              </div>
             </td>
           </tr>
         <% end %>

@@ -1,112 +1,123 @@
-<% lock = KamalLock.new(managed_app).status %>
-  <% if lock[:error] %>
-    <p class="lock-unknown">
-      <strong><%= t("managed_apps.show.lock_unknown") %></strong> —— <%= t("managed_apps.show.lock_unknown_detail") %>
-    </p>
-  <% elsif lock[:locked] %>
-    <p class="lock-held">
-      <strong><%= t("managed_apps.show.lock_held") %></strong><br><small><%= lock[:details] %></small>
-    </p>
-
-    <%# spec 7.4: no force-unlock is provided, so a user hitting a dead lock left by a CI crash could only go SSH in.
-        The cost is that it can interrupt a real deploy in progress, so the entry appears only when a lock really exists,
-        is collapsed by default, and requires act permission on that app + typing the app name by hand. %>
+<%# Fills the panel of the "Actions" section on the detail page. Without an SSH key the lock can't be
+    read at all: say that, instead of a generic "cannot reach the primary host" that sends people
+    looking at the network. %>
+<% if managed_app.ssh_credential.nil? %>
+  <p class="lock-unknown">
+    <strong><%= t("managed_apps.show.no_ssh_key") %></strong> —— <%= t("managed_apps.show.no_ssh_key_detail") %>
     <%= allowed_to(:act, managed_app) do %>
-      <details class="force-unlock">
-        <summary><%= t("managed_apps.show.force_unlock") %></summary>
-        <p><%= t("managed_apps.show.force_unlock_warning") %></p>
-        <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
-          <%= form.hidden_field :name, value: "force_unlock" %>
-          <%= form.text_field :confirm_name, id: "force_unlock_confirm_name",
-                                             placeholder: t("managed_apps.show.confirm_name_placeholder") %>
-          <%= form.submit t("managed_apps.show.force_unlock"), class: "btn-danger" %>
-        <% end %>
-      </details>
+      <%= link_to t("managed_apps.show.no_ssh_key_link"), edit_managed_app_path(managed_app) %>
     <% end %>
-  <% end %>
+  </p>
+<% else %>
+  <% lock = KamalLock.new(managed_app).status %>
+    <% if lock[:error] %>
+      <p class="lock-unknown">
+        <strong><%= t("managed_apps.show.lock_unknown") %></strong> —— <%= t("managed_apps.show.lock_unknown_detail") %>
+      </p>
+    <% elsif lock[:locked] %>
+      <p class="lock-held">
+        <strong><%= t("managed_apps.show.lock_held") %></strong><br><small><%= lock[:details] %></small>
+      </p>
 
-  <%= allowed_to(:act, managed_app) do %>
-    <% if lock[:error].nil? && !lock[:locked] %>
-<section class="section actions">
-        <h2><%= t("managed_apps.show.actions") %></h2>
-        <div class="panel">
-        <p class="actions-hint"><%= t("managed_apps.show.actions_hint") %></p>
-        <%# The blast radius is put in front of people before they click (spec 7.7): these three actions do not require typing
-            the app name, so at least people must see clearly which roles on which machines it will touch. %>
-        <p class="affected-scope">
-          <%= t("managed_apps.show.affected_scope", hosts: joined_list(managed_app.cached_app_hosts),
-                                   roles: joined_list(managed_app.role_names)) %>
-        </p>
-        <%# These three used to be dead type="button" buttons: no form, no handler,
-            clicking did nothing at all (only Task 12's acceptance exposed it).
-            The constraints are not the same once wired up, so they are not a row of identical buttons. %>
-        <% rollback_candidates = RollbackCandidates.new(managed_app) %>
-        <div class="action-buttons">
-          <% if (running = rollback_candidates.running_version) %>
-            <%= button_to t("managed_apps.show.restart"), managed_app_actions_path(managed_app),
-                          method: :post, params: { name: "restart", version: running } %>
-          <% else %>
-            <%# `app boot` must carry --version; when the observation cannot tell which version is running,
-                rather than let it raise an ArgumentError on the action page, say it clearly here. %>
-            <p class="action-unavailable"><%= t("managed_apps.show.restart_unavailable") %></p>
-          <% end %>
-
-          <%= button_to t("managed_apps.show.start"), managed_app_actions_path(managed_app),
-                        method: :post, params: { name: "start" } %>
-        </div>
-
-        <%# Stopping really takes the service offline, so like rollback it requires typing the app name by hand. %>
-        <details class="stop-app">
-          <summary><%= t("managed_apps.show.stop") %></summary>
-          <p><%= t("managed_apps.show.stop_warning") %></p>
+      <%# spec 7.4: no force-unlock is provided, so a user hitting a dead lock left by a CI crash could only go SSH in.
+          The cost is that it can interrupt a real deploy in progress, so the entry appears only when a lock really exists,
+          is collapsed by default, and requires act permission on that app + typing the app name by hand. %>
+      <%= allowed_to(:act, managed_app) do %>
+        <details class="force-unlock">
+          <summary><%= t("managed_apps.show.force_unlock") %></summary>
+          <p><%= t("managed_apps.show.force_unlock_warning") %></p>
           <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
-            <%= form.hidden_field :name, value: "stop" %>
-            <%= form.text_field :confirm_name, id: "stop_confirm_name",
+            <%= form.hidden_field :name, value: "force_unlock" %>
+            <%= form.text_field :confirm_name, id: "force_unlock_confirm_name",
                                                placeholder: t("managed_apps.show.confirm_name_placeholder") %>
-            <%= form.submit t("managed_apps.show.stop_confirm"), class: "btn-danger" %>
+            <%= form.submit t("managed_apps.show.force_unlock"), class: "btn-danger" %>
           <% end %>
         </details>
-
-        <h3><%= t("managed_apps.show.rollback") %></h3>
-        <%# List only versions that can really be rolled back (spec 7.1): kamal rollback requires that version's container
-            to still exist on every host, and rejects outright if even one is missing. The panel already holds the full
-            docker ps --all, so it can gray out the non-rollbackable ones ahead of time and note which host is missing. %>
-        <% candidates = rollback_candidates.list %>
-        <% if candidates.empty? %>
-          <p><%= t("managed_apps.show.rollback_none") %></p>
-        <% else %>
-          <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
-            <%= form.hidden_field :name, value: "rollback" %>
-
-            <ol class="rollback-steps">
-              <li>
-                <strong><%= t("managed_apps.show.rollback_step_version") %></strong>
-                <% candidates.each do |c| %>
-                  <label class="<%= "unavailable" unless c[:available] %>">
-                    <%= form.radio_button :version, c[:version], disabled: !c[:available] %>
-                    <%= c[:version] %>
-                    <% unless c[:available] %>
-                      <small>—— <%= c[:reason] %></small>
-                    <% end %>
-                  </label>
-                <% end %>
-              </li>
-              <li>
-                <strong><%= t("managed_apps.show.rollback_step_scope") %></strong>
-                <p><%= t("managed_apps.show.affected_scope", hosts: joined_list(managed_app.cached_app_hosts),
-                                            roles: joined_list(managed_app.role_names)) %></p>
-              </li>
-              <li>
-                <strong><%= t("managed_apps.show.rollback_step_confirm") %></strong>
-                <%= form.text_field :confirm_name, id: "rollback_confirm_name",
-                                                   placeholder: managed_app.name %>
-              </li>
-            </ol>
-
-            <%= form.submit t("managed_apps.show.rollback_submit"), class: "btn-danger" %>
-          <% end %>
-        <% end %>
-        </div>
-      </section>
+      <% end %>
     <% end %>
+
+    <%= allowed_to(:act, managed_app) do %>
+      <% if lock[:error].nil? && !lock[:locked] %>
+          <p class="actions-hint"><%= t("managed_apps.show.actions_hint") %></p>
+          <%# The blast radius is put in front of people before they click (spec 7.7): these three actions do not require typing
+              the app name, so at least people must see clearly which roles on which machines it will touch. %>
+          <p class="affected-scope">
+            <%= t("managed_apps.show.affected_scope", hosts: joined_list(managed_app.cached_app_hosts),
+                                     roles: joined_list(managed_app.role_names)) %>
+          </p>
+          <%# These three used to be dead type="button" buttons: no form, no handler,
+              clicking did nothing at all (only Task 12's acceptance exposed it).
+              The constraints are not the same once wired up, so they are not a row of identical buttons. %>
+          <% rollback_candidates = RollbackCandidates.new(managed_app) %>
+          <div class="action-buttons">
+            <% if (running = rollback_candidates.running_version) %>
+              <%= button_to t("managed_apps.show.restart"), managed_app_actions_path(managed_app),
+                            method: :post, params: { name: "restart", version: running } %>
+            <% else %>
+              <%# `app boot` must carry --version; when the observation cannot tell which version is running,
+                  rather than let it raise an ArgumentError on the action page, say it clearly here. %>
+              <p class="action-unavailable"><%= t("managed_apps.show.restart_unavailable") %></p>
+            <% end %>
+
+            <%= button_to t("managed_apps.show.start"), managed_app_actions_path(managed_app),
+                          method: :post, params: { name: "start" } %>
+          </div>
+
+          <%# Stopping really takes the service offline, so like rollback it requires typing the app name by hand. %>
+          <details class="stop-app">
+            <summary><%= t("managed_apps.show.stop") %></summary>
+            <p><%= t("managed_apps.show.stop_warning") %></p>
+            <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
+              <%= form.hidden_field :name, value: "stop" %>
+              <%= form.text_field :confirm_name, id: "stop_confirm_name",
+                                                 placeholder: t("managed_apps.show.confirm_name_placeholder") %>
+              <%= form.submit t("managed_apps.show.stop_confirm"), class: "btn-danger" %>
+            <% end %>
+          </details>
+
+          <h3><%= t("managed_apps.show.rollback") %></h3>
+          <%# List only versions that can really be rolled back (spec 7.1): kamal rollback requires that version's container
+              to still exist on every host, and rejects outright if even one is missing. The panel already holds the full
+              docker ps --all, so it can gray out the non-rollbackable ones ahead of time and note which host is missing. %>
+          <% candidates = rollback_candidates.list %>
+          <% if candidates.empty? %>
+            <p><%= t("managed_apps.show.rollback_none") %></p>
+          <% else %>
+            <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
+              <%= form.hidden_field :name, value: "rollback" %>
+
+              <ol class="rollback-steps">
+                <li>
+                  <strong><%= t("managed_apps.show.rollback_step_version") %></strong>
+                  <% candidates.each do |c| %>
+                    <label class="<%= "unavailable" unless c[:available] %>">
+                      <%= form.radio_button :version, c[:version], disabled: !c[:available] %>
+                      <%= c[:version] %>
+                      <% unless c[:available] %>
+                        <small>—— <%= c[:reason] %></small>
+                      <% end %>
+                    </label>
+                  <% end %>
+                </li>
+                <li>
+                  <strong><%= t("managed_apps.show.rollback_step_scope") %></strong>
+                  <p><%= t("managed_apps.show.affected_scope", hosts: joined_list(managed_app.cached_app_hosts),
+                                              roles: joined_list(managed_app.role_names)) %></p>
+                </li>
+                <li>
+                  <strong><%= t("managed_apps.show.rollback_step_confirm") %></strong>
+                  <%= form.text_field :confirm_name, id: "rollback_confirm_name",
+                                                     placeholder: managed_app.name %>
+                </li>
+              </ol>
+
+              <%= form.submit t("managed_apps.show.rollback_submit"), class: "btn-danger" %>
+            <% end %>
+          <% end %>
+      <% end %>
+    <% end %>
+
+  <% unless policy_for(managed_app).act? %>
+    <p class="hint"><%= t("managed_apps.show.actions_no_permission") %></p>
   <% end %>
+<% end %>

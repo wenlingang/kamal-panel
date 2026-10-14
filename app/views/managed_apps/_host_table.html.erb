@@ -11,9 +11,13 @@
     </tr>
   </thead>
   <tbody>
-    <% status.last_known_rows.each do |row| %>
-      <tr class="<%= "row-unreachable" if row[:reachable] == false %>">
-        <td><%= row[:host] %></td>
+    <%# A host running several containers (the new version beside a stopped old one) is one machine:
+        its rows sit together and the host name is shown once. Later rows keep it for screen readers. %>
+    <% rows = status.last_known_rows.sort_by.with_index { |row, index| [ row[:host].to_s, index ] } %>
+    <% rows.each_with_index do |row, index| %>
+      <% same_host = index.positive? && rows[index - 1][:host] == row[:host] %>
+      <tr class="<%= class_names("row-unreachable": row[:reachable] == false, "row-same-host": same_host) %>">
+        <td><%= same_host ? tag.span(row[:host], class: "visually-hidden") : row[:host] %></td>
         <td><%= row[:role] || "—" %></td>
         <td><%= row[:version] || "—" %></td>
         <td>

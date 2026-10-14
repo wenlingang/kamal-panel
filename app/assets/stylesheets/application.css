@@ -621,6 +621,16 @@ h3 {
   margin-bottom: 0;
 }
 
+/* A lazily loaded frame sits between the panel and its content; the same edge rule applies
+   through it, or the panel gets uneven top and bottom space. */
+.panel > turbo-frame > :first-child {
+  margin-top: 0;
+}
+
+.panel > turbo-frame > :last-child {
+  margin-bottom: 0;
+}
+
 .panel table {
   width: 100%;
   margin-bottom: 0;
@@ -1078,8 +1088,31 @@ th {
   border-bottom: none;
 }
 
+/* Comparable numbers (durations, counts) right-align so their magnitudes line up. */
+th.num,
+td.num {
+  text-align: right;
+}
+
+/* A failed action: the word carries the meaning, the colour makes it findable while scanning. */
+.result-failure {
+  color: var(--danger-ink);
+}
+
+/* The column gap lives on the right of each cell; the last column needs none, so the table's
+   right edge (row actions, right-aligned numbers) meets the panel padding like its left edge. */
+th:last-child,
+td:last-child {
+  padding-right: 0;
+}
+
 .panel table tr:last-child td {
   padding-bottom: 0;
+}
+
+/* Further containers on the same host continue its group: no rule between them. */
+.host-table tr:has(+ .row-same-host) td {
+  border-bottom-color: transparent;
 }
 
 /* The overview table is the reason this panel exists: taller rows, heavier app names, the whole row hoverable. */
@@ -1150,6 +1183,7 @@ table.overview-grid {
 /* Host names, version numbers, and fingerprints are machine data to be compared
    row by row vertically; monospace here is information encoding, not decoration. */
 .host-table td:first-child,
+.host-table td:nth-child(3),
 .overview-grid td:nth-child(3),
 .deploy-history td:first-child {
   font-family: var(--font-mono);

@@ -19,6 +19,17 @@ class CredentialsControllerTest < ActionDispatch::IntegrationTest
 
   def other_private_key = self.class.other_private_key
 
+  # Deleting a credential used to take a single click: a slip on the wrong row lost a key for good.
+  test "deleting an unused credential asks first, styled as a destructive action" do
+    registry = RegistryCredential.create!(name: "Docker Hub", value: "s3cr3t")
+    sign_in_as users(:two)
+
+    get credentials_path
+
+    assert_select "form[action=?][data-turbo-confirm][data-confirm-danger]", registry_credential_path(registry)
+    assert_select "form[action=?] button.btn-danger", registry_credential_path(registry)
+  end
+
   # When asserting "the plaintext changed", compare digests rather than plaintext: when an assertion
   # fails minitest prints both sides, and comparing plaintext would dump the private key into the
   # test output.

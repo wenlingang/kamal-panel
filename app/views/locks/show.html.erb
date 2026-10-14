@@ -2,6 +2,7 @@
 <%= turbo_frame_tag :lock_and_actions do %>
   <% if @managed_app.last_poll_error.present? %>
     <%# When the config cannot be parsed there is no service/destination/primary_host to use, and KamalLock would just raise. %>
+    <p class="hint"><%= t("managed_apps.show.actions_parse_error") %></p>
   <% else %>
     <%= render "managed_apps/lock_and_actions", managed_app: @managed_app %>
   <% end %>
