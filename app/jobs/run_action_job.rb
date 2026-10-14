@@ -28,6 +28,15 @@ class RunActionJob < ApplicationJob
     # confirm with a new Observation.
     PollCadence.mark_burst!(app)
     PollManagedAppJob.perform_later(app)
+  rescue StandardError => e
+    # Anything that escapes here (no SSH key, an unreadable config...) would otherwise leave the
+    # audit row pending forever and the action page saying "running" forever. Close it as a
+    # failure with the reason; no retry, since re-running a deploy action unasked is worse.
+    # An unknown action name means the closed action set was bypassed: that stays loud.
+    raise if log.nil? || e.is_a?(Actions::Base::UnknownAction)
+
+    Rails.logger.error("[action] 执行出错：#{e.class}: #{e.message}")
+    finish_blocked(log, started || Time.current, "执行出错：#{e.message}") if log.reload.result == "pending"
   end
 
   private

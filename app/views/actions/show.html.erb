@@ -28,7 +28,11 @@
     <p id="action-result" class="action-result">
       <% case @audit_log.result %>
       <% when "pending" %>
-        <%= t(".running") %>
+        <% if @audit_log.interrupted? %>
+          <strong><%= t(".interrupted") %></strong> —— <%= t(".interrupted_detail") %>
+        <% else %>
+          <%= t(".running") %>
+        <% end %>
       <% when "success" %>
         <strong><%= t(".succeeded") %></strong> —— <%= t(".succeeded_detail") %>
       <% else %>

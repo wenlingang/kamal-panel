@@ -6,41 +6,87 @@
 </div>
 
 <section class="section">
-  <div class="panel">
-    <table>
-  <thead>
-    <tr>
-      <th><%= t(".time") %></th>
-      <th><%= t(".actor") %></th>
-      <th><%= t(".app") %></th>
-      <th><%= t(".action") %></th>
-      <th><%= t(".object") %></th>
-      <th><%= t(".result") %></th>
-      <th><%= t(".duration") %></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @audit_logs.each do |log| %>
-      <tr>
-        <td><%= timestamp(log.created_at) %></td>
-        <td><%= user_identity(log.user) %></td>
-        <td><%= log.managed_app&.name || t(".site_wide") %></td>
-        <td><%= audit_action_label(log) %></td>
-        <td><%= audit_object(log) %></td>
-        <td>
-          <% case log.result %>
-          <% when "pending" %>
-            <strong><%= t(".pending") %></strong>
-          <% when "success" %>
-            <%= t(".success") %>
-          <% else %>
-            <strong><%= t(".failure") %></strong>
-          <% end %>
-        </td>
-        <td><%= log.duration_ms ? "#{log.duration_ms} ms" : "—" %></td>
-      </tr>
+  <%= form_with url: audit_logs_path, method: :get, class: "filter-bar" do |form| %>
+    <%= form.label :app_id, t(".filter_app"), class: "visually-hidden" %>
+    <%= form.select :app_id,
+                    options_for_select([ [ t(".site_wide"), AuditLogFilter::SITE_WIDE ] ] +
+                                       @apps.map { |app| [ app.name, app.id ] }, @filter.app_id),
+                    { include_blank: t(".filter_all_apps") } %>
+
+    <%= form.label :user_id, t(".filter_actor"), class: "visually-hidden" %>
+    <%= form.select :user_id,
+                    options_for_select(@users.map { |user| [ user_identity(user), user.id ] }, @filter.user_id),
+                    { include_blank: t(".filter_all_actors") } %>
+
+    <%= form.label :result, t(".filter_result"), class: "visually-hidden" %>
+    <%= form.select :result,
+                    options_for_select(AuditLog::RESULTS.map { |result| [ t(result == "pending" ? ".filter_pending" : ".#{result}"), result ] }, @filter.result),
+                    { include_blank: t(".filter_all_results") } %>
+
+    <%= form.submit t(".filter_submit"), class: "btn-quiet" %>
+
+    <% if @filter.active? %>
+      <%= link_to t(".filter_clear"), audit_logs_path, class: "filter-clear" %>
     <% end %>
-  </tbody>
-</table>
+  <% end %>
+
+  <div class="panel">
+    <% if @page.entries.empty? %>
+      <p class="empty-hint">
+        <% if @filter.active? %>
+          <%= t(".no_matches_html", link: link_to(t(".filter_clear"), audit_logs_path)).html_safe %>
+        <% else %>
+          <%= t(".empty") %>
+        <% end %>
+      </p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".time") %></th>
+            <th><%= t(".actor") %></th>
+            <th><%= t(".app") %></th>
+            <th><%= t(".action") %></th>
+            <th><%= t(".object") %></th>
+            <th><%= t(".result") %></th>
+            <th><%= t(".duration") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @page.entries.each do |log| %>
+            <tr>
+              <td><%= timestamp(log.created_at) %></td>
+              <td><%= user_identity(log.user) %></td>
+              <td><%= log.managed_app&.name || t(".site_wide") %></td>
+              <td><%= audit_action_link(log) %></td>
+              <td><%= audit_object(log) %></td>
+              <td>
+                <% case log.result %>
+                <% when "pending" %>
+                  <% if log.interrupted? %>
+                    <strong><%= t(".interrupted") %></strong>
+                  <% else %>
+                    <%= t(".pending") %>
+                  <% end %>
+                <% when "success" %>
+                  <%= t(".success") %>
+                <% else %>
+                  <strong><%= t(".failure") %></strong>
+                <% end %>
+              </td>
+              <td><%= log.duration_ms ? "#{log.duration_ms} ms" : "—" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <% if @page.next_before %>
+        <%# Keeps the current filters; only the cursor moves. %>
+        <p class="pager">
+          <%= link_to t(".older"), audit_logs_path(app_id: @filter.app_id, user_id: @filter.user_id,
+                                                   result: @filter.result, before: @page.next_before) %>
+        </p>
+      <% end %>
+    <% end %>
   </div>
 </section>

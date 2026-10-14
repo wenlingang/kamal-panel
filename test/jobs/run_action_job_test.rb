@@ -55,6 +55,20 @@ class RunActionJobTest < ExecutionLayerTest
     assert_match "锁状态未知", log.output_digest
   end
 
+  # An exception mid-run used to leave the audit row "pending" forever, and the action page saying
+  # "running" forever. Whatever goes wrong, the row must end in a terminal state that says why.
+  test "an error during execution finishes the audit row as a failure with the reason" do
+    app = build_app(ssh_credential: nil)
+    log = start_log(app, "logs")
+
+    RunActionJob.new.perform(log.id)
+
+    log.reload
+    assert_equal "failure", log.result
+    assert_match "SSH", log.output_digest
+    assert_not_nil log.finished_at
+  end
+
   test "blocks the action without running the command when locked" do
     app = build_app
     lock_dir = ".kamal/lock-blog-production"

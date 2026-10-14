@@ -1016,6 +1016,12 @@ select {
   width: auto;
 }
 
+/* "Older entries" under a paged list: part of the same group as the table it continues. */
+.pager {
+  margin-top: var(--space-lg);
+  font-size: var(--text-sm);
+}
+
 .filter-bar input[type="submit"] {
   height: var(--control-md);
   padding: 0 var(--space-md);
@@ -1630,6 +1636,24 @@ details.stop-app[open] summary {
 @media (max-width: 720px) {
   .chrome {
     padding: 0.75rem 1rem;
+  }
+
+  /* Labels never break inside a word ("总览" stacked into two lines before). The icons go, since the
+     words alone already say where each link leads, and that is what lets brand + five links share
+     one phone-width row. A longer translation scrolls sideways rather than being cut off. */
+  .chrome-nav {
+    gap: var(--space-md);
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .chrome-brand,
+  .chrome-nav a {
+    white-space: nowrap;
+  }
+
+  .chrome-nav a:not(.chrome-brand) .icon {
+    display: none;
   }
 
   .page {

@@ -13,6 +13,14 @@ class TimestampHelperTest < ActionView::TestCase
     assert_includes html, %(datetime="#{time.iso8601}")
   end
 
+  test "times are shown in the panel's zone, Beijing time by default, not UTC" do
+    assert_equal "Asia/Shanghai", Rails.configuration.time_zone
+
+    html = timestamp(Time.utc(2026, 9, 22, 2, 45).in_time_zone)
+
+    assert_includes html, ">2026-09-22 10:45</time>"
+  end
+
   test "relative times in Chinese space the number from its unit, like the rest of the UI" do
     I18n.with_locale(:"zh-CN") do
       assert_equal "22 天", time_ago_in_words(22.days.ago)

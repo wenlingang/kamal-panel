@@ -21,6 +21,27 @@ class AuditLogTest < ActiveSupport::TestCase
     end
   end
 
+  test "a pending row older than any run can last is reported as interrupted" do
+    log = AuditLog.start!(user: @user, managed_app: @app, action_name: "restart",
+                          target_version: nil, hosts: [])
+
+    assert_not log.interrupted?
+
+    travel AuditLog::INTERRUPTED_AFTER + 1.minute do
+      assert log.interrupted?
+    end
+  end
+
+  test "a finished row is never interrupted, however old" do
+    log = AuditLog.start!(user: @user, managed_app: @app, action_name: "restart",
+                          target_version: nil, hosts: [])
+    log.finish!(result: "success", command: "kamal app boot", output_digest: "", duration_ms: 10)
+
+    travel AuditLog::INTERRUPTED_AFTER + 1.minute do
+      assert_not log.interrupted?
+    end
+  end
+
   test "the action name list covers both deploy actions and permission actions" do
     assert_includes AuditLog.all_action_names, "rollback"
     assert_includes AuditLog.all_action_names, "user.create"

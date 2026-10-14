@@ -75,6 +75,17 @@ module ApplicationHelper
     t("audit.actions.#{log.action_name}", default: log.action_name)
   end
 
+  # Deploy-type rows link to their recorded output, but only for someone allowed to run that
+  # action: the output page applies the same check, and a link that bounces is worse than none.
+  def audit_action_link(log)
+    label = audit_action_label(log)
+    action_class = Actions::Base.registry[log.action_name]
+    return label unless log.managed_app && action_class
+    return label unless ManagedAppPolicy.new(Current.user, log.managed_app).run?(action_class)
+
+    link_to label, managed_app_action_path(log.managed_app, log)
+  end
+
   def audit_object(log)
     subject =
       if log.target_user           then user_identity(log.target_user)

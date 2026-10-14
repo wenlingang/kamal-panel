@@ -21,7 +21,9 @@ module KamalPanel
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Times on screen (audit log, deploy history) are read against the wall clock, so they must be
+    # in the operators' zone, not UTC. Storage stays UTC. An unknown zone name fails at boot.
+    config.time_zone = ENV.fetch("PANEL_TIME_ZONE", "Asia/Shanghai")
     # config.eager_load_paths << Rails.root.join("extras")
 
     # The panel UI is in Chinese, so the strings Rails itself produces (time_ago_in_words,

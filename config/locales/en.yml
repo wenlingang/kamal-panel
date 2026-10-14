@@ -367,6 +367,8 @@ en:
       subtitle: The run is shown line by line below. This page does not navigate away on its own — read the output before you leave.
       output: Output
       running: Running…
+      interrupted: Interrupted
+      interrupted_detail: The run was cut off part-way (process restart or lost job), so no final result was recorded. Check the app page for its current state and run it again if needed.
       succeeded: Done
       succeeded_detail: The panel is collecting again to confirm the result with fresh observations.
       failed: Failed
@@ -442,9 +444,22 @@ en:
       result: Result
       duration: Duration
       site_wide: Site-wide
-      pending: In progress or interrupted
+      pending: In progress
+      interrupted: Interrupted
       success: Succeeded
       failure: Failed
+      filter_app: Filter by app
+      filter_actor: Filter by person
+      filter_result: Filter by result
+      filter_all_apps: All apps
+      filter_all_actors: Everyone
+      filter_all_results: All results
+      filter_pending: Unfinished
+      filter_submit: Filter
+      filter_clear: Clear filter
+      no_matches_html: No entries match. %{link} to see them all.
+      empty: Nothing has been done in the panel yet.
+      older: Older entries
 
   passwords_mailer:
     reset:

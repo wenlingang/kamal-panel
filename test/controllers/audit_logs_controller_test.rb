@@ -22,10 +22,71 @@ class AuditLogsControllerTest < ActionDispatch::IntegrationTest
     get audit_logs_path
 
     assert_response :success
-    assert_match "进行中或已中断", @response.body
+    assert_match "进行中", @response.body
     assert_no_match(/<a[^>]*delete/, @response.body)
     assert_no_match(/method_value=.delete./, @response.body)
     assert_no_match "data-turbo-method=\"delete\"", @response.body
+  end
+
+  test "filters by app and keeps the filter on the older-entries link" do
+    shop = ManagedApp.create!(name: "shop", config_yaml: file_fixture("simple_deploy.yml").read,
+                              destination: "production")
+    (AuditLogFilter::PER_PAGE + 1).times do
+      AuditLog.start!(user: users(:two), managed_app: @app, action_name: "restart", target_version: nil, hosts: [])
+    end
+    AuditLog.start!(user: users(:two), managed_app: shop, action_name: "restart", target_version: "only-in-shop", hosts: [])
+
+    get audit_logs_path(app_id: @app.id)
+
+    assert_select "tbody tr", AuditLogFilter::PER_PAGE
+    assert_no_match "only-in-shop", @response.body
+    assert_select "p.pager a[href*=?][href*=?]", "app_id=#{@app.id}", "before="
+  end
+
+  # Anyone signed in can read the audit page, but only admins can see the people list. The
+  # dropdowns must not become a back door to it: they offer only what the log itself already shows.
+  test "the actor and app dropdowns only offer what appears in the log" do
+    User.create!(email_address: "never-acted@example.com", password: "password-123", role: "ops")
+    ManagedApp.create!(name: "never-touched", config_yaml: file_fixture("simple_deploy.yml").read,
+                       destination: "production")
+    AuditLog.start!(user: users(:two), managed_app: @app, action_name: "restart", target_version: nil, hosts: [])
+
+    get audit_logs_path
+
+    assert_select "select#user_id option", text: /two@example\.com/
+    assert_no_match "never-acted@example.com", @response.body
+    assert_select "select#app_id option", text: "blog"
+    assert_no_match "never-touched", @response.body
+  end
+
+  test "deploy rows link to their output for someone allowed to run the action" do
+    log = AuditLog.start!(user: users(:two), managed_app: @app, action_name: "restart", target_version: nil, hosts: [])
+    sign_in_as(users(:two)) # admin
+
+    get audit_logs_path
+
+    assert_select "a[href=?]", managed_app_action_path(@app, log)
+  end
+
+  test "no output link for someone the output page would turn away" do
+    log = AuditLog.start!(user: users(:two), managed_app: @app, action_name: "restart", target_version: nil, hosts: [])
+    sign_in_as(users(:three)) # developer, not a member of this app
+
+    get audit_logs_path
+
+    assert_select "a[href=?]", managed_app_action_path(@app, log), count: 0
+  end
+
+  test "a pending row that has outlived any possible run is shown as interrupted" do
+    AuditLog.start!(user: users(:two), managed_app: @app, action_name: "rollback",
+                    target_version: "aaaaaaa", hosts: [ "10.0.0.1" ])
+
+    travel AuditLog::INTERRUPTED_AFTER + 1.minute do
+      get audit_logs_path
+    end
+
+    assert_select "td strong", text: I18n.t("audit_logs.index.interrupted")
+    assert_no_match ">#{I18n.t('audit_logs.index.pending')}<", @response.body
   end
 
   # Accountability looks at the email, day-to-day recognition looks at the nickname -- the audit

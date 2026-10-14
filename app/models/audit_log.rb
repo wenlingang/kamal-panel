@@ -9,6 +9,10 @@ class AuditLog < ApplicationRecord
 
   RESULTS = %w[pending success failure].freeze
 
+  # No run outlives the CLI timeout; the margin covers queueing and agent teardown. A row still
+  # pending after this was cut off (process restarted, job lost) and will never finish.
+  INTERRUPTED_AFTER = KamalCli::Invocation::DEFAULT_TIMEOUT + 5.minutes
+
   ACCESS_ACTIONS = %w[
     user.create user.update_role user.deactivate user.reactivate
     app.add_member app.remove_member app.update app.deactivate app.reactivate
@@ -59,6 +63,10 @@ class AuditLog < ApplicationRecord
     create!(user:, action_name:, target_user:, managed_app_id:, detail:,
             detail_key:, detail_args: detail_args || {}, hosts: [],
             result: "success", created_at: Time.current, finished_at: Time.current)
+  end
+
+  def interrupted?
+    result == "pending" && created_at < INTERRUPTED_AFTER.ago
   end
 
   def finish!(result:, command:, output_digest:, duration_ms:)

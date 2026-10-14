@@ -386,6 +386,8 @@ zh-CN:
       subtitle: 执行过程逐行显示在下方。这一页不会自动跳转，请看完输出再离开。
       output: 执行输出
       running: 执行中……
+      interrupted: 已中断
+      interrupted_detail: 执行在中途被打断（进程重启或任务丢失），没有拿到最终结果。请到应用页确认当前状态，需要的话重新执行。
       succeeded: 已完成
       succeeded_detail: 面板正在重新采集，用新的观测确认结果。
       failed: 失败
@@ -461,9 +463,22 @@ zh-CN:
       result: 结果
       duration: 耗时
       site_wide: 全站
-      pending: 进行中或已中断
+      pending: 进行中
+      interrupted: 已中断
       success: 成功
       failure: 失败
+      filter_app: 按应用筛选
+      filter_actor: 按操作人筛选
+      filter_result: 按结果筛选
+      filter_all_apps: 全部应用
+      filter_all_actors: 全部操作人
+      filter_all_results: 全部结果
+      filter_pending: 未结束
+      filter_submit: 筛选
+      filter_clear: 清除筛选
+      no_matches_html: 没有符合条件的记录。%{link}看全部。
+      empty: 还没有任何操作记录。
+      older: 更早的记录
 
   statuses:
     drift: 版本不一致
