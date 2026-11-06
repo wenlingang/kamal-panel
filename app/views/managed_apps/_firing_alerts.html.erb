@@ -1,0 +1,19 @@
+<%# Alerts firing for this app, above the tabs so no tab hides them. Always renders the wrapper: Alerting::Broadcast
+    replaces #app-alerts in place when an alert of this app fires or resolves.
+    locals: managed_app %>
+<% events = managed_app.alert_events.firing.includes(:alert_rule).order(fired_at: :desc).to_a %>
+<div id="app-alerts">
+  <% if events.any? %>
+    <div class="firing-alerts" role="alert">
+      <% events.each do |event| %>
+        <p>
+          <%= icon_tag("bell-ring", size: :sm) %>
+          <strong><%= event.alert_rule.name %></strong>
+          —— <%= event.message %>
+          <span class="hint"><%= t("managed_apps.firing_alerts.since", time: time_ago_in_words(event.fired_at || event.started_at)) %></span>
+        </p>
+      <% end %>
+      <p class="firing-alerts-link"><%= link_to t("managed_apps.firing_alerts.all"), alerts_path(app_id: managed_app.id) %></p>
+    </div>
+  <% end %>
+</div>

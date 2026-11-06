@@ -1,0 +1,36 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<% if @apps.empty? && @managed_app.nil? %>
+  <div class="panel empty-state">
+    <%= icon_tag("terminal", css: "empty-icon") %>
+    <p><%= t(".no_apps") %></p>
+  </div>
+<% elsif @managed_app.nil? %>
+  <%# No app chosen yet: pick one, from the select or the list. %>
+  <section class="section">
+    <%= render "logs/query_form", form: nil, apps: @apps, managed_app: nil, url: logs_path, hidden: {} %>
+    <div class="panel log-pick">
+      <h2><%= t(".pick_title") %></h2>
+      <p class="hint"><%= t(".pick_hint") %></p>
+      <ul class="log-pick-list">
+        <% @apps.each do |app| %>
+          <li>
+            <%= link_to logs_path(app: app.id), class: "btn" do %>
+              <%= icon_tag("terminal", size: :sm) %><span><%= app.name %></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
+<% elsif @form.nil? %>
+  <%= render "logs/query_form", form: nil, apps: @apps, managed_app: @managed_app, url: logs_path, hidden: {} %>
+  <p class="callout callout-warn"><%= t(".config_unparseable", name: @managed_app.name) %></p>
+<% else %>
+  <%= render "logs/viewer", form: @form, apps: @apps, url: logs_path, hidden: {} %>
+<% end %>

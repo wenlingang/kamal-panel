@@ -3,13 +3,15 @@
     <h1><%= t(".title") %></h1>
     <p class="page-sub"><%= t(".subtitle") %></p>
   </div>
-  <%= allowed_to(:create_app, ManagedApp) do %>
-    <%= link_to t(".add"), new_managed_app_path, class: "btn-primary" %>
-  <% end %>
+  <div class="head-actions">
+    <%= allowed_to(:create_app, ManagedApp) do %>
+      <%= link_to t(".add"), new_managed_app_path, class: "btn-primary" %>
+    <% end %>
+  </div>
 </div>
 
 <%# What PollManagedAppJob broadcasts after collection finishes is a refresh: each browser comes back with its own
-    current URL (that is, its own filter criteria) and re-requests this page. The server does not know who is
+    current URL (that is, its own filter criteria and view) and re-requests this page. The server does not know who is
     filtering what, so it cannot render the grid on anyone's behalf. %>
 <%= turbo_stream_from "overview" %>
 
@@ -25,41 +27,62 @@
     </div>
   </section>
 <% else %>
+  <%= render "summary", summary: @summary, filter: @filter, view: @view %>
+
   <section class="section">
-    <%= form_with url: overview_path, method: :get, class: "filter-bar",
-                data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
-      <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
-      <span class="field-with-icon">
-        <%= icon_tag("search", size: :sm) %>
-        <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
-                              autocomplete: "off", class: "filter-search" %>
-      </span>
+    <div class="toolbar">
+      <%= form_with url: overview_path, method: :get, class: "filter-bar",
+                  data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
+        <%# The view rides along with the filter, so filtering in the table view stays in the table view. %>
+        <%= hidden_field_tag :view, @view unless @view == "cards" %>
 
-      <%= form.label :status, t(".filter_status"), class: "visually-hidden" %>
-      <%= form.select :status,
-                      options_for_select(OverviewFilter.options, @filter.status),
-                      { include_blank: t(".filter_all_statuses") },
-                      class: "filter-status" %>
+        <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
+        <span class="field-with-icon">
+          <%= icon_tag("search", size: :sm) %>
+          <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
+                                autocomplete: "off", class: "filter-search" %>
+        </span>
 
-      <%# Filters apply as soon as they change; the button is the no-JS fallback. %>
-    <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
+        <%= form.label :status, t(".filter_status"), class: "visually-hidden" %>
+        <%= form.select :status,
+                        options_for_select(OverviewFilter.options, @filter.status),
+                        { include_blank: t(".filter_all_statuses") },
+                        class: "filter-status" %>
 
-      <% if @filter.active? %>
-        <%= link_to t(".filter_clear"), overview_path, class: "filter-clear" %>
+        <%# Filters apply as soon as they change; the button is the no-JS fallback. %>
+        <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
+
+        <% if @filter.active? %>
+          <%= link_to t(".filter_clear"), overview_path(view: (@view unless @view == "cards")), class: "filter-clear" %>
+        <% end %>
       <% end %>
-    <% end %>
 
-    <div class="panel">
-      <% if @managed_apps.empty? %>
-        <%# This is a different matter from "no app onboarded yet": in that case we should explain how to onboard, and in this case we should
-            explain how to step back and see everything. %>
+      <nav class="segmented" aria-label="<%= t(".view_label") %>">
+        <% { "cards" => "layout-grid", "table" => "list" }.each do |view, icon| %>
+          <%= link_to overview_path(@filter.to_params.merge(view: (view unless view == "cards"))),
+                      class: "segmented-item", "aria-current": ("page" if @view == view) do %>
+            <%= icon_tag(icon, size: :sm) %><span><%= t(".view_#{view}") %></span>
+          <% end %>
+        <% end %>
+      </nav>
+    </div>
+
+    <% if @managed_apps.empty? %>
+      <%# This is a different matter from "no app onboarded yet": in that case we should explain how to onboard, and in this case we should
+          explain how to step back and see everything. %>
+      <div class="panel">
         <p class="empty-hint">
           <%= t(".no_matches_html", link: link_to(t(".filter_clear"), overview_path)).html_safe %>
         </p>
-      <% else %>
+      </div>
+    <% elsif @view == "table" %>
+      <div class="panel panel-flush">
         <%= render "grid", managed_apps: @managed_apps, statuses: @statuses %>
-      <% end %>
-    </div>
+      </div>
+    <% else %>
+      <%= render "cards", managed_apps: @managed_apps, statuses: @statuses,
+                 metric_summaries: Metrics::CardSummary.for(@managed_apps) %>
+    <% end %>
   </section>
 <% end %>
 
@@ -68,7 +91,7 @@
 <% if @deactivated_apps.any? %>
   <section class="section deactivated-apps">
     <h2><%= t(".deactivated_section") %></h2>
-    <div class="panel">
+    <div class="panel panel-quiet">
       <p class="hint"><%= t(".deactivated_hint") %></p>
       <ul class="record-list">
         <% @deactivated_apps.each do |app| %>

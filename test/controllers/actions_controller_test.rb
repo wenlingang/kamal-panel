@@ -58,7 +58,7 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
 
     post managed_app_actions_path(@managed_app), params: { name: "start" }
 
-    assert_redirected_to managed_app_path(@managed_app)
+    assert_redirected_to managed_app_path(@managed_app, tab: "actions")
     assert_equal "没有权限执行该操作", flash[:alert]
     assert_equal 0, AuditLog.where(managed_app: @managed_app).count,
       "A rejected action must never leave an audit record; it would show operations that never happened in the audit log"
@@ -73,10 +73,11 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
   test "ops cannot trigger any action that mutates production state" do
     sign_in_as users(:one)
 
-    %w[ start restart stop rollback force_unlock ].each do |name|
+    %w[ start restart stop rollback force_unlock maintenance live accessory_restart accessory_reboot
+        proxy_restart prune ].each do |name|
       post managed_app_actions_path(@managed_app), params: { name: }
 
-      assert_redirected_to managed_app_path(@managed_app)
+      assert_redirected_to managed_app_path(@managed_app, tab: "actions")
       assert_equal "没有权限执行该操作", flash[:alert], "#{name} should be rejected as unauthorized"
       assert_equal 0, AuditLog.where(managed_app: @managed_app).count,
         "rejected #{name} must not leave any audit record"
@@ -193,5 +194,94 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to managed_app_path(@managed_app)
     assert_equal "没有权限执行该操作", flash[:alert]
+  end
+
+  def accessory_app
+    ManagedApp.create!(name: "shop", config_yaml: file_fixture("accessory_deploy.yml").read,
+                       destination: "production")
+  end
+
+  test "an accessory action records its target and only that accessory's hosts" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    post managed_app_actions_path(app), params: { name: "accessory_restart", target: "db" }
+
+    log = AuditLog.where(managed_app: app).sole
+    assert_equal "accessory_restart", log.action_name
+    assert_equal "db", log.target
+    assert_equal [ "10.0.0.3" ], log.hosts
+    assert_redirected_to managed_app_action_path(app, log)
+  end
+
+  test "an accessory the config doesn't declare is rejected without an audit row" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    assert_no_difference("AuditLog.count") do
+      post managed_app_actions_path(app), params: { name: "accessory_restart", target: "mysql" }
+    end
+    assert_redirected_to managed_app_path(app, tab: "actions")
+    assert_equal I18n.t("flash.invalid_target"), flash[:alert]
+  end
+
+  test "an accessory action without a target is rejected" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    assert_no_difference("AuditLog.count") do
+      post managed_app_actions_path(app), params: { name: "accessory_restart" }
+    end
+    assert_equal I18n.t("flash.invalid_target"), flash[:alert]
+  end
+
+  test "restart on one host records that host; a host outside the app is rejected" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    post managed_app_actions_path(app), params: { name: "restart", version: "abc1234", target: "10.0.0.2" }
+    log = AuditLog.where(managed_app: app).sole
+    assert_equal "10.0.0.2", log.target
+    assert_equal [ "10.0.0.2" ], log.hosts
+
+    assert_no_difference("AuditLog.count") do
+      post managed_app_actions_path(app), params: { name: "restart", version: "abc1234", target: "10.0.0.3" }
+    end
+    assert_equal I18n.t("flash.invalid_target"), flash[:alert]
+  end
+
+  test "a target given as a nested param is rejected, not crashed on" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    assert_no_difference("AuditLog.count") do
+      post managed_app_actions_path(app), params: { name: "accessory_restart", target: { x: "db" } }
+    end
+    assert_equal I18n.t("flash.invalid_target"), flash[:alert]
+  end
+
+  test "dangerous new actions need the typed app name" do
+    app = accessory_app
+    sign_in_as users(:two)
+
+    [ { name: "maintenance" }, { name: "proxy_restart" }, { name: "accessory_reboot", target: "db" } ].each do |params|
+      assert_no_difference("AuditLog.count", params[:name]) do
+        post managed_app_actions_path(app), params: params.merge(confirm_name: "wrong")
+      end
+      assert_equal I18n.t("flash.confirm_name_failed"), flash[:alert]
+    end
+
+    post managed_app_actions_path(app), params: { name: "proxy_restart", confirm_name: "shop" }
+    assert_equal "proxy_restart", AuditLog.where(managed_app: app).sole.action_name
+  end
+
+  test "a developer who is not a member cannot run the new actions" do
+    app = accessory_app
+    sign_in_as users(:three)
+
+    post managed_app_actions_path(app), params: { name: "accessory_restart", target: "db" }
+
+    assert_equal I18n.t("flash.no_permission"), flash[:alert]
+    assert_equal 0, AuditLog.where(managed_app: app).count
   end
 end

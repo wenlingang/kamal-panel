@@ -18,7 +18,7 @@ class NavigationTest < ActionDispatch::IntegrationTest
   def assert_current_nav(label, path)
     get path
     assert_response :success
-    assert_select "nav.chrome-nav a.is-current", count: 1 do |links|
+    assert_select "nav.side-nav a.is-current", count: 1 do |links|
       assert_equal label, links.first.text.strip, "#{path} should highlight #{label}"
     end
   end
@@ -39,7 +39,7 @@ class NavigationTest < ActionDispatch::IntegrationTest
 
   test "has no separate Apps tab any more" do
     get root_path
-    assert_select "nav.chrome-nav a[href=?]", managed_apps_path, count: 0
+    assert_select "nav.side-nav a[href=?]", managed_apps_path, count: 0
   end
 
   test "keeps the Users tab highlighted on user sub-pages" do

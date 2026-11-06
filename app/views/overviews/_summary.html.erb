@@ -1,0 +1,33 @@
+<%# One cell per status level with its count. Each cell is a link to the same filter the dropdown
+    below applies (?status=), so "1 drifted" is one click from seeing which app it is. The counts are
+    over every active app, not the filtered set: the strip is the whole fleet at a glance.
+    locals: summary (OverviewFilter::STATUS_KEYS => count), filter, view %>
+<% view_param = (view unless view == "cards") %>
+<% keys = OverviewFilter::STATUS_KEYS.reject { |key| key == OverviewFilter::PARSE_ERROR && summary[key].zero? } %>
+<nav class="status-strip" aria-label="<%= t(".label") %>">
+  <%= link_to overview_path(q: filter.q.presence, view: view_param),
+              class: "strip-item strip-all", "aria-current": ("true" if filter.status.nil?) do %>
+    <span class="strip-count"><%= summary.values.sum %></span>
+    <span class="strip-label"><%= t(".all") %></span>
+  <% end %>
+  <% keys.each do |key| %>
+    <% tier = key == OverviewFilter::PARSE_ERROR ? "unreachable" : key %>
+    <%= link_to overview_path(q: filter.q.presence, status: key, view: view_param),
+                class: class_names("strip-item", "strip-#{tier}", "is-zero": summary[key].zero?),
+                "aria-current": ("true" if filter.status == key) do %>
+      <span class="strip-count"><%= summary[key] %></span>
+      <span class="strip-label">
+        <%= icon_tag(ApplicationHelper::STATUS_ICONS.fetch(key, "circle-help"), size: :sm) %>
+        <%= OverviewFilter.label_for(key) %>
+      </span>
+    <% end %>
+  <% end %>
+  <%# Alerts firing right now, when there are any: the strip is the fleet at a glance, and an alert is part of
+      that picture. Links to the alerts page rather than filtering the grid. %>
+  <% if firing_alert_count.positive? %>
+    <%= link_to alerts_path, class: "strip-item strip-unhealthy strip-alerts" do %>
+      <span class="strip-count"><%= firing_alert_count %></span>
+      <span class="strip-label"><%= icon_tag("bell-ring", size: :sm) %><%= t(".alerts_firing") %></span>
+    <% end %>
+  <% end %>
+</nav>

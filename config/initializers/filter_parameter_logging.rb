@@ -5,5 +5,7 @@
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
-  :config_yaml, :destination_config_yaml, :value
+  :config_yaml, :destination_config_yaml, :value,
+  # A notification channel's target is a webhook URL that carries its token (or mail addresses).
+  :target
 ]

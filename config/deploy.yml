@@ -46,6 +46,9 @@ env:
   clear:
     # Polling and action execution are Solid Queue jobs, running inside the Puma process.
     SOLID_QUEUE_IN_PUMA: true
+    # The panel's own address, for the links in alert notifications and emails. Keep it in step with
+    # proxy.host.
+    # PANEL_URL: https://panel.example.com
 
 aliases:
   console: app exec --interactive --reuse "bin/rails console"

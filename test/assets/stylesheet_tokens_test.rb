@@ -26,25 +26,14 @@ class StylesheetTokensTest < ActiveSupport::TestCase
     "font-size: 0.875em"
   ].freeze
 
-  # px allowed outside :root, four categories (the table after the spec §5 revision):
-  #   1. Stroke width: a border is a separator, not content; a larger font size should not thicken dividers
+  # px allowed outside :root, three categories (borders and outlines go through the
+  # --hairline / --focus-width / --edge tokens instead):
   #   2. Media query breakpoints: a breakpoint measures the device, not the content scale (px_offenders_in strips the whole clause)
   #   3. Logo geometry: must match that 24 canvas
   #   4. .visually-hidden clipping: a fixed recipe for hiding, not a visible size
-  # Before adding a line here, confirm which of the four categories it belongs to, and note it at
+  # Before adding a line here, confirm which category it belongs to, and note it at
   # the end of the line.
   PX_ALLOWED = [
-    "border: 1px solid transparent",              # 1
-    "border: 1px solid var(--btn-rule)",          # 1
-    "border: 1px solid var(--drift-rule)",        # 1
-    "border: 1px solid var(--field-rule)",        # 1
-    "border: 1px solid var(--output-rule)",       # 1
-    "border: 1px solid var(--rule)",              # 1
-    "border-bottom: 1px solid var(--rule)",       # 1
-    "border-top: 1px solid var(--rule)",          # 1
-    "outline: 2px solid var(--field-focus)",      # 1
-    "outline: 2px solid transparent",             # 1 fallback outline for high-contrast mode
-    "outline-offset: 2px",                        # 1
     "height: 1px",                                # 4 .visually-hidden
     "width: 1px",                                 # 4 .visually-hidden
     "margin: -1px",                               # 4 .visually-hidden

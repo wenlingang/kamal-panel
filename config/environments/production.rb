@@ -58,8 +58,31 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
+  # Set host to be used by links generated in mailer templates: the panel's own address (PANEL_URL,
+  # see config/application.rb), so password-reset links and alert emails point back at it.
+  panel_uri = URI.parse(config.x.panel_url.to_s) if config.x.panel_url
+  config.action_mailer.default_url_options =
+    if panel_uri&.host
+      { host: panel_uri.host, protocol: panel_uri.scheme, port: (panel_uri.port unless panel_uri.port == panel_uri.default_port) }.compact
+    else
+      { host: "example.com" }
+    end
+
+  # Outgoing mail (password resets, the email alert channel), configured from the environment so the
+  # image needs no rebuild. Without SMTP_ADDRESS, mail isn't sent anywhere useful.
+  if ENV["SMTP_ADDRESS"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: ENV["SMTP_ADDRESS"],
+      port: ENV.fetch("SMTP_PORT", 587).to_i,
+      user_name: ENV["SMTP_USERNAME"].presence,
+      password: ENV["SMTP_PASSWORD"].presence,
+      authentication: (ENV["SMTP_USERNAME"].present? ? :plain : nil),
+      enable_starttls_auto: true,
+      open_timeout: 5,
+      read_timeout: 10
+    }.compact
+  end
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

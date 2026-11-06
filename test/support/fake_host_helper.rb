@@ -100,7 +100,10 @@ module FakeHost
   # "this should have been escaped here" shouldn't be something you only know by reading this code.
   # So whether or not it is needed today, escape every value spliced into the command line with
   # Shellwords.escape.
-  def self.seed_container(node:, service:, role:, destination:, version:, state: :running)
+  # command: what the container runs (sh -c), for tests that need it to print something (logs);
+  # it is escaped like everything else.
+  def self.seed_container(node:, service:, role:, destination:, version:, state: :running,
+                          command: "sleep 3600")
     name = [ service, role, destination, version ].compact.join("-")
 
     escaped_name = Shellwords.escape(name)
@@ -113,7 +116,7 @@ module FakeHost
         --label service=#{escaped_service} \
         --label destination=#{escaped_destination} \
         --label role=#{escaped_role} \
-        busybox:latest sleep 3600
+        busybox:latest sh -c #{Shellwords.escape(command)}
     SH
 
     ssh(node, "docker stop #{escaped_name}") if state == :stopped

@@ -2,9 +2,15 @@
 class ManagedApp < ApplicationRecord
   belongs_to :ssh_credential, class_name: "Credential", optional: true
   belongs_to :registry_credential, optional: true
+  # Read-only access to the app's source repository (spec 6): commit info, CI status, compare links.
+  belongs_to :git_connection, optional: true
   has_many :app_memberships, dependent: :destroy
   has_many :members, through: :app_memberships, source: :user
   has_many :deploy_events, dependent: :destroy
+  has_many :alert_rules, dependent: :destroy
+  has_many :alert_events, dependent: :destroy
+  has_many :container_metrics, dependent: :delete_all
+  has_many :host_metrics, dependent: :delete_all
 
   scope :active, -> { where(deactivated_at: nil) }
 
@@ -19,6 +25,19 @@ class ManagedApp < ApplicationRecord
   validate :ssh_credential_must_be_valid
   validate :kamal_hooks_must_be_valid
   validate :registry_secret_must_not_collide
+
+  # How CI tags the image, i.e. what `--version` the panel passes. Kamal's own default is the full
+  # git sha, hence the default here.
+  VERSION_FORMATS = %w[sha short_sha tag].freeze
+  SHORT_SHA_LENGTH = 7
+
+  validates :version_format, inclusion: { in: VERSION_FORMATS }
+  # "owner/repo" on GitHub, "group/subgroup/project" on GitLab. Path segments only, and none made of
+  # dots alone: the value is interpolated into API and web URLs, where ".." would climb out.
+  validates :repository, format: { with: %r{\A(?:(?!\.+/)[\w.-]+/)+(?!\.+\z)[\w.-]+\z}, message: :invalid_format },
+                         allow_blank: true
+  validates :repository, presence: true, if: :git_connection
+  validates :git_branch, format: { with: %r{\A[\w.][\w./-]*\z}, message: :invalid_format }, allow_blank: true
 
   # All call sites of run_hook in Kamal 2.12.0 (lib/kamal/cli/**).
   KAMAL_HOOK_NAMES = %w[
@@ -63,6 +82,19 @@ class ManagedApp < ApplicationRecord
   end
 
   def hook_reporting_enabled? = hook_token_digest.present?
+
+  def git_configured? = git_connection.present? && repository.present?
+
+  def git_client = (git_connection.client_for(repository) if git_configured?)
+
+  # The image tag CI would have pushed for this commit / tag.
+  def version_for(sha: nil, tag: nil)
+    case version_format
+    when "tag"       then tag
+    when "short_sha" then sha.to_s[0, SHORT_SHA_LENGTH]
+    else sha
+    end
+  end
 
   def reject_hook!(message)
     update_columns(last_hook_rejection: message.to_s.truncate(500),

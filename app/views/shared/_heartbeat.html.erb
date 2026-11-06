@@ -1,0 +1,26 @@
+<%# The heartbeat strip: the last N collection rounds, oldest on the left, one cell per round coloured by
+    that round's level (StatusHistory). Never colour-only: the caption under it says in words how many
+    rounds were not OK, the strip as a whole carries the same sentence for screen readers, and each cell
+    has a tooltip with its time and status. Empty cells on the left mean "no round recorded yet".
+
+    It reads no config, so it is safe for an app whose deploy.yml does not parse.
+    locals: history (StatusHistory), id (optional; the detail page's broadcast replace target) %>
+<% recorded = history.recorded_cells %>
+<% caption =
+     if recorded.empty? then t("shared.heartbeat.none")
+     elsif history.problem_count.zero? then t("shared.heartbeat.all_ok", count: recorded.size)
+     else t("shared.heartbeat.problems", count: recorded.size, problems: history.problem_count)
+     end %>
+<div class="heartbeat" <%= tag.attributes(id: local_assigns[:id]) %>>
+  <ol class="heartbeat-cells" role="img" aria-label="<%= caption %>">
+    <% history.cells.each do |cell| %>
+      <% if cell.placeholder? %>
+        <li class="hb-cell hb-empty"></li>
+      <% else %>
+        <li class="hb-cell hb-<%= cell.level %>"
+            title="<%= l(cell.observed_at, format: :precise) %> · <%= t("statuses.#{cell.badge_key}") %>"></li>
+      <% end %>
+    <% end %>
+  </ol>
+  <p class="heartbeat-caption" aria-hidden="true"><%= caption %></p>
+</div>

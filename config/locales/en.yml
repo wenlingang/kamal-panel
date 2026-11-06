@@ -34,6 +34,11 @@ en:
   time:
     formats:
       panel: "%Y-%m-%d %H:%M"
+      precise: "%Y-%m-%d %H:%M:%S"
+      # Log lines: to the millisecond, the date without the year (a query spans at most a day).
+      log: "%m-%d %H:%M:%S.%L"
+      # Metrics chart read-outs: one sample a minute, a range of up to a week.
+      metrics_point: "%m-%d %H:%M"
 
   # The UI's primary language is Chinese; this English file is where i18n.fallbacks lands, and also
   # the starting point for bilingual switching later. Attribute names are listed in full here,
@@ -66,6 +71,18 @@ en:
               not_a_json_object: 'must be a JSON object, like {"pre-connect": "#!/bin/sh\n..."}'
             kamal_secrets:
               registry_secret_collision: already defines %{env}, which also comes from the selected registry credential. Remove one of them — with both in place the deploy quietly uses the wrong password.
+            repository:
+              invalid_format: must be a repository path, like acme/shop or group/subgroup/project
+            git_branch:
+              invalid_format: is not a valid branch name
+        git_connection:
+          attributes:
+            token:
+              required_with_new_api_url: must be entered again when the API URL changes — the stored token is never sent to a new address
+            api_url:
+              not_http: must start with http:// or https://
+            web_url:
+              not_http: must start with http:// or https://
     attributes:
       managed_app:
         name: Name
@@ -80,6 +97,16 @@ en:
   # English display names for roles. The role values in code are still admin/developer/ops; this is
   # only for the UI. zh-CN has had it all along while en lacked it; LocaleSmokeTest caught it the
   # first time it ran.
+        git_connection: Git connection
+        repository: Repository
+        git_branch: Branch
+        version_format: Version format
+      git_connection:
+        name: Name
+        provider: Platform
+        api_url: API URL
+        web_url: Web URL
+        token: Token
   roles:
     admin: Admin
     developer: Developer
@@ -115,7 +142,7 @@ en:
       deactivate: Deactivate
       you: You
     new:
-      back: ← People
+      back: People
       title: Add member
       subtitle: By default they set their own password through a link in an email — you don't need to know anyone else's password. When email can't get through, you can set one directly.
       email: Email address
@@ -131,7 +158,7 @@ en:
       password_confirmation: Confirm password
       submit: Create member
     edit:
-      back: ← People
+      back: People
       subtitle: Change the role, or assign which apps they can act on.
       nickname: Nickname
       nickname_hint: Leave it empty to go back to referring to them by email.
@@ -191,7 +218,7 @@ en:
 
   managed_apps:
     new:
-      back: ← Overview
+      back: Overview
       title: Onboard an app
       subtitle: Paste the deploy.yml and an SSH key that can reach these machines. The panel only reads state; deploys still go through your own kamal deploy.
       erb_warning_html: The deploy.yml you paste is handed to Kamal, and Kamal runs ERB over it — <strong>which means pasting a config is equivalent to running code on the machine this panel lives on</strong>. Only paste configs you trust.
@@ -234,9 +261,33 @@ en:
             - 192.0.2.10
       kamal_secrets_placeholder: "RAILS_MASTER_KEY=…"
       kamal_hooks_placeholder: '{"pre-deploy": "#!/bin/sh\necho deploying"}'
+      git_section: Source repository
+      git_section_hint: Optional. With it, the Deploy tab lists recent commits (or tags) with their CI status and whether the image is ready; without it you can still deploy by typing a version.
+      git_connection: Git connection
+      git_connection_hint: The panel reads commits and CI status, read-only, with this connection's token.
+      go_to_git_connections: Add one in settings
+      repository: Repository path
+      repository_hint: On GitHub owner/repo; on GitLab the full project path (subgroups included).
+      git_branch: Branch (optional)
+      git_branch_placeholder: Blank uses the repository's default branch
+      version_format: Image version
+      version_formats:
+        sha: Full commit sha (Kamal's default)
+        short_sha: Short sha (first 7)
+        tag: Git tag
+      version_format_hint: Pick whatever CI tags the image with — the panel passes it to Kamal as --version.
     show:
-      back: ← Overview
-      subtitle: What is running on each machine of this app, and what you can do to it.
+      back: Overview
+      running_version: Running version
+      host_count: Hosts
+      tabs_label: App sections
+      tabs:
+        overview: Overview
+        actions: Actions
+        history: History
+        deploy: Deploy
+        logs: Logs
+        metrics: Metrics
       edit: Edit
       reactivate: Reactivate
       reactivate_confirm: |-
@@ -277,33 +328,90 @@ en:
       host_status: Host status
       refresh_now: Refresh now
       view_logs: View logs
-      lock_reading: Reading the deploy lock…
-      lock_unknown: Lock state unknown
-      lock_unknown_detail: cannot reach the primary host, operations are disabled
-      no_ssh_key: No SSH key configured
-      no_ssh_key_detail: the panel can’t read the deploy lock, so operations are disabled.
-      no_ssh_key_link: Edit the app to pick a key
-      actions_no_permission: You can see the status, but you don’t have permission to operate this app.
-      actions_parse_error: The config can’t be parsed, so operations are disabled.
-      lock_held: Deploy in progress
-      force_unlock: Force unlock
-      force_unlock_warning: Only do this once you are sure the lock is a dead lock left behind by a crashed CI run. A deploy that is actually in progress will be interrupted.
-      confirm_name_placeholder: Type the app name to confirm
+      logs: Logs
+      open_in_logs: Open in Logs
       actions: Operations
-      actions_hint: These operations change production state and are all recorded in the audit log.
-      affected_scope: Will act on %{roles} on %{hosts}.
-      restart: Restart
-      restart_unavailable: 'Cannot restart right now: the observations do not show exactly one running version.'
-      start: Start
-      stop: Stop
-      stop_warning: The service really does go offline, until someone clicks Start again.
-      stop_confirm: Confirm stop
-      rollback: Roll back
-      rollback_none: No previous version is available to roll back to.
-      rollback_step_version: Pick a version
-      rollback_step_scope: Confirm the blast radius
-      rollback_step_confirm: Type the app name to confirm
-      rollback_submit: Roll back
+      deploy_new: Deploy a new version
+    actions_panel:
+      parse_error: The config can't be parsed, so operations are disabled.
+      audited: These operations change production state and are all recorded in the audit log.
+      no_permission: You can see this, but you don't have permission to operate this app, so the buttons are disabled.
+      scope: Affects %{roles} on %{hosts}.
+      scope_hosts: Affects %{hosts}.
+      confirm_name_placeholder: Type the app name to confirm
+      lock:
+        title: Deploy lock
+        reading: Reading the deploy lock… The buttons work already; the panel checks the lock again right before running.
+        free: The deploy lock is free.
+        held: A deploy is in progress
+        held_detail: While the lock is held, operations that change production are unavailable.
+        held_by: 'Lock holder:'
+        unknown: Can't read the deploy lock
+        unknown_detail: The buttons still work. The panel checks the lock again before running; if it still can't read it, nothing runs and the run page says why.
+        no_key: No SSH key configured
+        no_key_detail: Every operation runs over SSH, so the buttons stay disabled until the app has a key.
+        no_key_link: Edit the app to pick a key
+        no_key_ask: Ask an admin to give this app an SSH key.
+        force_unlock: Force unlock…
+        force_unlock_warning: Only do this once you're sure the lock is a dead one left by a crashed CI run. A deploy in progress will be interrupted.
+        force_unlock_submit: Force unlock
+      app:
+        title: App
+        restart: Restart
+        restart_on: Restart on
+        restart_all_hosts: All hosts
+        restart_confirm: |-
+          Restart %{name}?
+          Boots the running version %{version} again (scope as shown above); kamal-proxy switches traffic once the new container is healthy.
+        restart_unavailable: Can't restart right now. The observations don't show exactly one running version, and a restart needs to know which version to boot.
+        start: Start
+        start_confirm: |-
+          Start %{name}?
+          Starts the existing containers on %{hosts}.
+        stop: Stop…
+        stop_warning: The service really goes offline, until someone clicks Start again.
+        stop_submit: Stop
+        maintenance: Maintenance mode…
+        maintenance_warning: kamal-proxy answers every request with a 503 maintenance page while the containers keep running, until someone clicks Go live.
+        maintenance_submit: Enter maintenance mode
+        live: Go live
+        live_confirm: |-
+          Put %{name} live again?
+          kamal-proxy routes requests to the app again.
+      rollback:
+        title: Roll back
+        none: No previous version is available to roll back to.
+        step_version: Pick a version
+        step_scope: Confirm the blast radius
+        step_confirm: Type the app name to confirm
+        submit: Roll back
+      accessories:
+        title: Accessories
+        none: deploy.yml declares no accessories.
+        name: Name
+        image: Image
+        hosts: Hosts
+        container: Container
+        restart: Restart
+        restart_confirm: |-
+          Restart accessory %{accessory}?
+          Stops and starts container %{container} on %{hosts}; its data directory is kept. Apps that depend on it lose the connection briefly.
+        reboot: Rebuild…
+        reboot_warning: Removes container %{container} and creates it again from the image; the data directory is kept, and apps that depend on it are down meanwhile. The panel doesn't have local files referenced under files:, so an accessory that uses them fails to rebuild.
+        reboot_submit: Rebuild
+      proxy:
+        title: Proxy
+        explain: There is one kamal-proxy per host, shared by every app deployed on that host.
+        restart: Restart proxy…
+        restart_warning: 'Not just %{name}: requests to every app on %{hosts} are briefly interrupted.'
+        restart_submit: Restart proxy
+      housekeeping:
+        title: Housekeeping
+        prune: Prune old images
+        prune_explain: Removes stopped old containers (keeping the latest few, per retain_containers) and images nothing uses. Pruned versions can't be rolled back to afterwards.
+        prune_confirm: |-
+          Prune old containers and images of %{name}?
+          Runs on %{hosts}; versions pruned away can't be rolled back to afterwards.
     refreshing:
       collecting: Collecting from each machine…
     deploy_alerts:
@@ -367,22 +475,36 @@ en:
       generate_confirm: |-
         Generate a reporting token for %{name}?
         The scripts are shown only once — leave the page and you can only regenerate. This is an optional enhancement; skipping it does not affect anything else.
+    tab_deploy:
+      title: Deploy a new version
+      intro_html: CI builds and pushes the image; the panel only picks the version and runs <code>kamal deploy --skip-push --version &lt;version&gt;</code>, so every host pulls that image from the registry. Nothing is built here.
+      parse_error: The config can't be parsed, so deploying is unavailable for now.
+      no_permission: You can view this app but don't have permission to deploy it.
+      no_key: This app has no SSH key yet, so a deploy can't run even after you pick a version.
+      loading: Asking the Git platform and the registry…
+      no_repository: No source repository is configured; type a version below.
+      configure_repository: Configure the repository
+      ask_admin: Ask an admin to configure this app's repository.
 
   actions:
-    result:
-      succeeded: Done — the panel is collecting again to confirm
-      failed: Failed
-    show:
-      back: ← %{name}
-      title: '%{action} — %{app}'
-      subtitle: The run is shown line by line below. This page does not navigate away on its own — read the output before you leave.
-      output: Output
-      running: Running…
+    run_status:
+      running: Running
+      success: Done
+      success_detail: The panel is collecting again to confirm the result with fresh observations.
+      failure: Failed
       interrupted: Interrupted
       interrupted_detail: The run was cut off part-way (process restart or lost job), so no final result was recorded. Check the app page for its current state and run it again if needed.
-      succeeded: Done
-      succeeded_detail: The panel is collecting again to confirm the result with fresh observations.
-      failed: Failed
+      duration: 'Took %{duration}'
+    show:
+      back: '%{name}'
+      title: '%{action} — %{app}'
+      subtitle: The run is shown line by line above. This page does not navigate away on its own — read the output before you leave.
+      started_by: Started by
+      started_at: Started at
+      target_version: Target version
+      target: Target
+      hosts: Hosts
+      output: Output
       back_to_app: Back to the app
 
   layouts:
@@ -394,7 +516,12 @@ en:
       credentials: Credentials
       sign_out: Sign out
       language: Interface language
-      switch_language: Switch
+      menu: Menu
+      main_nav: Main navigation
+      settings: Settings
+      deploys: Deploys
+      logs: Logs
+      git: Git
 
   sessions:
     new:
@@ -421,7 +548,7 @@ en:
       deactivated_hint: Deactivating released the credential bindings. After reactivating you have to pick credentials again before collection resumes.
       deactivated_badge: Deactivated
       title: Overview
-      subtitle: Which version each app is running, how many machines are running it, and how old that data is. Anything wrong sorts to the top by colour.
+      subtitle: Which version each app runs, on how many machines, and whether the last 40 polling rounds were all OK.
       add: Onboard an app
       empty: Nothing here yet. Onboarding an app takes a deploy.yml and an SSH key — nothing has to be installed on the managed servers.
       filter_name: App name
@@ -431,6 +558,17 @@ en:
       filter_submit: Filter
       filter_clear: Clear filter
       no_matches_html: No apps match. %{link} to see them all.
+      view_label: View
+      view_cards: Cards
+      view_table: List
+    summary:
+      label: Apps by status
+      all: All apps
+    cards:
+      open: Open
+      open_label: Open %{name}
+      deploy: Deploy
+      deploy_label: Deploy %{name}
     grid:
       app: App
       status: Status
@@ -445,6 +583,93 @@ en:
       stale: stale
       never_collected: Never collected
       partially_collected: Some hosts not collected yet
+
+  quick_actions:
+    restart: Restart
+    actions: Actions
+    actions_label: Open the actions of %{name}
+    logs: Logs
+    logs_label: View the logs of %{name}
+    restart_unavailable: 'Can''t restart: the observations don''t show exactly one running version'
+    restart_no_key: 'Can''t restart: this app has no SSH key yet'
+    restart_confirm: |-
+      Restart %{name}?
+      Boots the running version %{version} again on every host. The deploy lock is checked before it runs.
+
+  shared:
+    heartbeat:
+      none: No polling rounds yet
+      all_ok: All of the last %{count} rounds OK
+      problems: '%{problems} of the last %{count} rounds not OK'
+
+  logs:
+    index:
+      title: Logs
+      subtitle: Pick an app and query container logs across hosts by source, time and keyword. Queries are read-only and not audited.
+      no_apps: There are no apps whose logs you can view. Logs are open to admins, ops and app members.
+      pick_title: Pick an app
+      pick_hint: Only apps whose logs you may view and whose config parses are listed.
+      config_unparseable: "The config of %{name} can't be parsed, so its logs can't be queried for now. Fix deploy.yml first."
+    form:
+      app: App
+      pick_app: Pick an app…
+      open: Open
+      source: Source
+      host: Host
+      all_hosts:
+        one: All hosts (%{count})
+        other: All hosts (%{count})
+      since: Time range
+      lines: Lines per host
+      lines_option:
+        one: Last %{count} line
+        other: Last %{count} lines
+      keyword: Keyword
+      keyword_placeholder: Fixed string, filtered on the hosts
+      case_sensitive: Match case
+      submit: Search
+      version: Version
+      version_current: Running now
+      version_running: "%{version} (running)"
+      version_stopped: "%{version} (stopped)"
+    windows:
+      all: All
+      5m: 5 min
+      15m: 15 min
+      1h: 1 hour
+      6h: 6 hours
+      24h: 24 hours
+    sources:
+      app: App (all roles)
+      role: "Role: %{name}"
+      accessory: "Accessory: %{name}"
+      proxy: kamal-proxy
+    viewer:
+      loading: Signing in to the hosts and reading logs…
+      only_problems: Errors/warnings only
+      wrap: Wrap lines
+      follow: Follow
+      following: Following, fetching new lines every 3 seconds.
+      paused_hidden: The page is in the background, following is paused.
+      follow_limited: Too many queries, retrying shortly.
+      follow_failed: Fetching new lines failed, retrying shortly.
+    results:
+      summary_html: "%{hosts} hosts · %{lines} lines · took %{duration}"
+      truncated:
+        one: Too many results; only the newest %{count} line is kept.
+        other: Too many results; only the newest %{count} lines are kept.
+      output_label: Log output
+      empty: No logs in this time range.
+      invalid: The query conditions are invalid; please choose again.
+      rate_limited: "Too many queries: at most one every 2 seconds. Please try again shortly."
+    errors:
+      with_detail: "%{message} (%{detail})"
+      no_credential: This app has no SSH key yet, so the panel can't sign in to read logs.
+      unreachable: Host unreachable
+      no_container: No running container on this host in the latest collection round
+      container_missing: Container not found or unreadable
+      container_stopped: Container is not running
+      failed: Reading failed
 
   audit_logs:
     index:
@@ -508,6 +733,7 @@ en:
     delayed_seconds: '%{seconds}s late'
     inferred: Inferred by panel
     hook_reported: Reported by hook
+    panel: Panel deploy
 
   rollback_candidates:
     cleaned_up: cleaned up on %{hosts}
@@ -519,6 +745,8 @@ en:
     no_permission: You do not have permission to do that
     confirm_name_failed: 'Confirmation failed: type the app name'
     unknown_action: Unknown action
+    invalid_target: The target isn't declared in this app's config; nothing ran.
+    config_unparseable: The config can't be parsed; nothing ran.
     rate_limited: Please try again later.
     bad_credentials: That email address or password is not correct.
     password:
@@ -545,6 +773,14 @@ en:
       last_admin_demote: Cannot demote the last admin
       last_admin_deactivate: Cannot deactivate the last admin
       self_deactivate: You can’t deactivate yourself; ask another admin
+    invalid_version: 'Invalid version: only letters, digits, underscores, dots and hyphens, not starting with a dot or hyphen. Nothing was run.'
+    git_connection:
+      added: Added %{name}
+      updated: Updated %{name}
+      deleted: Deleted %{name}
+      blocked: "%{name} is used by %{apps} and can't be deleted. Change or clear the Git connection on those apps' edit pages first."
+      check_ok: "%{name} works; the token belongs to %{login}."
+      check_failed: "%{name} failed: %{reason}"
 
   audit:
     actions:
@@ -553,6 +789,12 @@ en:
       start: Start
       rollback: Roll back
       force_unlock: Force unlock
+      maintenance: Maintenance mode
+      live: Go live
+      accessory_restart: Restart accessory
+      accessory_reboot: Rebuild accessory
+      proxy_restart: Restart proxy
+      prune: Prune old images
       logs: View logs
       user:
         create: Create member
@@ -573,6 +815,12 @@ en:
         create: Add registry password
         rotate: Replace registry password
         delete: Delete registry password
+      deploy: Deploy
+      git_connection:
+        create: Add Git connection
+        update: Edit Git connection
+        rotate: Replace Git token
+        delete: Delete Git connection
 
     details:
       app:
@@ -582,3 +830,161 @@ en:
         password_by_mail: password setup email sent
 
     note_wrapper: " (%{note})"
+  app_deploys:
+    manual_form:
+      title: Type a version
+      label: Version
+      placeholder: e.g. 9f3c2a1e or v1.4.2
+      submit: Next
+      hint: The tag CI pushed the image with. The next step is a confirm page; nothing runs yet.
+    versions:
+      git_unavailable: "The Git platform is unavailable right now: %{reason}. You can still type a version below."
+      empty: No commits on this branch (or no tags in the repository yet).
+      change: Change
+      version: Version
+      author: Author
+      ci: CI
+      image: Image
+      commit_unknown: Commit not readable
+      ago: "%{time} ago"
+      pick: Deploy this
+      legend: The latest %{count} versions. Versions whose CI failed or whose image is missing can't be picked; unknown ones can, with a reminder on the confirm page.
+      blockers:
+        ci_failed: CI failed, can't deploy
+        image_missing: Not in the registry
+      warnings:
+        ci_not_success: CI hasn't passed
+        image_unknown: Can't confirm the image was pushed
+    new:
+      back: "%{name}"
+      title: Deploy %{name}
+      subtitle: Check what changes and where. "Deploy" runs immediately and is audited.
+      current: Live now
+      current_unknown: Not observed yet
+      target: Target version
+      ago: "%{time} ago"
+      ci: CI status
+      no_repository: No repository configured
+      image: Image
+      scope: Affects
+      command: Will run
+      warnings:
+        drift: "Live versions differ (%{current}): this deploy brings every host to %{version}."
+        redeploy: "%{version} is already live; this redeploys the same version."
+        ci_failed: CI failed for this version.
+        ci_not_success: CI hasn't passed for this version (or couldn't be checked).
+        image_missing: The registry has no image for this version; the deploy would fail when pulling it.
+        image_unknown: Can't confirm the image was pushed (no registry credential, or the registry is unreachable).
+      changes:
+        one: 1 new commit
+        other: "%{count} new commits"
+      compare_link: Compare on the Git platform
+      older_target:
+        one: The target is 1 commit behind what's live; this deploy is effectively a rollback.
+        other: The target is %{count} commits behind what's live; this deploy is effectively a rollback.
+      no_changes: No new commits between the two versions.
+      truncated: Showing %{shown} of %{total}.
+      submit: Deploy
+      cancel: Back
+      no_key: This app has no SSH key yet
+      lock_note: The panel checks the deploy lock before running; if it's held, nothing runs and the output page says why.
+
+  deploys:
+    live: Live
+    ci:
+      success: CI passed
+      failure: CI failed
+      running: CI running
+      pending: CI queued
+      none: No CI
+      unknown: CI unknown
+    image:
+      present: Image ready
+      missing: Image missing
+      unknown: Image unknown
+    results:
+      success: Succeeded
+      failure: Failed
+      running: Running
+      unfinished: Unfinished
+      not_run: Not run
+    kinds:
+      deploy: Deploy
+      rollback: Rollback
+    index:
+      title: Deploys
+      subtitle: Recent deploys across all apps — started from the panel, reported by hooks, or inferred from observations.
+      new: New deploy
+      filter_app: Filter by app
+      filter_all_apps: All apps
+      filter_submit: Filter
+      filter_clear: Clear filter
+      empty: No deploys yet.
+      time: Time
+      app: App
+      version: Version
+      kind: Kind
+      source: Source
+      performer: By
+      result: Result
+      output: Output
+      truncated: Showing the latest %{count}.
+    new:
+      back: Deploys
+      title: New deploy
+      subtitle: Pick the app to deploy first.
+      none: There are no apps you can deploy.
+      app: App
+      repository: Repository
+      manual_only: Not configured; type a version
+      pick: Choose
+
+  git_connections:
+    providers:
+      github: GitHub
+      gitlab: GitLab
+    index:
+      title: Git connections
+      subtitle: Tokens the panel uses to read commits, tags and CI status, read-only. Apps pick one on their edit page.
+      add: Add connection
+      empty: No Git connections yet. Without one, deploys need a typed version.
+      name: Name
+      provider: Platform
+      api_url: API URL
+      token: Token
+      used_by: Used by
+      unused: none
+      check: Test connection
+      delete: Delete
+      delete_confirm: |-
+        Delete %{name}?
+        This can't be undone; you'd have to add it again.
+    form:
+      name: Name
+      provider: Platform
+      provider_locked: The platform can't change after creation; apps' repository paths are written for it.
+      api_url: API URL (optional)
+      api_url_hint: Blank uses the public one (GitHub https://api.github.com, GitLab https://gitlab.com/api/v4). Self-hosted GitLab is https://your-host/api/v4.
+      web_url: Web URL (optional)
+      web_url_hint: Used to build commit, tag and compare links. Blank uses https://github.com or https://gitlab.com.
+      token: Token
+      token_hint: "Read-only is enough: on GitHub a fine-grained token with read access to Contents, Commit statuses and Checks; on GitLab read_api. It isn't shown again after saving."
+      token_keep: Leave blank to keep the current token (%{hint}).
+      cancel: Cancel
+    new:
+      title: Add Git connection
+      subtitle: The token isn't shown again after saving; it can only be replaced.
+    edit:
+      subtitle: The token can only be replaced, never viewed.
+      effective: Changes apply to %{apps} immediately.
+      no_apps: (no app uses it yet)
+
+  git_providers:
+    errors:
+      unreachable: can't connect (%{detail})
+      unauthorized: the token is invalid or expired
+      forbidden: the token isn't allowed to read this
+      rate_limited: rate-limited by the platform; try again shortly
+      not_found: repository %{repository} not found (or the token can't access it)
+      http_status: the platform answered HTTP %{status}
+      bad_response: the platform's answer couldn't be parsed

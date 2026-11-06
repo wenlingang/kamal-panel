@@ -155,6 +155,8 @@ class PollManagedAppJobTest < ExecutionLayerTest
       "The broadcast should carry the re-rendered host status, showing the version just collected"
     assert_includes message, 'target="app-status"',
       "The header status badge must refresh in the same broadcast, or it contradicts the table below it"
+    assert_includes message, 'target="app-heartbeat"',
+      "The header heartbeat must gain the round just collected in the same broadcast"
   end
 
   # Broadcast failure -- only the "delivery" step (Solid Cable hiccups, serialization

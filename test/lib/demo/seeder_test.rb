@@ -18,6 +18,22 @@ class Demo::SeederTest < ActiveSupport::TestCase
     assert_equal "stale", status("demo-legacy").badge_key
     assert_equal :unknown, status("demo-fresh").level
     assert_predicate app("demo-archive"), :deactivated?
+
+    # The alerts page has something firing and some history, all relative to now.
+    # demo-api fires twice: unhealthy, and its web container's memory near the limit.
+    assert_equal %w[demo-api demo-api demo-blog], AlertEvent.firing.map { |event| event.managed_app.name }.sort
+    assert AlertEvent.resolved.where(resolved_at: 1.hour.ago..).exists?
+    assert_equal 1, NotificationChannel.count
+
+    # Metrics up to now: the overview card line, all four chart ranges, and the warnings.
+    assert ContainerMetric.where(managed_app: app("demo-shop"), sampled_at: 2.minutes.ago..).exists?
+    assert ContainerMetric.where(managed_app: app("demo-shop"), sampled_at: ..23.hours.ago).exists?
+    assert_not ContainerMetric.where(managed_app: app("demo-legacy"), sampled_at: 1.hour.ago..).exists?
+    assert_operator Metrics::CardSummary.for([ app("demo-shop") ]).fetch(app("demo-shop").id).cpu_percent, :>, 0
+    memory = Alerting::MetricCheck.call(AlertRule.find_by!(condition: "memory_high"), app("demo-api"))
+    assert_predicate memory, :holds?
+    disk = HostMetric.where(host: "10.1.0.22").order(:sampled_at).last
+    assert_operator disk.disk_used_percent, :>=, 90
   end
 
   test "seeding creates one app per state the UI distinguishes" do
@@ -38,6 +54,7 @@ class Demo::SeederTest < ActiveSupport::TestCase
 
       assert_scenarios
       assert_equal audit_count, AuditLog.count
+      assert_equal 5, AlertRule.count, "rules are kept, not duplicated"
     end
   end
 

@@ -30,6 +30,12 @@ module DeployEvents
       attr_reader :managed_app, :phase, :attributes
 
       def ingest_started
+        # A deploy the panel itself started runs the app's own hooks too: its row already records
+        # this attempt, and the panel (not the hook) knows how it ends.
+        if (panel = panel_attempt)
+          return { event: panel, changed: false }
+        end
+
         # not a new deploy.
         if (open = open_attempt)
           return { event: open, changed: false }
@@ -39,6 +45,10 @@ module DeployEvents
       end
 
       def ingest_succeeded
+        if (panel = panel_attempt)
+          return { event: panel, changed: false }
+        end
+
         if (open = open_attempt)
           open.update!(succeeded_at: Time.current, **carried_attributes)
           return { event: open, changed: true }
@@ -59,6 +69,18 @@ module DeployEvents
                    .where(started_at: CLAIM_WINDOW.ago..)
                    .order(created_at: :desc)
                    .first
+      end
+
+      # The panel row for this version that is still running, or finished just now (post-deploy
+      # can land a moment after the CLI exits and RunActionJob closes the row).
+      def panel_attempt
+        managed_app.deploy_events
+                   .where(source: "panel", version: attributes.fetch(:version))
+                   .where(started_at: CLAIM_WINDOW.ago..)
+                   .order(created_at: :desc)
+                   .detect do |event|
+                     event.finished_at.nil? || event.finished_at >= DUPLICATE_WINDOW.ago
+                   end
       end
 
       def recent_succeeded_duplicate

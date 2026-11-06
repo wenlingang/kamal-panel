@@ -46,6 +46,18 @@ def registry_password_env(config)
   password.is_a?(Array) ? password.first.to_s.presence : nil
 end
 
+# The registry username, for the panel's own registry probe (RegistryProbe). Only a literal can be
+# known at parse time; a secret reference (`username: [ENV]`) is resolved at deploy time, so it
+# yields nil, same reasoning as registry_password_env above.
+def registry_username(config)
+  raw = config.raw_config
+  registry = raw[:registry] || raw["registry"]
+  return nil if registry.nil?
+
+  username = registry["username"] || registry[:username]
+  username.is_a?(String) ? username.presence : nil
+end
+
 begin
   input = JSON.parse($stdin.read)
 
@@ -70,7 +82,18 @@ begin
     app_hosts: config.app_hosts,
     primary_host: config.primary_host,
     registry_server: config.registry.server,
+    # image is the repository path inside the registry ("org/app"); repository prefixes the
+    # registry server ("ghcr.io/org/app"). Both are plain strings computed from the config alone.
+    image: config.image,
+    repository: config.repository,
+    # Kamal 2 names an accessory's container after its service_name, which defaults to
+    # "<service>-<accessory name>" (no destination suffix) unless the accessory sets service:.
+    accessories: config.accessories.map { |accessory|
+      { name: accessory.name.to_s, hosts: accessory.hosts, image: accessory.image,
+        container_name: accessory.service_name }
+    },
     registry_password_env: registry_password_env(config),
+    registry_username: registry_username(config),
     # Hand over only the raw string from the ssh: section; never construct objects such as
     # Net::SSH::Proxy::Jump here. This script's output has to cross the JSON boundary back to the
     # parent, and any object would be implicitly #to_s'd into a meaningless string like

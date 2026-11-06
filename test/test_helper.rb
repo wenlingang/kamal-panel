@@ -3,6 +3,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require "support/fake_host_helper"
+require "support/http_stub"
 
 module ActiveSupport
   class TestCase

@@ -1,0 +1,99 @@
+<%# The default overview: one card per app. Same facts as the table view (_grid), plus the heartbeat strip.
+    The parse-error rules from _grid hold here exactly: for an app with last_poll_error nothing below may
+    touch parsed_config (status.observed_at / status.stale? / app.cached_app_hosts all re-parse and would
+    raise ParseError in the render phase, where nobody catches it). StatusHistory and DeployAlerts read
+    only rows, so they stay. %>
+<ul class="app-grid" id="overview-cards">
+  <% managed_apps.each do |app| %>
+    <% broken = app.last_poll_error.present? %>
+    <% status = statuses[app] unless broken %>
+    <% tier = broken ? "unreachable" : status.level %>
+    <li class="app-card status-<%= tier %>">
+      <div class="app-card-head">
+        <h2 class="app-card-name"><%= link_to app.name, app %></h2>
+        <% if broken %>
+          <%= status_badge("unreachable", t("overviews.grid.config_broken"), icon_key: "unknown") %>
+        <% else %>
+          <%# Status never relies on color alone: text and shape are each a signal independent of color %>
+          <%= status_badge(status.level, status.label, icon_key: status.badge_key) %>
+        <% end %>
+      </div>
+
+      <% if (badge_text = DeployAlerts.new(app).badge_text) %>
+        <p class="app-card-alert"><span class="badge badge-unverified"><%= badge_text %></span></p>
+      <% end %>
+
+      <% if broken %>
+        <p class="app-card-note">
+          <%= t("overviews.grid.config_broken_detail", since: time_ago_in_words(app.first_poll_error_at)) %>
+        </p>
+      <% else %>
+        <dl class="app-card-facts">
+          <div>
+            <dt><%= t("overviews.grid.running_version") %></dt>
+            <dd>
+              <% if status.versions.empty? %>
+                <%= placeholder("—") %>
+              <% else %>
+                <%= version_links(app, status.versions) %>
+                <% if status.drift? %>
+                  <strong class="suffix"><%= t("overviews.grid.version_drift", count: status.versions.size) %></strong>
+                <% end %>
+              <% end %>
+            </dd>
+          </div>
+          <div>
+            <dt><%= t("overviews.grid.hosts") %></dt>
+            <dd><%= app.cached_app_hosts.size %></dd>
+          </div>
+          <div>
+            <dt><%= t("overviews.grid.data_age") %></dt>
+            <dd>
+              <% if status.observed_at %>
+                <%= t("overviews.grid.ago", time: time_ago_in_words(status.observed_at)) %>
+                <% if status.stale? %>
+                  <strong class="suffix"><%= t("overviews.grid.stale") %></strong>
+                <% end %>
+              <% elsif status.level == :unknown %>
+                <%= t("overviews.grid.never_collected") %>
+              <% else %>
+                <%# Some machine in the config has no observation at all — no number that looks precise but does not hold. %>
+                <%= t("overviews.grid.partially_collected") %>
+              <% end %>
+            </dd>
+          </div>
+        </dl>
+      <% end %>
+
+      <%# Latest container totals from the metrics rows (one batched query for all cards, see
+          Metrics::CardSummary); nothing when the app has no recent sample. %>
+      <% if (summary = local_assigns.fetch(:metric_summaries, {})[app.id]) %>
+        <% cpu = summary.cpu_percent ? format_percent(summary.cpu_percent) : "—" %>
+        <% memory = summary.mem_bytes ? format_bytes(summary.mem_bytes) : "—" %>
+        <p class="app-card-metrics" title="<%= t("metrics.card.title", time: l(summary.sampled_at, format: :metrics_point)) %>">
+          <span><%= t("metrics.card.line", cpu:, memory:) %></span>
+          <%= metrics_sparkline(summary.cpu_points, from: summary.sampled_at - Metrics::CardSummary::SPAN, to: summary.sampled_at,
+                                label: t("metrics.card.sparkline", cpu:)) %>
+        </p>
+      <% end %>
+
+      <%= render "shared/heartbeat", history: StatusHistory.new(app) %>
+
+      <%# Quick links and actions (deploy, restart, logs, actions), each behind the same ManagedAppPolicy check
+          its own page uses. Rendering a card must not SSH: see the quick_actions partial. A broken app
+          gets no restart — its config can't be parsed, so nothing could run. %>
+      <div class="app-card-foot">
+        <%= link_to t(".open"), app, class: "btn-quiet", "aria-label": t(".open_label", name: app.name) %>
+        <% unless broken %>
+          <% if policy_for(app).act? %>
+            <%= link_to managed_app_path(app, tab: "deploy"), class: "btn-quiet",
+                        "aria-label": t(".deploy_label", name: app.name) do %>
+              <%= icon_tag("rocket", size: :sm) %><span><%= t(".deploy") %></span>
+            <% end %>
+          <% end %>
+          <%= render "managed_apps/quick_actions", managed_app: app, css: "btn-quiet" %>
+        <% end %>
+      </div>
+    </li>
+  <% end %>
+</ul>

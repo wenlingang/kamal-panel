@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="<%= I18n.locale %>">
   <head>
     <title><%= content_for(:title) || "Kamal Panel" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -28,78 +28,116 @@
   </head>
 
   <body>
-    <%# The auth pages are a standalone centered card and want no header — at that point there is no "current user" to speak of,
-        and nowhere to navigate to either. %>
+    <%# This layout has two shells. Signed in: a fixed dark sidebar plus the content column. Signed out
+        (login, forgot password, set a new password): a standalone centered card with no navigation — there
+        is no "current user" yet and nowhere to navigate to. %>
     <% if authenticated? %>
-      <header class="chrome">
-        <nav class="chrome-nav">
-          <%= link_to root_path, class: "chrome-brand" do %>
-            <%= render "shared/mark", size: "20px" %>Kamal Panel
+      <%# Below 900px the sidebar becomes a drawer opened from a top bar. The drawer behaviour is switched on
+          by nav-drawer itself (it adds .has-drawer): without JS the sidebar simply stacks above the content
+          and every link stays reachable. %>
+      <div class="shell" data-controller="nav-drawer"
+           data-action="keydown.esc@window->nav-drawer#close">
+        <header class="topbar">
+          <%= link_to root_path, class: "topbar-brand" do %>
+            <%= render "shared/mark", size: "1.25rem" %>Kamal Panel
           <% end %>
-          <%# The app list was folded into the overview, so every page under /apps/... (an app, its
-              action output, its lock) belongs to "Overview". %>
-          <%= nav_link_to t(".overview"), root_path, controllers: %w[overviews managed_apps actions locks], icon: "layout-grid" %>
-          <%= nav_link_to t(".audit"), audit_logs_path, controllers: "audit_logs", icon: "scroll-text" %>
-          <%# Only admin sees the people entry — the check uses the same UserPolicy as the controller. %>
-          <%= allowed_to(:manage, User) do %>
-            <%= nav_link_to t(".people"), users_path, controllers: "users", icon: "users" %>
+          <button type="button" class="menu-button" aria-controls="sidebar" aria-expanded="false"
+                  data-nav-drawer-target="button" data-action="nav-drawer#toggle">
+            <%= icon_tag("menu") %><span><%= t(".menu") %></span>
+          </button>
+        </header>
+
+        <aside id="sidebar" class="sidebar" data-nav-drawer-target="panel">
+          <%= link_to root_path, class: "sidebar-brand" do %>
+            <%= render "shared/mark", size: "1.5rem" %>Kamal Panel
           <% end %>
-          <%= allowed_to(:manage, Credential) do %>
-            <%= nav_link_to t(".credentials"), credentials_path,
-                            controllers: %w[credentials registry_credentials],
-                            icon: "key-round" %>
-          <% end %>
-        </nav>
-        <div class="chrome-user">
-          <%# When there is only one selectable language, render nothing at all: giving a dropdown with a single option
-              would make people think there are others to choose. %>
-          <% if User::SELECTABLE_LOCALES.many? %>
-            <span class="chrome-locale">
-              <%# The submit button is the [fallback when JS is absent] — the select does not submit the form by itself.
-                  With JS, the auto-submit controller hides it, turning it into "pick and go".
-                  Hiding it must be done by JS rather than hard-coded in CSS: CSS cannot know
-                  whether JS has actually loaded. %>
-              <%= form_with url: locale_path, method: :patch, class: "locale-form",
-                            data: { controller: "auto-submit",
-                                    action: "change->auto-submit#submit" } do |form| %>
-                <%= form.label :locale, t(".language"), class: "visually-hidden" %>
-                <%= form.select :locale,
-                                options_for_select(
-                                  User::SELECTABLE_LOCALES.map { |l| [ locale_label(l), l ] },
-                                  I18n.locale.to_s
-                                ),
-                                {}, { name: "locale" } %>
-                <%= form.submit t(".switch_language"),
-                                class: "btn-quiet",
-                                data: { auto_submit_target: "fallback" } %>
+
+          <%# Entries live in NavigationHelper: one line per section, so later sections slot in
+              without touching this markup. %>
+          <nav class="side-nav" aria-label="<%= t(".main_nav") %>">
+            <ul>
+              <% primary_nav_items.each do |item| %>
+                <li><%= sidebar_link(item) %></li>
               <% end %>
-            </span>
+            </ul>
+
+            <% if (settings = settings_nav_items).any? %>
+              <p class="side-nav-label" id="side-nav-settings"><%= t(".settings") %></p>
+              <ul aria-labelledby="side-nav-settings">
+                <% settings.each do |item| %>
+                  <li><%= sidebar_link(item) %></li>
+                <% end %>
+              </ul>
+            <% end %>
+          </nav>
+
+          <%# The account menu: who is signed in, their language, signing out. Language is a personal
+              preference, so it lives with the account rather than as a bare select next to "sign out" (where
+              a lone "中" read as a stray control). <details> opens and closes without JS; the dismiss
+              controller only adds closing on an outside click or Esc. %>
+          <div class="sidebar-user">
+            <details class="account-menu" data-controller="dismiss"
+                     data-action="click@window->dismiss#outside keydown.esc@window->dismiss#close">
+              <summary class="account-trigger">
+                <span class="account-avatar" aria-hidden="true"><%= Current.user&.display_name.to_s.first.upcase %></span>
+                <span class="account-text">
+                  <span class="account-name"><%= Current.user&.display_name %></span>
+                  <span class="account-role"><%= t("roles.#{Current.user&.role}") if Current.user %></span>
+                </span>
+                <%= icon_tag("chevron-down", size: :sm, css: "account-chevron") %>
+              </summary>
+
+              <div class="account-popover">
+                <p class="account-email"><%= Current.user&.email_address %></p>
+
+                <%# Only one selectable language would make a one-item choice: render nothing then. %>
+                <% if User::SELECTABLE_LOCALES.many? %>
+                  <div class="account-section" role="group" aria-labelledby="account-language">
+                    <p class="account-label" id="account-language"><%= icon_tag("globe", size: :sm) %><%= t(".language") %></p>
+                    <% User::SELECTABLE_LOCALES.each do |locale| %>
+                      <% current = locale == I18n.locale.to_s %>
+                      <%= button_to locale_path, method: :patch, params: { locale: locale },
+                                    class: "account-item", form_class: "account-item-form",
+                                    aria: { pressed: current }, lang: locale, data: { locale: locale } do %>
+                        <span><%= locale_name(locale) %></span>
+                        <%= icon_tag("check", size: :sm, css: "account-check") if current %>
+                      <% end %>
+                    <% end %>
+                  </div>
+                <% end %>
+
+                <div class="account-section">
+                  <%= button_to session_path, method: :delete, class: "account-item", form_class: "account-item-form" do %>
+                    <%= icon_tag("log-out", size: :sm) %><span><%= t(".sign_out") %></span>
+                  <% end %>
+                </div>
+              </div>
+            </details>
+          </div>
+        </aside>
+
+        <div class="drawer-scrim" data-nav-drawer-target="scrim" data-action="click->nav-drawer#close" hidden></div>
+
+        <main class="page">
+          <%# Only render the [message] keys. flash is also used to carry payloads across one redirect (:hook_token
+              is the plaintext report token, read by deploy_reporting and rendered into a script); rendering that as a message
+              would put a secret naked at the top of the page. %>
+          <% flash.to_h.slice("notice", "alert", "warning").each do |type, message| %>
+            <p class="flash flash-<%= type %>" role="<%= type.to_s == "notice" ? "status" : "alert" %>">
+              <%= icon_tag(flash_icon(type), size: :sm) %><%= message %>
+            </p>
           <% end %>
-          <span><%= Current.user&.display_name %></span>
-          <%= button_to t(".sign_out"), session_path, method: :delete, class: "btn-quiet" %>
-        </div>
-      </header>
+
+          <%= yield %>
+        </main>
+      </div>
+    <% else %>
+      <%# No flash here: the three signed-out pages each render flash [inside] their card. Rendering it here too
+          would put it above the centered card, full width and out of line with it — and before, both sides
+          rendered it, so on a failed login the same sentence appeared twice. %>
+      <main class="page page-auth">
+        <%= yield %>
+      </main>
     <% end %>
-
-    <main class="page">
-      <%# flash follows the header, with a condition exactly the same as the header above — this layout actually has
-          two shells: after login it is "header + wide container", before login it is the auth page's own centered card.
-          The .flash styles are meant for the wide container; stuck above a centered card they would span the full width, left-aligned,
-          and not line up with the card. The three logged-out pages (login, forgot password, set new password) each render flash
-          [inside] their card, so it must not be rendered again here — before, both sides rendered it, so on a failed
-          login the same sentence appeared twice. %>
-      <%# Only render the [message] keys. flash is also used to carry payloads across one redirect (:hook_token
-          is the plaintext report token, read by deploy_reporting and rendered into a script); rendering that as a message
-          would put a secret naked at the top of the page. %>
-      <% if authenticated? %>
-        <% flash.to_h.slice("notice", "alert", "warning").each do |type, message| %>
-          <p class="flash flash-<%= type %>" role="<%= type.to_s == "notice" ? "status" : "alert" %>">
-            <%= icon_tag(flash_icon(type), size: :sm) %><%= message %>
-          </p>
-        <% end %>
-      <% end %>
-
-      <%= yield %>
-    </main>
   </body>
 </html>

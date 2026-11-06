@@ -1,0 +1,60 @@
+# Resource metrics: the app page's metrics tab, the overview card's metrics line, chart text.
+# Kept in its own file so the feature's strings sit together; I18n deep-merges it with en.yml.
+en:
+  metrics:
+    ranges:
+      1h: 1 hour
+      6h: 6 hours
+      24h: 24 hours
+      7d: 7 days
+    kinds:
+      app: app
+      accessory: accessory
+      proxy: proxy
+    levels:
+      warn: high
+      critical: very high
+    tab:
+      title: Resource metrics
+      range_label: Time range
+      config_unparseable: deploy.yml can't be parsed, so the panel can't tell which hosts this app runs on; metrics are unavailable for now.
+      empty: No metrics in the last %{range}. The panel reads docker stats and /proc on every host over SSH once a minute; a newly added app shows data within a minute or two.
+      empty_no_key: No metrics yet — this app has no SSH key, so the panel can't log in to its hosts to read CPU and memory. Pick an SSH key under Edit and it is collected every minute.
+      containers: Containers
+      hosts: Hosts
+      no_recent_containers: No running container of this app was read in the last 5 minutes.
+      no_recent_host: Nothing read from this host in the last 5 minutes (unreachable, or not Linux).
+      cpu_hint: Container CPU is docker stats' figure — 100% is one full core. For a container without a memory limit, the memory share is of the whole host. kamal-proxy is shared by the apps on a host and is left out of an app's totals and alerts.
+    table:
+      container: Container
+      host: Host
+      cpu: CPU
+      memory: Memory / limit
+      memory_percent: Memory share
+      pids: Processes
+      no_limit: no limit
+    host:
+      load: Load (1 min)
+      load1: 1-minute load
+      cpus:
+        one: "%{count} core"
+        other: "%{count} cores"
+      cpu_count: CPU cores
+      cpu: CPU
+      memory: Memory
+      disk: Disk (/)
+      swap: Swap
+    charts:
+      container_cpu: Container CPU
+      container_memory: Container memory
+      host_usage: CPU / memory / disk used
+      host_load: Load
+      limit: Limit %{series}
+    chart:
+      no_data: "%{title}: no data in this range."
+      summary_series: "%{label} latest %{latest}, highest %{max}"
+      separator: "; "
+    card:
+      line: CPU %{cpu} · memory %{memory}
+      title: Total of the app's containers (kamal-proxy excluded) at %{time}; 100% CPU is one core.
+      sparkline: Container CPU total over the last hour, latest %{cpu}

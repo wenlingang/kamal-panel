@@ -12,7 +12,11 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     "ManagedAppsController" => %w[new create],
     "UsersController" => %w[index new create edit update deactivate reactivate],
     "CredentialsController" => %w[index new create edit update destroy],
-    "RegistryCredentialsController" => %w[new create edit update destroy]
+    "RegistryCredentialsController" => %w[new create edit update destroy],
+    "GitConnectionsController" => %w[index new create edit update destroy check],
+    "NotificationChannelsController" => %w[index new create edit update destroy test_delivery],
+    # index is not here on purpose: everyone signed in reads the rules (AlertsController too).
+    "AlertRulesController" => %w[new create edit update destroy]
   }.freeze
 
   # Actions whose permission depends on the app in the URL can't be declared with a class macro
@@ -24,6 +28,9 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
   # -- it takes no deploy lock, writes no audit, changes no live state, and only moves up a collection that would
   # have happened automatically anyway (design 11 §3.2, open to all three roles). Don't "fix" it by
   # adding it in.
+  # DeploysController (index, new) is not listed either: like the overview and each app's history
+  # it is readable by everyone signed in, and new only lists the apps the person may deploy; the
+  # deploy itself goes through AppDeploysController.
   INLINE = {
     "app/controllers/actions_controller.rb"     => [
       "ManagedAppPolicy.new(Current.user, app).run?",
@@ -36,6 +43,16 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     ],
     "app/controllers/hook_tokens_controller.rb" => [
       "require_permission!(:regenerate_hook_token, app)"
+    ],
+    # versions / new / create: deploying is act? (spec 9), the version list and confirm page too.
+    "app/controllers/app_deploys_controller.rb" => [
+      "require_permission!(:act, @managed_app)"
+    ],
+    # index (with an app chosen) and results: reading logs is view_logs? (spec 9). index without an
+    # app only lists apps already filtered by the same policy.
+    "app/controllers/logs_controller.rb" => [
+      "require_permission!(:view_logs, @managed_app)",
+      "policy_for(app).view_logs?"
     ]
   }.freeze
 

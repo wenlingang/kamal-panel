@@ -1,0 +1,110 @@
+<%= render "alerts/head" %>
+
+<%# Alerting broadcasts a refresh on "alerts" whenever an event opens, fires or resolves, so an open page
+    keeps up without polling. %>
+<%= turbo_stream_from "alerts" %>
+
+<%= render "alerts/tabs", current: :events %>
+
+<section class="section">
+  <div class="section-head">
+    <h2><%= t(".firing", count: @firing.size) %></h2>
+  </div>
+  <% if @firing.empty? %>
+    <div class="panel">
+      <div class="empty-state">
+        <%= icon_tag("circle-check", css: "empty-icon") %>
+        <p class="empty-hint"><%= t(".none_firing") %></p>
+      </div>
+    </div>
+  <% else %>
+    <ul class="alert-list" role="list">
+      <% @firing.each do |event| %>
+        <li class="alert-item">
+          <div class="alert-item-main">
+            <p class="alert-item-title">
+              <%= alert_state_badge(event) %>
+              <%= link_to event.managed_app.name, managed_app_path(event.managed_app), class: "alert-item-app" %>
+              <span class="alert-item-rule"><%= event.alert_rule.name %></span>
+            </p>
+            <p class="alert-item-message"><%= event.message %></p>
+            <p class="alert-item-meta">
+              <%= t(".since_html", time: timestamp(event.fired_at || event.started_at),
+                              duration: alert_event_duration(event)) %>
+            </p>
+          </div>
+          <div class="row-actions"><%= alert_event_links(event) %></div>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2><%= t(".history") %></h2>
+  </div>
+
+  <%= form_with url: alerts_path, method: :get, class: "filter-bar",
+                data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
+    <%= form.label :app_id, t(".filter_app"), class: "visually-hidden" %>
+    <%= form.select :app_id, options_for_select(@apps.map { |app| [ app.name, app.id ] }, @filter.app_id),
+                    { include_blank: t(".filter_all_apps") } %>
+
+    <%= form.label :state, t(".filter_state"), class: "visually-hidden" %>
+    <%= form.select :state,
+                    options_for_select(AlertEvent::STATES.map { |state| [ t("alerts.states.#{state}"), state ] }, @filter.state),
+                    { include_blank: t(".filter_all_states") } %>
+
+    <%# Filters apply as soon as they change; the button is the no-JS fallback. %>
+    <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
+
+    <% if @filter.active? %>
+      <%= link_to t(".filter_clear"), alerts_path, class: "filter-clear" %>
+    <% end %>
+  <% end %>
+
+  <div class="panel panel-flush">
+    <% if @page.entries.empty? %>
+      <p class="empty-hint"><%= @filter.active? ? t(".no_matches") : t(".empty") %></p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".started_at") %></th>
+            <th><%= t(".app") %></th>
+            <th><%= t(".rule") %></th>
+            <th><%= t(".state") %></th>
+            <th><%= t(".message") %></th>
+            <th><%= t(".resolved_at") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @page.entries.each do |event| %>
+            <tr>
+              <td><%= timestamp(event.started_at) %></td>
+              <td><%= link_to event.managed_app.name, managed_app_path(event.managed_app) %></td>
+              <td><%= event.alert_rule.name %></td>
+              <td><%= alert_state_badge(event) %></td>
+              <td><%= event.message %></td>
+              <td>
+                <% if event.resolved_at %>
+                  <%= timestamp(event.resolved_at) %>
+                  <span class="hint"><%= t(".lasted", duration: alert_event_duration(event)) %></span>
+                <% else %>
+                  <%= placeholder("—") %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <% if @page.next_before %>
+        <p class="pager">
+          <%= link_to t(".older"), alerts_path(app_id: @filter.app_id, state: @filter.state, before: @page.next_before) %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</section>

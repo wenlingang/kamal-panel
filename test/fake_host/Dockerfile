@@ -1,6 +1,6 @@
 FROM docker:29-dind
 
-RUN apk add --no-cache openssh-server
+RUN apk upgrade --no-cache && apk add --no-cache openssh-server
 
 RUN ssh-keygen -A \
  && adduser -D -s /bin/sh deploy \

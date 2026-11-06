@@ -54,47 +54,48 @@ class LocalesControllerTest < ActionDispatch::IntegrationTest
   # and the header wouldn't render at all -- that assertion would be a false green, passing whether
   # or not the switcher is right. So each case first asserts that the header is actually there, then
   # asserts the switcher.
-  test "renders the header switcher as a dropdown with one option per available locale" do
+  test "the account menu offers one button per locale, each named in its own language" do
     sign_in_as users(:one)
 
     get root_path
 
-    assert_select ".chrome-user"
-    assert_select ".chrome-locale select[name=locale] option",
-                  count: User::SELECTABLE_LOCALES.size
+    assert_select ".account-menu summary .account-name"
+    assert_select ".account-menu form[action=?] input[name=locale]", locale_path, count: User::SELECTABLE_LOCALES.size
+    assert_select ".account-menu button[data-locale=en]", text: "English"
+    assert_select ".account-menu button[data-locale=zh-CN]", text: "简体中文"
   end
 
-  test "selects the current locale in the dropdown" do
+  test "marks the current locale as pressed" do
     users(:one).update!(locale: "en")
     sign_in_as users(:one)
 
     get root_path
 
-    assert_select ".chrome-locale select option[selected][value=en]"
+    assert_select ".account-menu button[data-locale=en][aria-pressed=true]"
+    assert_select ".account-menu button[data-locale=zh-CN][aria-pressed=false]"
   end
 
-  # It must also work without JS: the select doesn't submit the form by itself. With JS this button
-  # is hidden by the auto-submit controller, replaced by "go as soon as you pick".
-  test "puts a real submit button next to the dropdown as a no-JS fallback" do
+  # Plain button_to forms: they work without JS, as PATCH like before.
+  test "each locale button is a real PATCH form" do
     sign_in_as users(:one)
 
     get root_path
 
-    assert_select ".chrome-locale form[method=post] input[type=submit]"
-    assert_select ".chrome-locale form input[name=_method][value=patch]", count: 1
+    assert_select ".account-menu form[method=post] input[name=_method][value=patch]",
+                  count: User::SELECTABLE_LOCALES.size
   end
 
   # With only one selectable language, render nothing: a switcher with a single option would make
   # people think there are other choices. The first four batches of design 13 live in exactly this
   # state -- the mechanism is testable, the entry point isn't exposed.
-  test "hides the header switcher when only one locale is available" do
+  test "hides the language choice when only one locale is available" do
     with_selectable_locales(%w[zh-CN]) do
       sign_in_as users(:one)
 
       get root_path
 
-      assert_select ".chrome-user"
-      assert_select ".chrome-locale", count: 0
+      assert_select ".account-menu"
+      assert_select ".account-menu button[data-locale]", count: 0
     end
   end
 

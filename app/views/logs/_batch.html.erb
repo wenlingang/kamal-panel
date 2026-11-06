@@ -1,0 +1,4 @@
+<%# One follow-mode increment: the new rows and the next cursor. Read by log_viewer_controller, never shown as
+    is. locals: query, result %>
+<div data-log-batch data-cursor="<%= result.cursor.utc.iso8601(9) %>" data-seen="<%= result.boundary_keys.join(",") %>"
+     data-errors="<%= result.errors.size %>"><%= log_rows(result.entries, hosts: query.source.hosts, pattern: log_keyword_pattern(query.keyword, query.case_sensitive)) %></div>

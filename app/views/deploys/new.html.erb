@@ -1,0 +1,43 @@
+<%= breadcrumb(t(".back"), deploys_path) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel panel-flush">
+    <% if @apps.empty? %>
+      <p class="empty-hint"><%= t(".none") %></p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".app") %></th>
+            <th><%= t(".repository") %></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @apps.each do |app| %>
+            <tr>
+              <td><%= app.name %></td>
+              <td>
+                <% if app.git_configured? %>
+                  <span class="mono"><%= app.repository %></span>
+                <% else %>
+                  <%= placeholder(t(".manual_only")) %>
+                <% end %>
+              </td>
+              <td>
+                <%= link_to t(".pick"), managed_app_path(app, tab: "deploy"), class: "btn-quiet" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</section>

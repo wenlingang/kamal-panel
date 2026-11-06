@@ -1,0 +1,52 @@
+<%# locals: connection. The token field is always empty: tokens are write-only. On edit, leaving it empty keeps
+    the current one. %>
+<%= form_with model: connection do |form| %>
+  <% if connection.errors.any? %>
+    <ul class="errors">
+      <% connection.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <div>
+    <%= form.label :name, t("git_connections.form.name") %>
+    <%= form.text_field :name, autocomplete: "off" %>
+  </div>
+
+  <div>
+    <%= form.label :provider, t("git_connections.form.provider") %>
+    <% if connection.new_record? %>
+      <%= form.select :provider, GitConnection::PROVIDERS.map { |p| [ t("git_connections.providers.#{p}"), p ] } %>
+    <% else %>
+      <p><%= t("git_connections.providers.#{connection.provider}") %></p>
+      <p class="hint"><%= t("git_connections.form.provider_locked") %></p>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.label :api_url, t("git_connections.form.api_url") %>
+    <%= form.url_field :api_url, autocomplete: "off", placeholder: "https://api.github.com" %>
+    <p class="hint"><%= t("git_connections.form.api_url_hint") %></p>
+  </div>
+
+  <div>
+    <%= form.label :web_url, t("git_connections.form.web_url") %>
+    <%= form.url_field :web_url, autocomplete: "off", placeholder: "https://github.com" %>
+    <p class="hint"><%= t("git_connections.form.web_url_hint") %></p>
+  </div>
+
+  <div>
+    <%= form.label :token, t("git_connections.form.token") %>
+    <%= form.password_field :token, value: "", autocomplete: "off" %>
+    <p class="hint">
+      <%= t("git_connections.form.token_hint") %>
+      <% if connection.persisted? %><%= t("git_connections.form.token_keep", hint: connection.token_hint) %><% end %>
+    </p>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit t("common.save"), class: "btn-primary" %>
+    <%= link_to t("git_connections.form.cancel"), git_connections_path, class: "btn" %>
+  </div>
+<% end %>

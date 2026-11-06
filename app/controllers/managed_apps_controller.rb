@@ -1,4 +1,12 @@
 class ManagedAppsController < ApplicationController
+  # The detail page's tabs, server-rendered from ?tab=. The logs tab only for people who may read
+  # this app's logs (view_logs?); for anyone else ?tab=logs falls back to the overview.
+  TABS = %w[overview deploy logs metrics actions history].freeze
+
+  # Where the source lives and how CI tags images: anyone who may edit the app may set these. Which
+  # Git connection (token) it reads through is an admin choice, like credentials.
+  GIT_FIELDS = %i[ repository git_branch version_format ].freeze
+
   authorize :create_app, on: ManagedApp, only: %i[ new create ]
 
   before_action :set_managed_app, only: %i[ edit update ]
@@ -12,6 +20,8 @@ class ManagedAppsController < ApplicationController
 
   def show
     @managed_app = ManagedApp.find(params[:id])
+    @tab = params[:tab].presence_in(TABS) || TABS.first
+    @tab = TABS.first unless visible_tabs.include?(@tab)
 
     PollCadence.mark_viewed!(@managed_app)
   end
@@ -66,6 +76,11 @@ class ManagedAppsController < ApplicationController
   end
 
   private
+    def visible_tabs
+      TABS.select { |tab| tab != "logs" || policy_for(@managed_app).view_logs? }
+    end
+    helper_method :visible_tabs
+
     def set_managed_app
       @managed_app = ManagedApp.find(params[:id])
       require_permission!(:act, @managed_app)
@@ -79,12 +94,13 @@ class ManagedAppsController < ApplicationController
     def create_params
       params.expect(managed_app: [ :name, :config_yaml, :destination, :destination_config_yaml,
                                    :kamal_secrets, :kamal_hooks,
-                                   :ssh_credential_id, :registry_credential_id ])
+                                   :ssh_credential_id, :registry_credential_id,
+                                   :git_connection_id, *GIT_FIELDS ])
     end
 
     def update_params
-      permitted = [ :name, :config_yaml, :destination_config_yaml, :kamal_secrets, :kamal_hooks ]
-      permitted += [ :ssh_credential_id, :registry_credential_id ] if assign_credentials?
+      permitted = [ :name, :config_yaml, :destination_config_yaml, :kamal_secrets, :kamal_hooks, *GIT_FIELDS ]
+      permitted += [ :ssh_credential_id, :registry_credential_id, :git_connection_id ] if assign_credentials?
 
       params.expect(managed_app: permitted)
     end

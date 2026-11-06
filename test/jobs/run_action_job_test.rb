@@ -124,9 +124,9 @@ class RunActionJobTest < ExecutionLayerTest
   # that bug is the page stuck on "Running…" forever, very far from the cause, and only
   # visible when running system tests. This blocks that class of bug up front the cheapest way.
   test "has both Chinese and English translations for the terminal broadcast" do
-    %w[actions.result.succeeded actions.result.failed].each do |key|
+    %w[success failure interrupted running].each do |state|
       %i[zh-CN en].each do |locale|
-        assert I18n.exists?(key, locale), "#{key} missing #{locale} translation"
+        assert I18n.exists?("actions.run_status.#{state}", locale), "actions.run_status.#{state} missing #{locale} translation"
       end
     end
   end
@@ -139,8 +139,10 @@ class RunActionJobTest < ExecutionLayerTest
     users(:two).update!(locale: "en")
     log.finish!(result: "success", command: "x", output_digest: "", duration_ms: 1)
 
-    assert_equal "Done — the panel is collecting again to confirm",
-                 RunActionJob.new.send(:result_text, log.reload)
+    html = RunActionJob.new.send(:result_html, log.reload)
+
+    assert_includes html, 'id="action-result"', "the replacement must keep the target id, or the next update has nowhere to go"
+    assert_includes html, "Done"
   end
 
   test "uses the default locale for the terminal broadcast when the initiator has no locale" do
@@ -151,6 +153,6 @@ class RunActionJobTest < ExecutionLayerTest
     users(:two).update!(locale: nil)
     log.finish!(result: "failure", command: "x", output_digest: "", duration_ms: 1)
 
-    assert_equal "失败", RunActionJob.new.send(:result_text, log.reload)
+    assert_includes RunActionJob.new.send(:result_html, log.reload), "失败"
   end
 end

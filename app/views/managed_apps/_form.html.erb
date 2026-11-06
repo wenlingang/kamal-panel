@@ -54,6 +54,46 @@
     </div>
   </section>
 
+  <%# Optional. With it, the deploy tab lists commits (or tags) with CI and image status; without it, deploying
+      still works by typing a version. %>
+  <section class="section" id="git">
+    <h2><%= t(".git_section") %></h2>
+    <div class="panel">
+      <p class="hint"><%= t(".git_section_hint") %></p>
+      <%= allowed_to(:assign_credentials, managed_app) do %>
+        <div>
+          <%= form.label :git_connection_id, t(".git_connection") %>
+          <%= form.collection_select :git_connection_id, GitConnection.order(:name), :id, :name,
+                                     { include_blank: t(".none_selected") } %>
+          <p class="hint">
+            <%= t(".git_connection_hint") %>
+            <%= link_to t(".go_to_git_connections"), git_connections_path %>。
+          </p>
+        </div>
+      <% end %>
+
+      <div>
+        <%= form.label :repository, t(".repository") %>
+        <%= form.text_field :repository, autocomplete: "off", spellcheck: false, autocapitalize: "off",
+                                         placeholder: "acme/shop" %>
+        <p class="hint"><%= t(".repository_hint") %></p>
+      </div>
+
+      <div>
+        <%= form.label :git_branch, t(".git_branch") %>
+        <%= form.text_field :git_branch, autocomplete: "off", spellcheck: false, autocapitalize: "off",
+                                         placeholder: t(".git_branch_placeholder") %>
+      </div>
+
+      <div>
+        <%= form.label :version_format, t(".version_format") %>
+        <%= form.select :version_format,
+                        ManagedApp::VERSION_FORMATS.map { |format| [ t(".version_formats.#{format}"), format ] } %>
+        <p class="hint"><%= t(".version_format_hint") %></p>
+      </div>
+    </div>
+  </section>
+
   <section class="section">
     <h2><%= t(".credentials_section") %></h2>
     <div class="panel">

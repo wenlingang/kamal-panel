@@ -18,7 +18,7 @@ class HookTokensControllerTest < ActionDispatch::IntegrationTest
 
     post managed_app_hook_token_path(@managed_app)
 
-    assert_redirected_to managed_app_path(@managed_app)
+    assert_redirected_to managed_app_path(@managed_app, tab: "history")
     assert flash[:hook_token].present?, "The plaintext token appears only in this one flash"
     assert @managed_app.reload.hook_reporting_enabled?
   end
@@ -58,7 +58,7 @@ class HookTokensControllerTest < ActionDispatch::IntegrationTest
 
     post managed_app_hook_token_path(@managed_app)
 
-    assert_redirected_to managed_app_path(@managed_app)
+    assert_redirected_to managed_app_path(@managed_app, tab: "history")
     assert flash[:hook_token].present?
     refute_equal digest_before, @managed_app.reload.hook_token_digest
   end

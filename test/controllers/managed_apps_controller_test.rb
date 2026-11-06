@@ -121,7 +121,7 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     get overview_path
 
     assert_select "section.deactivated-apps a[href=?]", managed_app_path(app), text: /retired/
-    assert_select ".overview-grid a", text: "retired", count: 0
+    assert_select ".app-card a", text: "retired", count: 0
   end
 
   test "still lists the other apps on the overview when one app's deploy.yml is broken" do
@@ -455,5 +455,92 @@ class ManagedAppsControllerTest < ActionDispatch::IntegrationTest
     get managed_app_path(app)
 
     assert_response :success
+  end
+
+  test "the detail page is split into tabs, overview first" do
+    app = editable_app
+
+    get managed_app_path(app)
+
+    assert_select "nav.tabs a.tab", ManagedAppsController::TABS.size
+    assert_select "nav.tabs a.tab[aria-current=page]", text: I18n.t("managed_apps.show.tabs.overview")
+    assert_select "#host-status"
+    assert_select ".page-head #app-heartbeat .heartbeat-cells"
+  end
+
+  test "the history tab shows deploy history and reporting, not host status" do
+    app = editable_app
+
+    get managed_app_path(app, tab: "history")
+
+    assert_select "nav.tabs a.tab[aria-current=page]", text: I18n.t("managed_apps.show.tabs.history")
+    assert_select "h2", text: I18n.t("managed_apps.deploy_history.title")
+    assert_select "#hook_token_dialog"
+    assert_select "#host-status", count: 0
+  end
+
+  test "an unknown tab falls back to the overview" do
+    app = editable_app
+
+    get managed_app_path(app, tab: "nope")
+
+    assert_response :success
+    assert_select "nav.tabs a.tab[aria-current=page]", text: I18n.t("managed_apps.show.tabs.overview")
+  end
+
+  test "the header offers restart and a link to the actions tab, the link dropped on that tab itself" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+
+    get managed_app_path(app)
+
+    assert_select ".head-actions form[action=?] button", managed_app_actions_path(app), text: I18n.t("quick_actions.restart")
+    assert_select ".head-actions a[href=?]", managed_app_path(app, tab: "actions")
+
+    get managed_app_path(app, tab: "actions")
+
+    assert_select ".head-actions a[href=?]", managed_app_path(app, tab: "actions"), count: 0
+  end
+
+  test "admin sets the repository and which Git connection reads it; the change is audited by field name" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+    connection = GitConnection.create!(name: "github", provider: "github", token: "ghp_token_for_tests")
+
+    patch managed_app_path(app), params: { managed_app: {
+      git_connection_id: connection.id, repository: "acme/blog", git_branch: "release", version_format: "tag"
+    } }
+
+    app.reload
+    assert_equal [ connection, "acme/blog", "release", "tag" ],
+                 [ app.git_connection, app.repository, app.git_branch, app.version_format ]
+    fields = AuditLog.where(action_name: "app.update").last.detail_args["fields"]
+    assert_includes fields, "git_connection_id"
+    assert_includes fields, "repository"
+  end
+
+  test "a member developer can set the repository but not pick the Git connection" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+    connection = GitConnection.create!(name: "github", provider: "github", token: "ghp_token_for_tests")
+    AppMembership.create!(user: users(:three), managed_app: app)
+    sign_in_as users(:three)
+
+    get edit_managed_app_path(app)
+    assert_select "select[name=?]", "managed_app[git_connection_id]", count: 0
+    assert_select "input[name=?]", "managed_app[repository]"
+
+    patch managed_app_path(app), params: { managed_app: { git_connection_id: connection.id, repository: "acme/blog" } }
+
+    app.reload
+    assert_nil app.git_connection
+    assert_equal "acme/blog", app.repository
+  end
+
+  test "a repository path that isn't one is refused" do
+    app = ManagedApp.create!(name: "blog", config_yaml: valid_yaml, destination: "production")
+
+    patch managed_app_path(app), params: { managed_app: { repository: "../../etc", version_format: "sha" } }
+    assert_response :unprocessable_entity
+
+    patch managed_app_path(app), params: { managed_app: { repository: "acme/blog", version_format: "latest" } }
+    assert_response :unprocessable_entity
   end
 end

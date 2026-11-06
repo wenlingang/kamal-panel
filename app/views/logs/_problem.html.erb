@@ -1,0 +1,4 @@
+<%# The frame body when the query didn't run at all (rate limited, invalid conditions). locals: message %>
+<%= turbo_frame_tag "log_results", class: "log-results" do %>
+  <p class="callout callout-warn"><%= message %></p>
+<% end %>

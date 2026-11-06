@@ -1,0 +1,228 @@
+<%# The actions tab body. Rendered twice: first straight into the page with lock state :reading (no SSH,
+    so the buttons are there at once), then again by LocksController once the lock has been read, replacing
+    the frame. Buttons never disappear: when one can't be used it is disabled and the reason is on screen
+    (spec §5 — the old block vanished whenever the lock read failed, leaving nothing to click and no why).
+    locals: managed_app, lock (see ActionsHelper#lock_state_for) %>
+<% config = managed_app.parsed_config %>
+<% can_act = policy_for(managed_app).act? %>
+<% locked = lock[:state] == :locked %>
+<% list = ->(items) { joined_list(items, empty: "—") } %>
+
+<div class="action-status">
+  <% case lock[:state] %>
+  <% when :no_key %>
+    <p class="lock-unknown">
+      <strong><%= t("managed_apps.actions_panel.lock.no_key") %></strong> —— <%= t("managed_apps.actions_panel.lock.no_key_detail") %>
+      <% if can_act %>
+        <%= link_to t("managed_apps.actions_panel.lock.no_key_link"), edit_managed_app_path(managed_app) %>
+      <% else %>
+        <%= t("managed_apps.actions_panel.lock.no_key_ask") %>
+      <% end %>
+    </p>
+  <% when :locked %>
+    <div class="lock-held">
+      <p><strong><%= t("managed_apps.actions_panel.lock.held") %></strong> —— <%= t("managed_apps.actions_panel.lock.held_detail") %></p>
+      <% if lock[:details].present? %>
+        <p class="lock-details"><%= t("managed_apps.actions_panel.lock.held_by") %></p>
+        <pre class="lock-details"><%= lock[:details] %></pre>
+      <% end %>
+      <%# spec 7.4: without a force unlock, a dead lock left by a crashed CI run could only be cleared over SSH.
+          It can interrupt a real deploy in progress, so it appears only while a lock really exists, is collapsed
+          by default, and needs act permission on this app plus the typed app name. %>
+      <% if policy_for(managed_app).run?(Actions::ForceUnlock) %>
+        <%= render "managed_apps/confirm_name_action", managed_app: managed_app, name: "force_unlock",
+                   summary: t("managed_apps.actions_panel.lock.force_unlock"),
+                   warning: t("managed_apps.actions_panel.lock.force_unlock_warning"),
+                   submit: t("managed_apps.actions_panel.lock.force_unlock_submit"), disabled: false %>
+      <% end %>
+    </div>
+  <% when :unknown %>
+    <p class="lock-unknown">
+      <strong><%= t("managed_apps.actions_panel.lock.unknown") %></strong>（<%= lock[:error] %>）——
+      <%= t("managed_apps.actions_panel.lock.unknown_detail") %>
+    </p>
+  <% when :reading %>
+    <p class="hint lock-reading"><%= icon_tag("loader-circle", size: :sm, css: "spin") %><%= t("managed_apps.actions_panel.lock.reading") %></p>
+  <% else %>
+    <p class="hint lock-free"><%= icon_tag("circle-check", size: :sm) %><%= t("managed_apps.actions_panel.lock.free") %></p>
+  <% end %>
+
+  <% if can_act %>
+    <p class="hint"><%= t("managed_apps.actions_panel.audited") %></p>
+  <% else %>
+    <p class="callout callout-warn actions-read-only"><%= t("managed_apps.actions_panel.no_permission") %></p>
+  <% end %>
+</div>
+
+<%# ── App ─────────────────────────────────────────────────────────── %>
+<section class="action-group" id="action-group-app">
+  <div class="action-group-head">
+    <h3><%= t("managed_apps.actions_panel.app.title") %></h3>
+    <%# The blast radius sits next to the buttons (spec 7.7): restart/start need no typed name, so people
+        must at least see which roles on which machines they touch. %>
+    <p class="affected-scope"><%= t("managed_apps.actions_panel.scope", hosts: list.(config.app_hosts), roles: list.(config.role_names)) %></p>
+  </div>
+
+  <% running = RollbackCandidates.new(managed_app).running_version %>
+  <div class="action-buttons">
+    <%# `app boot` must carry --version. When the observations can't tell which version is running the button
+        stays, disabled, with the reason below — rather than raising an ArgumentError on the action page. %>
+    <% restart_disabled = running.nil? || action_disabled?(managed_app, Actions::Restart, lock) %>
+    <%= form_with url: managed_app_actions_path(managed_app), method: :post, class: "restart-form",
+                  data: ({ turbo_confirm: t("managed_apps.actions_panel.app.restart_confirm",
+                                            name: managed_app.name, version: running) } unless restart_disabled) do |form| %>
+      <fieldset class="action-fieldset" <%= "disabled" if restart_disabled %>>
+        <%= form.hidden_field :name, value: "restart", id: nil %>
+        <%= form.hidden_field :version, value: running, id: nil %>
+        <% if config.app_hosts.size > 1 %>
+          <%# Restart on one host only (--hosts); the server checks the host against the parsed config. %>
+          <%= form.label :target, t("managed_apps.actions_panel.app.restart_on"), for: "restart_target", class: "visually-hidden" %>
+          <%= form.select :target, [ [ t("managed_apps.actions_panel.app.restart_all_hosts"), "" ] ] + config.app_hosts.map { |h| [ h, h ] },
+                          {}, id: "restart_target", class: "select-compact" %>
+        <% end %>
+        <%= form.submit t("managed_apps.actions_panel.app.restart") %>
+      </fieldset>
+    <% end %>
+
+    <%= action_button managed_app, "start", t("managed_apps.actions_panel.app.start"), lock: lock,
+                      confirm: t("managed_apps.actions_panel.app.start_confirm", name: managed_app.name, hosts: list.(config.app_hosts)) %>
+    <%= action_button managed_app, "live", t("managed_apps.actions_panel.app.live"), lock: lock,
+                      confirm: t("managed_apps.actions_panel.app.live_confirm", name: managed_app.name) %>
+  </div>
+  <% if running.nil? %>
+    <p class="action-unavailable"><%= t("managed_apps.actions_panel.app.restart_unavailable") %></p>
+  <% end %>
+
+  <%# Stopping and maintenance mode really take the service offline, so like rollback they need the typed name. %>
+  <%= render "managed_apps/confirm_name_action", managed_app: managed_app, name: "stop",
+             summary: t("managed_apps.actions_panel.app.stop"),
+             warning: t("managed_apps.actions_panel.app.stop_warning"),
+             submit: t("managed_apps.actions_panel.app.stop_submit"),
+             disabled: action_disabled?(managed_app, Actions::Stop, lock) %>
+  <%= render "managed_apps/confirm_name_action", managed_app: managed_app, name: "maintenance",
+             summary: t("managed_apps.actions_panel.app.maintenance"),
+             warning: t("managed_apps.actions_panel.app.maintenance_warning"),
+             submit: t("managed_apps.actions_panel.app.maintenance_submit"),
+             disabled: action_disabled?(managed_app, Actions::Maintenance, lock) %>
+</section>
+
+<%# ── Rollback ────────────────────────────────────────────────────── %>
+<section class="action-group" id="action-group-rollback">
+  <div class="action-group-head">
+    <h3><%= t("managed_apps.actions_panel.rollback.title") %></h3>
+  </div>
+  <%# List only versions that can really be rolled back (spec 7.1): kamal rollback needs that version's container
+      to still exist on every host, and refuses outright if even one is missing. The panel already holds the full
+      docker ps --all, so it grays out the ones that can't be rolled back and says which host is missing. %>
+  <% candidates = RollbackCandidates.new(managed_app).list %>
+  <% if candidates.empty? %>
+    <p class="hint"><%= t("managed_apps.actions_panel.rollback.none") %></p>
+  <% else %>
+    <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
+      <fieldset class="action-fieldset" <%= "disabled" if action_disabled?(managed_app, Actions::Rollback, lock) %>>
+        <%= form.hidden_field :name, value: "rollback", id: nil %>
+        <ol class="rollback-steps">
+          <li>
+            <strong><%= t("managed_apps.actions_panel.rollback.step_version") %></strong>
+            <% candidates.each do |c| %>
+              <label class="<%= "unavailable" unless c[:available] %>">
+                <%= form.radio_button :version, c[:version], disabled: !c[:available] %>
+                <%= c[:version] %>
+                <% unless c[:available] %>
+                  <small>—— <%= c[:reason] %></small>
+                <% end %>
+              </label>
+            <% end %>
+          </li>
+          <li>
+            <strong><%= t("managed_apps.actions_panel.rollback.step_scope") %></strong>
+            <p><%= t("managed_apps.actions_panel.scope", hosts: list.(config.app_hosts), roles: list.(config.role_names)) %></p>
+          </li>
+          <li>
+            <strong><%= t("managed_apps.actions_panel.rollback.step_confirm") %></strong>
+            <%= form.text_field :confirm_name, id: "rollback_confirm_name", placeholder: managed_app.name, autocomplete: "off" %>
+          </li>
+        </ol>
+        <%= form.submit t("managed_apps.actions_panel.rollback.submit"), class: "btn-danger" %>
+      </fieldset>
+    <% end %>
+  <% end %>
+</section>
+
+<%# ── Accessories ─────────────────────────────────────────────────── %>
+<section class="action-group" id="action-group-accessories">
+  <div class="action-group-head">
+    <h3><%= t("managed_apps.actions_panel.accessories.title") %></h3>
+  </div>
+  <% if config.accessories.empty? %>
+    <p class="hint"><%= t("managed_apps.actions_panel.accessories.none") %></p>
+  <% else %>
+    <div class="accessory-wrap">
+      <table class="accessory-table">
+        <thead>
+          <tr>
+            <th><%= t("managed_apps.actions_panel.accessories.name") %></th>
+            <th><%= t("managed_apps.actions_panel.accessories.image") %></th>
+            <th><%= t("managed_apps.actions_panel.accessories.hosts") %></th>
+            <th><span class="visually-hidden"><%= t("managed_apps.show.actions") %></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% config.accessories.each do |accessory| %>
+            <tr id="accessory-<%= accessory[:name].parameterize %>">
+              <td>
+                <strong><%= accessory[:name] %></strong>
+                <div class="hint mono"><%= accessory[:container_name] %></div>
+              </td>
+              <td class="mono"><%= accessory[:image] %></td>
+              <td class="mono"><%= list.(Array(accessory[:hosts])) %></td>
+              <td>
+                <div class="row-actions">
+                  <%= action_button managed_app, "accessory_restart", t("managed_apps.actions_panel.accessories.restart"),
+                                    lock: lock, params: { target: accessory[:name] }, css: "btn-quiet",
+                                    confirm: t("managed_apps.actions_panel.accessories.restart_confirm",
+                                               accessory: accessory[:name], container: accessory[:container_name],
+                                               hosts: list.(Array(accessory[:hosts]))) %>
+                </div>
+                <%= render "managed_apps/confirm_name_action", managed_app: managed_app, name: "accessory_reboot",
+                           params: { target: accessory[:name] },
+                           summary: t("managed_apps.actions_panel.accessories.reboot"),
+                           warning: t("managed_apps.actions_panel.accessories.reboot_warning", container: accessory[:container_name]),
+                           submit: t("managed_apps.actions_panel.accessories.reboot_submit"),
+                           disabled: action_disabled?(managed_app, Actions::AccessoryReboot, lock) %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
+<%# ── Proxy ───────────────────────────────────────────────────────── %>
+<section class="action-group" id="action-group-proxy">
+  <div class="action-group-head">
+    <h3><%= t("managed_apps.actions_panel.proxy.title") %></h3>
+    <p class="affected-scope"><%= t("managed_apps.actions_panel.scope_hosts", hosts: list.(config.app_hosts)) %></p>
+  </div>
+  <p class="hint"><%= t("managed_apps.actions_panel.proxy.explain") %></p>
+  <%# kamal-proxy is shared by every app on the host: the warning names that blast radius before the typed name. %>
+  <%= render "managed_apps/confirm_name_action", managed_app: managed_app, name: "proxy_restart",
+             summary: t("managed_apps.actions_panel.proxy.restart"),
+             warning: t("managed_apps.actions_panel.proxy.restart_warning", name: managed_app.name, hosts: list.(config.app_hosts)),
+             submit: t("managed_apps.actions_panel.proxy.restart_submit"),
+             disabled: action_disabled?(managed_app, Actions::ProxyRestart, lock) %>
+</section>
+
+<%# ── Housekeeping ────────────────────────────────────────────────── %>
+<section class="action-group" id="action-group-housekeeping">
+  <div class="action-group-head">
+    <h3><%= t("managed_apps.actions_panel.housekeeping.title") %></h3>
+    <p class="affected-scope"><%= t("managed_apps.actions_panel.scope_hosts", hosts: list.(config.all_hosts)) %></p>
+  </div>
+  <p class="hint"><%= t("managed_apps.actions_panel.housekeeping.prune_explain") %></p>
+  <div class="action-buttons">
+    <%= action_button managed_app, "prune", t("managed_apps.actions_panel.housekeeping.prune"), lock: lock,
+                      confirm: t("managed_apps.actions_panel.housekeeping.prune_confirm", name: managed_app.name, hosts: list.(config.all_hosts)) %>
+  </div>
+</section>

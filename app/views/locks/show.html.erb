@@ -1,9 +1,9 @@
-<%# The frame's name must match the one in show, otherwise Turbo cannot find the region to replace. %>
-<%= turbo_frame_tag :lock_and_actions do %>
+<%# The frame's name must match the one in the actions tab, otherwise Turbo cannot find the region to replace. %>
+<%= turbo_frame_tag :lock_and_actions, target: "_top" do %>
   <% if @managed_app.last_poll_error.present? %>
     <%# When the config cannot be parsed there is no service/destination/primary_host to use, and KamalLock would just raise. %>
-    <p class="hint"><%= t("managed_apps.show.actions_parse_error") %></p>
+    <p class="hint"><%= t("managed_apps.actions_panel.parse_error") %></p>
   <% else %>
-    <%= render "managed_apps/lock_and_actions", managed_app: @managed_app %>
+    <%= render "managed_apps/actions_panel", managed_app: @managed_app, lock: lock_state_for(@managed_app, read: true) %>
   <% end %>
 <% end %>

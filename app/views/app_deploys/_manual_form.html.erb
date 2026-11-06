@@ -1,0 +1,13 @@
+<%# Typing a version is always possible: the Git platform being down, or no repository configured, must not
+    stop a deploy. GET to the confirm page, which validates the value before anything else. %>
+<section class="section">
+  <h3><%= t("app_deploys.manual_form.title") %></h3>
+  <%= form_with url: new_managed_app_deploy_path(managed_app), method: :get, class: "filter-bar" do |form| %>
+    <%= form.label :version, t("app_deploys.manual_form.label"), class: "visually-hidden" %>
+    <%= form.text_field :version, required: true, autocomplete: "off", spellcheck: false, autocapitalize: "off",
+                                  pattern: "[A-Za-z0-9_][A-Za-z0-9_.\\-]{0,127}", class: "mono",
+                                  placeholder: t("app_deploys.manual_form.placeholder") %>
+    <%= form.submit t("app_deploys.manual_form.submit"), class: "btn" %>
+  <% end %>
+  <p class="hint"><%= t("app_deploys.manual_form.hint") %></p>
+</section>

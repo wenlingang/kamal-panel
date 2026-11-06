@@ -136,4 +136,38 @@ class DeployEvents::IngestTest < ActiveSupport::TestCase
     assert_in_delta lie, event.recorded_at, 1.second
     assert_operator event.started_at, :<, 1.minute.from_now
   end
+
+  # A panel deploy runs the app's own hooks too. Their reports belong to the panel's row: a second
+  # row would show one deploy twice, and the panel, not the hook, knows how it ended.
+  test "hook reports for a running panel deploy merge into the panel row" do
+    panel = @app.deploy_events.create!(source: "panel", version: "aaaaaaa", started_at: 1.minute.ago,
+                                       performer: "admin", command: "deploy")
+
+    started = ingest("started")
+    succeeded = ingest("succeeded")
+
+    assert_equal [ panel.id, panel.id ], [ started[:event].id, succeeded[:event].id ]
+    assert_not succeeded[:changed]
+    assert_equal 1, DeployEvent.count
+    assert_equal "admin", panel.reload.performer
+    assert_nil panel.succeeded_at, "the panel row's outcome comes from the CLI exit, not the hook"
+  end
+
+  test "a post-deploy report landing just after the panel closed its row still merges" do
+    @app.deploy_events.create!(source: "panel", version: "aaaaaaa", started_at: 3.minutes.ago,
+                               succeeded_at: 10.seconds.ago)
+
+    ingest("succeeded")
+
+    assert_equal 1, DeployEvent.count
+  end
+
+  test "an old panel row for the same version doesn't swallow a new hook deploy" do
+    @app.deploy_events.create!(source: "panel", version: "aaaaaaa", started_at: 1.hour.ago,
+                               succeeded_at: 55.minutes.ago)
+
+    ingest("started")
+
+    assert_equal 2, DeployEvent.count
+  end
 end

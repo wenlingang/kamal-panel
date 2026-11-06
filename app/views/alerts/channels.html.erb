@@ -1,0 +1,10 @@
+<%= render "alerts/head" %>
+
+<%= render "alerts/tabs", current: :channels %>
+
+<section class="section">
+  <p class="hint"><%= t(".hint") %></p>
+  <div class="panel panel-flush">
+    <%= render "notification_channels/table", channels: @channels, manage: false %>
+  </div>
+</section>

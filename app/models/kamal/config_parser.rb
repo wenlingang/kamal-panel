@@ -103,6 +103,9 @@ class Kamal::ConfigParser
       hosts = Array(result["app_hosts"]).dup
       hosts << result["primary_host"] if result["primary_host"]
       Array(result["roles"]).each { |role| hosts.concat(Array(role["hosts"])) }
+      # Accessory hosts end up in the same places as app hosts (prune runs on them, the actions
+      # tab lists them), so they get the same allowlist.
+      Array(result["accessories"]).each { |accessory| hosts.concat(Array(accessory["hosts"])) }
 
       hosts.uniq.each do |host|
         next if valid_host?(host)

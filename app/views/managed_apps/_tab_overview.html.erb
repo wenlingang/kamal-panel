@@ -1,0 +1,114 @@
+<%# locals: managed_app, status (nil when the config cannot be parsed) %>
+<% if managed_app.last_poll_error.present? %>
+  <%# When the config cannot be parsed, almost everything displayed below originally depends on re-parsing the config
+      (service name, Registry, role list, the config-derived "data age" / "some hosts
+      not yet collected") — continuing to call them would blow up with ParseError again inside this template,
+      and this time in the render phase, where it is not caught by the job's rescue (this is exactly the hole found
+      and needing to be plugged together during this fix). So here it degrades to reading only the raw observations,
+      no longer touching parsed_config. %>
+  <section class="section">
+    <h2><%= t("managed_apps.show.last_good_observations") %></h2>
+    <div class="panel panel-flush">
+      <p class="hint panel-note"><%= t("managed_apps.show.last_good_hint") %></p>
+      <table class="host-table">
+        <thead>
+          <tr>
+            <th><%= t("managed_apps.show.host") %></th>
+            <th><%= t("managed_apps.show.version") %></th>
+            <th><%= t("managed_apps.show.docker_status") %></th>
+            <th><%= t("managed_apps.show.reachable") %></th>
+            <th><%= t("managed_apps.show.observed_at") %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% Observation.latest_for(managed_app).sort_by(&:host).each do |o| %>
+            <tr>
+              <td><%= o.host %></td>
+              <td><%= o.version || "—" %></td>
+              <td><%= o.docker_status || "—" %></td>
+              <td><%= o.reachable ? t("managed_apps.show.yes") : t("managed_apps.show.no") %></td>
+              <td><%= t("managed_apps.show.ago", time: time_ago_in_words(o.observed_at)) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+<% else %>
+  <section class="section">
+    <div class="section-head">
+      <h2><%= t("managed_apps.show.host_status") %></h2>
+      <%# The panel is already polling (every 10 seconds when someone is viewing this page). This button is for the "need
+          to know right now" case: it pushes the cadence to the burst tier and immediately enqueues one collection; the result is
+          swapped back by the PollManagedAppJob broadcast, with no whole-page refresh. %>
+      <div class="head-actions">
+        <%= button_to managed_app_refreshes_path(managed_app), method: :post, class: "btn-quiet" do %>
+          <%= icon_tag("refresh-cw", size: :sm) %><span><%= t("managed_apps.show.refresh_now") %></span>
+        <% end %>
+        <%= allowed_to(:view_logs, managed_app) do %>
+          <%# The logs tab replaced the one-off `kamal app logs` action (which stays in the action set). %>
+          <%= link_to managed_app_path(managed_app, tab: "logs"), class: "btn-quiet" do %>
+            <%= icon_tag("terminal", size: :sm) %><span><%= t("managed_apps.show.view_logs") %></span>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+    <div class="panel panel-flush">
+      <%= render "managed_apps/host_status", managed_app: managed_app, status: status %>
+    </div>
+  </section>
+
+  <div class="split">
+    <section class="section">
+      <h2><%= t("managed_apps.show.basics") %></h2>
+      <div class="panel">
+        <dl class="facts">
+          <dt><%= t("managed_apps.show.service") %></dt>     <dd class="mono"><%= managed_app.service %></dd>
+          <dt><%= t("managed_apps.show.destination") %></dt> <dd><%= managed_app.destination.presence || placeholder(t("managed_apps.show.destination_none")) %></dd>
+          <dt><%= t("managed_apps.show.registry") %></dt>    <dd class="mono"><%= managed_app.parsed_config.registry_server %></dd>
+          <dt><%= t("managed_apps.show.ssh_credential") %></dt>
+          <dd class="mono"><%= managed_app.ssh_credential&.fingerprint || placeholder(t("managed_apps.show.ssh_credential_none")) %></dd>
+          <dt><%= t("managed_apps.show.members") %></dt>
+          <dd>
+            <%# Read-only. The only write entry for membership is the people page (design 11 §5.2). %>
+            <%= joined_list(managed_app.members.map(&:display_name), empty: placeholder(t("managed_apps.show.members_none"))) %>
+          </dd>
+        </dl>
+
+        <%# A soft hint is not validation: the server in deploy.yml can change at any time, and a hard block would block the wrong people.
+            When the credential has no server there is nothing to compare against, so no hint is shown. %>
+        <% if (cred = managed_app.registry_credential) && cred.server.present? &&
+              cred.server != managed_app.parsed_config.registry_server %>
+          <p class="warning">
+            <%= t("managed_apps.show.registry_mismatch", credential: cred.name, credential_server: cred.server,
+                                                         app_server: managed_app.parsed_config.registry_server) %>
+          </p>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><%= t("managed_apps.show.roles") %></h2>
+      <div class="panel panel-flush">
+        <table>
+          <thead>
+            <tr>
+              <th><%= t("managed_apps.show.role") %></th>
+              <th><%= t("managed_apps.show.role_hosts") %></th>
+              <th><%= t("managed_apps.show.container_prefix") %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% managed_app.parsed_config.roles.each do |role| %>
+              <tr>
+                <td><%= role[:name] %></td>
+                <td class="mono"><%= role[:hosts].join(", ") %></td>
+                <td><code><%= role[:container_prefix] %></code></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+<% end %>

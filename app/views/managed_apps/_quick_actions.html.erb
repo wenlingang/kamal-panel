@@ -1,0 +1,29 @@
+<%# Quick actions for one app: restart, logs and a link to the actions tab. Used by the overview cards and the app
+    page header, so it must never SSH: the restart version comes from the latest observations, and the lock is
+    left to RunActionJob, which checks it before running and says why when it doesn't. The restart button
+    stays when it can't be used, disabled with the reason in its title.
+    The logs link goes to the centralized log page with the app chosen; the app header passes its own logs tab
+    instead (nil while on that tab).
+    locals: managed_app, show_actions_link (default true), logs_link (default /logs?app=<id>), css %>
+<% if policy_for(managed_app).run?(Actions::Restart) %>
+  <% version = quick_restart_version(managed_app) %>
+  <% blocker = quick_restart_blocker(managed_app, version) %>
+  <%= button_to managed_app_actions_path(managed_app), method: :post,
+                params: { name: "restart", version: version }, class: local_assigns[:css],
+                disabled: blocker.present?, title: blocker,
+                form: { data: ({ turbo_confirm: t("quick_actions.restart_confirm", name: managed_app.name, version: version) } unless blocker) } do %>
+    <%= icon_tag("rotate-cw", size: :sm) %><span><%= t("quick_actions.restart") %></span>
+  <% end %>
+<% end %>
+<% if policy_for(managed_app).view_logs? && (logs_target = local_assigns.fetch(:logs_link, logs_path(app: managed_app.id))) %>
+  <%= link_to logs_target, class: local_assigns[:css] || "btn",
+              "aria-label": t("quick_actions.logs_label", name: managed_app.name) do %>
+    <%= icon_tag("terminal", size: :sm) %><span><%= t("quick_actions.logs") %></span>
+  <% end %>
+<% end %>
+<% if local_assigns.fetch(:show_actions_link, true) %>
+  <%= link_to managed_app_path(managed_app, tab: "actions"), class: local_assigns[:css] || "btn",
+              "aria-label": t("quick_actions.actions_label", name: managed_app.name) do %>
+    <%= icon_tag("zap", size: :sm) %><span><%= t("quick_actions.actions") %></span>
+  <% end %>
+<% end %>

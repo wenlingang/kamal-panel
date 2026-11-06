@@ -1,0 +1,59 @@
+<%# locals: channel. Target and secret fields are always empty: both are write-only. On edit, leaving them
+    empty keeps the current ones. %>
+<%= form_with model: channel do |form| %>
+  <% if channel.errors.any? %>
+    <ul class="errors">
+      <% channel.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <div>
+    <%= form.label :name, t("notification_channels.form.name") %>
+    <%= form.text_field :name, autocomplete: "off" %>
+  </div>
+
+  <div>
+    <%= form.label :kind, t("notification_channels.form.kind") %>
+    <% if channel.new_record? %>
+      <%= form.select :kind, NotificationChannel::KINDS.map { |kind| [ t("notification_channels.kinds.#{kind}"), kind ] } %>
+    <% else %>
+      <p><%= t("notification_channels.kinds.#{channel.kind}") %></p>
+      <p class="hint"><%= t("notification_channels.form.kind_locked") %></p>
+    <% end %>
+  </div>
+
+  <div>
+    <%= form.label :target, t("notification_channels.form.target") %>
+    <%= form.password_field :target, value: "", autocomplete: "off" %>
+    <p class="hint">
+      <%= t("notification_channels.form.target_hint") %>
+      <% if channel.persisted? %><%= t("notification_channels.form.target_keep", hint: channel.target_hint) %><% end %>
+    </p>
+  </div>
+
+  <div>
+    <%= form.label :secret, t("notification_channels.form.secret") %>
+    <%= form.password_field :secret, value: "", autocomplete: "off" %>
+    <p class="hint"><%= t("notification_channels.form.secret_hint") %></p>
+    <% if channel.persisted? && channel.secret.present? %>
+      <label class="check-row">
+        <%= check_box_tag "notification_channel[clear_secret]", "1", false, id: "notification_channel_clear_secret" %>
+        <span><%= t("notification_channels.form.clear_secret") %></span>
+      </label>
+    <% end %>
+  </div>
+
+  <div>
+    <label class="check-row">
+      <%= form.check_box :enabled %>
+      <span><%= t("notification_channels.form.enabled") %></span>
+    </label>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit t("common.save"), class: "btn-primary" %>
+    <%= link_to t("notification_channels.form.cancel"), notification_channels_path, class: "btn" %>
+  </div>
+<% end %>

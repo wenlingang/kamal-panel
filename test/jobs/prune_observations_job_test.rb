@@ -149,4 +149,40 @@ class PruneObservationsJobTest < ActiveSupport::TestCase
       "prune must not delete the only reachable historical observation available for fallback, or the longest-unreachable host loses its history first"
     assert_not_nil row[:stale_since], "The fallback state must carry how old it is and must not silently turn back into a row without a timestamp"
   end
+
+  test "metrics are kept for 7 days" do
+    ContainerMetric.create!(managed_app: @app, host: "10.0.0.1", container_name: "c", source: "web", kind: "app", sampled_at: 8.days.ago)
+    recent = ContainerMetric.create!(managed_app: @app, host: "10.0.0.1", container_name: "c", source: "web", kind: "app", sampled_at: 6.days.ago)
+    HostMetric.create!(managed_app: @app, host: "10.0.0.1", sampled_at: 8.days.ago)
+    recent_host = HostMetric.create!(managed_app: @app, host: "10.0.0.1", sampled_at: 1.hour.ago)
+
+    PruneObservationsJob.perform_now
+
+    assert_equal [ recent.id ], ContainerMetric.pluck(:id)
+    assert_equal [ recent_host.id ], HostMetric.pluck(:id)
+  end
+  test "everything collected keeps 7 days: an 8-day-old non-anchor observation goes" do
+    Observation.create!(managed_app: @app, host: "10.0.0.1", container_name: "blog-web-production-a",
+                        reachable: true, docker_status: "running", observed_at: 8.days.ago)
+    kept = Observation.create!(managed_app: @app, host: "10.0.0.1", container_name: "blog-web-production-a",
+                               reachable: true, docker_status: "running", observed_at: 6.days.ago)
+
+    PruneObservationsJob.perform_now
+
+    assert_equal [ kept.id ], Observation.pluck(:id)
+  end
+
+  test "resolved alerts age out after 7 days; open ones stay however old" do
+    rule = AlertRule.create!(name: "down", condition: "unhealthy")
+    old = { alert_rule: rule, managed_app: @app, message_key: "unhealthy", started_at: 9.days.ago, fired_at: 9.days.ago }
+    AlertEvent.create!(**old, state: "resolved", resolved_at: 8.days.ago)
+    recent = AlertEvent.create!(**old, state: "resolved", resolved_at: 6.days.ago, dedupe_key: "x")
+    firing = AlertEvent.create!(**old.merge(managed_app: ManagedApp.create!(name: "shop", destination: "staging",
+                                                                             config_yaml: file_fixture("simple_deploy.yml").read)),
+                                state: "firing")
+
+    PruneObservationsJob.perform_now
+
+    assert_equal [ recent.id, firing.id ].sort, AlertEvent.pluck(:id).sort
+  end
 end

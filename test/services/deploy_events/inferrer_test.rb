@@ -160,4 +160,30 @@ class DeployEvents::InferrerTest < ActiveSupport::TestCase
     assert_equal "bbbbbbb", @managed_app.reload.last_converged_version,
                  "yielding records no event, but state must still update, otherwise the next change is compared against the wrong time boundary"
   end
+
+  test "a panel deploy that succeeded explains the convergence: no inferred row" do
+    converge(version: "aaaaaaa", at: 10.minutes.ago)
+    DeployEvents::Inferrer.call(@managed_app)
+    @managed_app.deploy_events.create!(source: "panel", version: "bbbbbbb", started_at: 2.minutes.ago,
+                                       succeeded_at: 1.minute.ago)
+
+    converge(version: "bbbbbbb")
+    DeployEvents::Inferrer.call(@managed_app)
+
+    assert_equal [ "panel" ], @managed_app.deploy_events.pluck(:source)
+  end
+
+  # Kamal can exit non-zero after the new containers are already up (a failing post-deploy hook,
+  # a prune error). The failed row stays; the convergence gets its own inferred row.
+  test "a failed panel deploy doesn't explain the convergence" do
+    converge(version: "aaaaaaa", at: 10.minutes.ago)
+    DeployEvents::Inferrer.call(@managed_app)
+    @managed_app.deploy_events.create!(source: "panel", version: "bbbbbbb", started_at: 2.minutes.ago,
+                                       failed_at: 1.minute.ago)
+
+    converge(version: "bbbbbbb")
+    DeployEvents::Inferrer.call(@managed_app)
+
+    assert_equal %w[inferred panel], @managed_app.deploy_events.pluck(:source).sort
+  end
 end

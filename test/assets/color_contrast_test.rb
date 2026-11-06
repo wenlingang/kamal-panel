@@ -18,39 +18,94 @@ class ColorContrastTest < ActiveSupport::TestCase
   # Every pair is a foreground/background combination that [actually appears on screen
   # together], not two arbitrary variables.
   PAIRS = [
-    %w[--ink --surface],
-    %w[--ink-muted --surface],
+    # Body text and secondary text on every surface they sit on
+    %w[--ink --panel],
+    %w[--ink --canvas],
+    %w[--ink-muted --panel],
+    %w[--ink-muted --canvas],
+    %w[--ink-muted --panel-sunken],   # table headers
+    %w[--ink --panel-hover],          # a hovered table row
+
+    # Links and actions
+    %w[--signal --panel],             # links in body text
+    %w[--signal --canvas],            # links outside panels (breadcrumbs, filter clear)
+    %w[--signal-ink --signal-fill],   # text on the primary button
+    %w[--signal-ink --signal-fill-hover],
+    %w[--signal-tint-ink --signal-tint], # the current view toggle, the "running" status bar
+    %w[--btn-ink --btn-bg],
+    %w[--btn-ink --btn-hover],
+    %w[--danger-ink --btn-bg],        # a danger button: red text, no fill
+    %w[--danger-ink --danger-tint],   # a hovered danger button
+    %w[--field-ink --field-bg],
+
+    # Status badges, banners, the run status bar
+    %w[--ok-ink --ok-bg],
     %w[--drift-ink --drift-bg],
     %w[--unhealthy-ink --unhealthy-bg],
     %w[--unreachable-ink --unreachable-bg],
-    %w[--ok-ink --ok-bg],
     %w[--unknown-ink --unknown-bg],
-    %w[--output-ink --output-bg],
+    # The summary strip colours a non-zero count with its status ink, on the panel
+    %w[--ok-ink --panel],
+    %w[--drift-ink --panel],
+    %w[--unhealthy-ink --panel],
+    %w[--unreachable-ink --panel],
 
-    # Combinations for the action layer (login, onboarding, action area). This layer had
-    # no styling before; colors introduced while filling it in must pass AA too, otherwise
-    # "filling in the visuals" becomes "introducing a batch of colors nobody has verified".
-    %w[--action --surface],          # links in body text
-    %w[--action-ink --action-fill],  # text on the primary action button (fill and link colors differ)
-    %w[--btn-ink --btn-bg],          # text on a regular action button
-    %w[--danger-ink --btn-bg],       # text on a danger action button (red on white, no fill)
-    %w[--field-ink --field-bg],      # text inside input fields
-    %w[--ink --card-bg],             # body text on the auth card
-    %w[--ink --card-raised],         # body text on the primary section panel
-    %w[--ink-muted --card-raised]    # secondary text on the primary section panel
+    # Terminal output
+    %w[--output-ink --output-bg],
+    %w[--output-muted --output-bg],
+    # Log viewer: level colours, the keyword highlight, host tags
+    %w[--log-error --output-bg],
+    %w[--log-warn --output-bg],
+    %w[--log-mark-ink --log-mark-bg],
+    %w[--log-host-0 --output-bg],
+    %w[--log-host-1 --output-bg],
+    %w[--log-host-2 --output-bg],
+    %w[--log-host-3 --output-bg],
+    %w[--log-host-4 --output-bg],
+    %w[--log-host-5 --output-bg],
+
+    # Sidebar
+    %w[--side-ink --side-bg],
+    %w[--side-ink --side-hover],
+    %w[--side-muted --side-bg],
+    %w[--side-current-ink --side-current-bg],
+    %w[--side-current-ink --side-bg], # the brand name and the user's name
+    %w[--side-muted --side-hover],    # the account menu's email, labels and role
+    %w[--side-current-ink --side-current-bg],
+    %w[--side-bg --side-accent]       # the account avatar's initial
   ].freeze
 
-  # WCAG 2.1 1.4.11 (non-text contrast). The logo is a graphic, not text, so it falls
-  # under this tier rather than the 4.5:1 one above; holding a graphic to the text standard
-  # would force a glaringly white mark in dark mode. But it [cannot go without a standard]
-  # either: a mark that blurs into a dark tab bar or header is the same failure as
+  # WCAG 2.1 1.4.11 (non-text contrast). Graphics and state markers, not text, so this
+  # tier rather than 4.5:1 — but not without a standard: a mark that blurs into the
+  # sidebar, or a heartbeat cell that vanishes into its panel, is the same failure as
   # unreadable text.
   AA_GRAPHIC = 3.0
 
-  # The two adjacent pairs inside the logo: white plate on ink, gold rope on ink.
   GRAPHIC_PAIRS = [
+    # The logo: plate and cord on the tile, and the tile against the graphite sidebar
     %w[--mark-on --mark-tile],
-    %w[--mark-gold --mark-tile]
+    %w[--mark-gold --mark-tile],
+    %w[--mark-tile --side-bg],
+
+    # Heartbeat cells and card status edges, on the panel they sit on
+    %w[--ok-edge --panel],
+    %w[--drift-edge --panel],
+    %w[--unhealthy-edge --panel],
+    %w[--unreachable-edge --panel],
+
+    # Focus rings and current-item markers
+    %w[--focus --panel],
+    %w[--focus --canvas],
+    %w[--side-accent --side-bg],
+    %w[--signal-fill --canvas], # the current tab's underline, the active summary read-out
+
+    # Metrics chart lines and legend swatches, on the panel
+    %w[--chart-1 --panel],
+    %w[--chart-2 --panel],
+    %w[--chart-3 --panel],
+    %w[--chart-4 --panel],
+    %w[--chart-5 --panel],
+    %w[--chart-6 --panel]
   ].freeze
 
   test "every foreground/background pair in the light theme meets WCAG AA" do
@@ -144,7 +199,7 @@ class ColorContrastTest < ActiveSupport::TestCase
         ratio = contrast_ratio(fg, bg)
 
         assert_operator ratio, :>=, AA_GRAPHIC,
-                        "#{theme_name} theme: logo #{fg_var}(#{fg}) on #{bg_var}(#{bg}) is only " \
+                        "#{theme_name} theme: graphic #{fg_var}(#{fg}) on #{bg_var}(#{bg}) is only " \
                         "#{ratio.round(2)}:1, below the non-text contrast requirement of #{AA_GRAPHIC}:1"
       end
     end

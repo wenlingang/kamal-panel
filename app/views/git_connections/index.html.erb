@@ -1,0 +1,54 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <div class="head-actions">
+    <%= link_to t(".add"), new_git_connection_path, class: "btn" %>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel panel-flush">
+    <% if @connections.empty? %>
+      <p class="empty-hint"><%= t(".empty") %></p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".name") %></th>
+            <th><%= t(".provider") %></th>
+            <th><%= t(".api_url") %></th>
+            <th><%= t(".token") %></th>
+            <th><%= t(".used_by") %></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @connections.each do |connection| %>
+            <tr>
+              <td><%= connection.name %></td>
+              <td><%= t("git_connections.providers.#{connection.provider}") %></td>
+              <td class="mono"><%= connection.api_url %></td>
+              <td class="mono"><%= connection.token_hint %></td>
+              <td><%= app_name_list(connection.managed_apps, empty: placeholder(t(".unused"))) %></td>
+              <td>
+                <div class="row-actions">
+                  <%= button_to t(".check"), check_git_connection_path(connection), method: :post, class: "btn-quiet" %>
+                  <%= link_to t("common.edit"), edit_git_connection_path(connection), class: "btn-quiet" %>
+                  <%# Same as credentials: no delete entry while apps use it; the controller still refuses. %>
+                  <% if connection.managed_apps.empty? %>
+                    <%= button_to t(".delete"), git_connection_path(connection),
+                                  method: :delete, class: "btn-quiet btn-danger",
+                                  form: { data: { turbo_confirm: t(".delete_confirm", name: connection.name),
+                                                  confirm_danger: true } } %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</section>

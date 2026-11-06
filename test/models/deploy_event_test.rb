@@ -47,4 +47,14 @@ class DeployEventTest < ActiveSupport::TestCase
     assert_equal "hook 上报", DeployEvent.new(source: "hook").source_text
     assert_equal "面板推断", DeployEvent.new(source: "inferred").source_text
   end
+
+  test "a failed panel deploy says whether its version was seen, not whether a report was verified" do
+    app = ManagedApp.create!(name: "blog-failed-deploy", config_yaml: file_fixture("simple_deploy.yml").read)
+    event = app.deploy_events.create!(source: "panel", version: "v1", started_at: 2.minutes.ago,
+                                      failed_at: 1.minute.ago, observed_at: 90.seconds.ago)
+
+    assert_equal :failure, event.result
+    assert_equal I18n.t("deploy_events.observed_by_panel"), event.observation_delay_text
+    assert_equal I18n.t("deploy_events.panel"), event.source_text
+  end
 end

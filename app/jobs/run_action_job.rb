@@ -5,10 +5,15 @@ class RunActionJob < ApplicationJob
   def perform(audit_log_id)
     log = AuditLog.find(audit_log_id)
     app = log.managed_app
-    action = Actions::Base.find(log.action_name).new(app, target_version: log.target_version)
+    action = Actions::Base.find(log.action_name).new(app, target_version: log.target_version,
+                                                                target: log.target)
     started = Time.current
 
     return if action.class.requires_lock? && !lock_free?(app, log, started)
+
+    # Opened only once the run really starts: an attempt the lock refused never happened, and its
+    # audit row already says so.
+    event = start_deploy_event(app, log, action, started)
 
     output = +""
 
@@ -22,6 +27,7 @@ class RunActionJob < ApplicationJob
                 command: "kamal #{action.cli_args.join(' ')}",
                 output_digest: result[:output],
                 duration_ms: ((Time.current - started) * 1000).round)
+    finish_deploy_event(event, success: status.zero?)
     broadcast_result(log)
 
     # Do not take the command's exit code as the conclusion (spec 8.4): trigger burst polling and
@@ -37,9 +43,28 @@ class RunActionJob < ApplicationJob
 
     Rails.logger.error("[action] 执行出错：#{e.class}: #{e.message}")
     finish_blocked(log, started || Time.current, "执行出错：#{e.message}") if log.reload.result == "pending"
+    finish_deploy_event(event, success: false) if event && event.reload.result == :running
   end
 
   private
+    def start_deploy_event(app, log, action, started)
+      return nil unless action.class.records_deploy_event?
+
+      app.deploy_events.create!(
+        source: "panel", version: log.target_version, destination: app.destination,
+        performer: log.user.display_name, command: log.action_name,
+        started_at: started, audit_log: log
+      )
+    end
+
+    # The CLI's exit code decides the row's outcome, but not whether the version is running: that
+    # is still for the next observation to confirm (observed_at, via the Reconciler).
+    def finish_deploy_event(event, success:)
+      return if event.nil?
+
+      success ? event.update!(succeeded_at: Time.current) : event.update!(failed_at: Time.current)
+    end
+
     def lock_free?(app, log, started)
       lock = KamalLock.new(app).status
 
@@ -63,16 +88,17 @@ class RunActionJob < ApplicationJob
       broadcast_result(log)
     end
 
-    def result_text(log)
+    # The page's status bar (#action-result) re-rendered in its final state, in the initiator's
+    # language: the broadcast goes to everyone watching, but the initiator is who started it.
+    def result_html(log)
       I18n.with_locale(log.user.locale.presence || I18n.default_locale) do
-        log.result == "success" ? I18n.t("actions.result.succeeded") : I18n.t("actions.result.failed")
+        ApplicationController.render(partial: "actions/run_status", locals: { log: })
       end
     end
 
     def broadcast_result(log)
-      html = ActionController::Base.helpers.tag.strong(result_text(log))
       Turbo::StreamsChannel.broadcast_replace_to(
-        "action_#{log.id}", target: "action-result", html: html
+        "action_#{log.id}", target: "action-result", html: result_html(log)
       )
     rescue StandardError => e
       Rails.logger.error("[action] 终态广播失败: #{e.class}")

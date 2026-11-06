@@ -1,0 +1,60 @@
+# Resource metrics: the app page's metrics tab, the overview card's metrics line, chart text.
+# Kept in its own file so the feature's strings sit together; I18n deep-merges it with zh-CN.yml.
+zh-CN:
+  metrics:
+    ranges:
+      1h: 1 小时
+      6h: 6 小时
+      24h: 24 小时
+      7d: 7 天
+    kinds:
+      app: 应用
+      accessory: 附属服务
+      proxy: 代理
+    levels:
+      warn: 偏高
+      critical: 过高
+    tab:
+      title: 资源监控
+      range_label: 时间范围
+      config_unparseable: deploy.yml 无法解析，读不出这个应用有哪些主机，暂时看不了监控。
+      empty: 最近 %{range} 还没有监控数据。面板每分钟通过 SSH 读一次各主机的 docker stats 与 /proc，刚接入的应用一两分钟后就会出现。
+      empty_no_key: 还没有监控数据：这个应用没有配置 SSH 私钥，面板登不上主机，也就采集不到 CPU 和内存。在「编辑」里选一个 SSH 私钥后，每分钟采集一次。
+      containers: 容器
+      hosts: 主机
+      no_recent_containers: 最近 5 分钟没有读到这个应用的运行中容器。
+      no_recent_host: 最近 5 分钟没有读到这台主机的数据（连不上，或不是 Linux）。
+      cpu_hint: 容器 CPU 按 docker stats 的口径：100% 等于占满一个核。没有设置内存上限的容器，内存占比是相对整台主机。kamal-proxy 是同一主机上各应用共用的，不计入应用的合计与告警。
+    table:
+      container: 容器
+      host: 主机
+      cpu: CPU
+      memory: 内存 / 上限
+      memory_percent: 内存占比
+      pids: 进程数
+      no_limit: 不限
+    host:
+      load: 负载（1 分钟）
+      load1: 1 分钟负载
+      cpus:
+        one: "%{count} 核"
+        other: "%{count} 核"
+      cpu_count: CPU 核数
+      cpu: CPU
+      memory: 内存
+      disk: 磁盘（/）
+      swap: 交换区
+    charts:
+      container_cpu: 容器 CPU
+      container_memory: 容器内存
+      host_usage: CPU / 内存 / 磁盘占用
+      host_load: 负载
+      limit: 上限 %{series}
+    chart:
+      no_data: "%{title}：这段时间没有数据。"
+      summary_series: "%{label} 最新 %{latest}，最高 %{max}"
+      separator: "；"
+    card:
+      line: CPU %{cpu} · 内存 %{memory}
+      title: 应用容器（不含 kamal-proxy）在 %{time} 的合计；CPU 100% 等于一个核。
+      sparkline: 最近一小时容器 CPU 合计，最新 %{cpu}

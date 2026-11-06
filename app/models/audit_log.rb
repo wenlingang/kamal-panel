@@ -18,6 +18,10 @@ class AuditLog < ApplicationRecord
     app.add_member app.remove_member app.update app.deactivate app.reactivate
     credential.create credential.rotate credential.delete
     registry_credential.create registry_credential.rotate registry_credential.delete
+    git_connection.create git_connection.update git_connection.rotate git_connection.delete
+    notification_channel.create notification_channel.update notification_channel.rotate
+    notification_channel.delete
+    alert_rule.create alert_rule.update alert_rule.delete
   ].freeze
 
   # Deploy action names are defined by the closed action set itself and are not re-copied here.
@@ -50,8 +54,8 @@ class AuditLog < ApplicationRecord
     end
   end
 
-  def self.start!(user:, managed_app:, action_name:, target_version:, hosts:)
-    create!(user:, managed_app:, action_name:, target_version:, hosts: Array(hosts),
+  def self.start!(user:, managed_app:, action_name:, target_version:, hosts:, target: nil)
+    create!(user:, managed_app:, action_name:, target_version:, target:, hosts: Array(hosts),
             result: "pending", created_at: Time.current)
   end
 

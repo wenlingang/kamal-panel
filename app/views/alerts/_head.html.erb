@@ -1,0 +1,18 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t("alerts.index.title") %></h1>
+    <p class="page-sub"><%= t("alerts.index.subtitle") %></p>
+  </div>
+  <div class="head-actions">
+    <%= allowed_to(:manage, AlertRule) do %>
+      <%= link_to new_alert_rule_path, class: "btn-primary" do %>
+        <%= icon_tag("bell", size: :sm) %><span><%= t("alerts.index.add_rule") %></span>
+      <% end %>
+    <% end %>
+    <%= allowed_to(:manage, NotificationChannel) do %>
+      <%= link_to notification_channels_path, class: "btn" do %>
+        <%= icon_tag("send", size: :sm) %><span><%= t("alerts.index.manage_channels") %></span>
+      <% end %>
+    <% end %>
+  </div>
+</div>

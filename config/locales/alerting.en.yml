@@ -1,0 +1,251 @@
+# Alerting (spec 8): rules, notification channels, alert events and the notifications themselves.
+# Kept in its own file so the feature's strings sit together; I18n deep-merges it with en.yml.
+en:
+  layouts:
+    application:
+      alerts: Alerts
+      notifications: Notifications
+
+  activerecord:
+    errors:
+      models:
+        notification_channel:
+          attributes:
+            target:
+              not_https: must be a full https:// URL — it carries a token, and notifications carry app names and log excerpts
+              invalid_email: must be email addresses, separated by commas
+              too_many_recipients: allows at most %{count} recipients
+        alert_rule:
+          attributes:
+            log_source:
+              requires_app: can only be something other than app when the rule is for a single app
+    attributes:
+      notification_channel:
+        name: Name
+        kind: Kind
+        target: Address
+        secret: Signing secret
+        enabled: Enabled
+      alert_rule:
+        name: Name
+        condition: Condition
+        managed_app: App
+        for_minutes: Duration
+        keyword: Keyword
+        window_minutes: Window
+        threshold: Threshold
+        log_source: Log source
+        metric_threshold: Threshold
+        enabled: Enabled
+
+  flash:
+    notification_channel:
+      added: Added %{name}
+      updated: Updated %{name}
+      deleted: Deleted %{name}
+      test_ok: Test notification sent to %{name} — check that it arrived.
+      test_failed: "Sending to %{name} failed: %{reason}"
+    alert_rule:
+      added: Added rule %{name}
+      updated: Updated rule %{name}
+      deleted: Deleted rule %{name}
+
+  audit:
+    actions:
+      notification_channel:
+        create: Add notification channel
+        update: Edit notification channel
+        rotate: Replace notification address or secret
+        delete: Delete notification channel
+      alert_rule:
+        create: Add alert rule
+        update: Edit alert rule
+        delete: Delete alert rule
+
+  alerts:
+    states:
+      pending: Pending
+      firing: Firing
+      resolved: Resolved
+    tabs:
+      label: Alert sections
+      events: Alerts
+      rules: Rules
+      channels: Channels
+    links:
+      app: Open app
+      logs: Logs
+    index:
+      title: Alerts
+      subtitle: A rule fires and notifies once its condition holds long enough, and resolves when it stops.
+      add_rule: New rule
+      manage_channels: Manage channels
+      firing: Firing (%{count})
+      none_firing: Nothing is firing right now.
+      since_html: Since %{time}, for %{duration}
+      history: History
+      filter_app: App
+      filter_all_apps: All apps
+      filter_state: State
+      filter_all_states: All states
+      filter_submit: Filter
+      filter_clear: Clear filters
+      no_matches: No alerts match these filters.
+      empty: No alerts yet.
+      started_at: Started
+      app: App
+      rule: Rule
+      state: State
+      message: Message
+      resolved_at: Resolved
+      lasted: lasted %{duration}
+      older: Older →
+    channels:
+      hint: Admins manage channels under Settings → Notifications; addresses are masked here.
+
+  alert_events:
+    messages:
+      unhealthy: A container fails its health check, or a host runs none of this app's containers.
+      drift: "Hosts run different versions: %{versions}"
+      unreachable: "Hosts unreachable: %{hosts}"
+      stale: Data is stale — the panel hasn't read every host for a while.
+      config_broken: "deploy.yml doesn't parse, so the panel can't read this app: %{error}"
+      deploy_failed: Deploying %{version} failed.
+      deploy_unfinished: The deploy of %{version} hasn't reported back %{minutes} minutes after it started.
+      action_failed: "“%{action}” failed (%{user})."
+      log_keyword: "“%{keyword}” appeared %{count} times in the last %{window} minutes of logs (threshold %{threshold})."
+      cpu_high: The app's containers averaged %{percent}% CPU over the last 3 minutes (threshold %{threshold}%).
+      memory_high: Container %{container} (%{host}) is at %{percent}% of its memory (threshold %{threshold}%).
+      host_memory_high: Host %{host} has %{percent}% of its memory in use (threshold %{threshold}%).
+      host_disk_high: Host %{host} has %{percent}% of its root disk in use (threshold %{threshold}%).
+
+  alert_rules:
+    all_apps: All active apps
+    conditions:
+      unhealthy: App unhealthy
+      unreachable: Host unreachable / data stale
+      drift: Version drift
+      deploy_failed: Deploy failed
+      action_failed: Action failed
+      log_keyword: Log keyword
+      cpu_high: Container CPU high
+      memory_high: Container memory high
+      host_memory_high: Host memory high
+      host_disk_high: Host disk filling up
+    summary:
+      log_keyword: "“%{keyword}” ≥ %{threshold} times in %{window} min (source %{source})"
+      per_event: Notifies once per occurrence
+      metric: "≥ %{threshold}%, fires after %{count} min"
+      metric_immediately: "≥ %{threshold}%, fires at once"
+      immediately: Fires at once
+      for_minutes: Fires after %{count} min
+    index:
+      title: Alert rules
+      empty: No rules yet. Without rules there are no alerts.
+      name: Name
+      condition: Condition
+      scope: Scope
+      channels: Channels
+      state: State
+      last_error: "Couldn't read logs last time (%{time}):"
+      no_channels: Not notified (recorded only)
+      disabled: Disabled
+      firing: "%{count} firing"
+      quiet: Quiet
+      delete: Delete
+      delete_confirm: Delete rule %{name}? Its alert history goes with it.
+    new:
+      title: New alert rule
+      subtitle: Pick a condition, a scope, and where to notify.
+    edit:
+      subtitle: Changing the condition or the app closes this rule's open alerts (without notifying).
+    form:
+      name: Name
+      condition: Condition
+      condition_hint: State conditions (unhealthy, unreachable, drift, resource usage, log keyword) fire once they hold long enough and notify again on recovery. Deploy failed and action failed are one-off events, notified once each, and resolve when the same thing next succeeds on that app.
+      app: App
+      for_minutes: Fire after this many minutes
+      for_minutes_hint: 0–120, default 2. Filters out blips; ignored by deploy failed / action failed.
+      log_settings: Log keyword settings
+      log_settings_hint: Used by the log keyword condition only. The panel reads the logs over SSH once per window; hosts it can't read don't count as "0 hits".
+      keyword: Keyword
+      keyword_hint: Fixed string, case-insensitive.
+      window_minutes: Window (minutes)
+      window_minutes_hint: 1–60, default 5. Also how often it is checked.
+      threshold: Hits needed
+      metric_settings: Resource threshold
+      metric_settings_hint: Only for the resource conditions (CPU, memory, disk). The data comes from the once-a-minute metrics collection (the app needs an SSH key); with no data in the last 5 minutes nothing is judged and an open alert stays as it is. kamal-proxy is left out.
+      metric_threshold: Threshold (%)
+      metric_threshold_hint: 1–100, default 90. CPU is the mean of the app's containers over the last 3 minutes (100% is one core); memory is any container's memory share; host memory and disk are the used share on any of the app's hosts.
+      log_source: Log source
+      log_source_hint: Defaults to app (all of the app's roles). For a single app it can also be app:<role>, accessory:<name> or proxy.
+      channels: Channels
+      no_channels: No notification channels yet; alerts are only recorded here.
+      add_channel: Add one
+      enabled: Rule enabled
+      cancel: Cancel
+
+  notification_channels:
+    kinds:
+      webhook: Webhook
+      feishu: Feishu bot
+      slack: Slack
+      email: Email
+    table:
+      empty: No notification channels yet.
+      name: Name
+      kind: Kind
+      target: Address
+      used_by: Used by rules
+      last_delivery: Last delivery
+      disabled: Disabled
+      unused: Unused
+      failed_at: Failed %{time}
+      delivered_at: Delivered %{time}
+      never: Never sent
+      test: Send test
+      delete: Delete
+      delete_confirm: Delete channel %{name}? Rules using it stop notifying here.
+    index:
+      title: Notification channels
+      subtitle: Where alert notifications go. Addresses and secrets are only ever replaced, never shown again.
+      add: Add channel
+      no_panel_url: PANEL_URL isn't set, so notifications carry no link back to the panel.
+    new:
+      title: Add notification channel
+      subtitle: Use "Send test" to make sure it arrives before attaching it to rules.
+    edit:
+      subtitle: Leave the address and secret empty to keep them.
+    form:
+      name: Name
+      kind: Kind
+      kind_locked: The kind is fixed once created — the address means something only for its kind. Create a new channel instead.
+      target: Address
+      target_hint: Webhook / Feishu / Slack take a full https URL; email takes recipients separated by commas (needs SMTP).
+      target_keep: Leave empty to keep the current one (%{hint}).
+      secret: Signing secret (optional)
+      secret_hint: For a Feishu bot with signature verification on, its secret; for a webhook, the body is signed with HMAC-SHA256 in the X-Kamal-Panel-Signature header. Leave empty to keep it.
+      clear_secret: Remove the current secret
+      enabled: Enabled
+      cancel: Cancel
+
+  notifiers:
+    test_rule: Test notification
+    test_text: "This is a test notification from Kamal Panel (channel: %{channel}). If you see it, the channel works."
+    prefix:
+      firing: Alert
+      reminder: Still firing
+      resolved: Resolved
+      test: Test
+    started_at: Started %{time}
+    resolved_at: Resolved %{time}
+    open_panel: Open in the panel
+
+  managed_apps:
+    firing_alerts:
+      since: started %{time} ago
+      all: All alerts for this app
+
+  overviews:
+    summary:
+      alerts_firing: Alerts firing

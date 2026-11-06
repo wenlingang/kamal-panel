@@ -1,0 +1,86 @@
+<%# The query conditions. A GET form, so every condition ends up in the URL and can be shared. Selects and the
+    window apply on change (auto-submit); the keyword applies on Enter or the button. Switching the app resets the
+    source and host, which belong to the old app (LogQueryForm drops values that don't fit).
+    locals: form (LogQueryForm, nil before an app is chosen), apps (nil on the app's own tab: the app is fixed
+    there), managed_app, url, hidden (extra hidden fields, e.g. the tab) %>
+<%= form_with url: url, method: :get, class: "log-query panel",
+              data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |f| %>
+  <% hidden.each do |name, value| %>
+    <%= hidden_field_tag name, value, id: nil %>
+  <% end %>
+
+  <% if apps %>
+    <div class="log-field">
+      <%= f.label :app, t("logs.form.app") %>
+      <%= f.select :app, options_for_select(apps.map { |app| [ app.name, app.id ] }, managed_app&.id),
+                   { include_blank: (t("logs.form.pick_app") if managed_app.nil?) } %>
+    </div>
+  <% else %>
+    <%= hidden_field_tag :app, managed_app.id, id: nil %>
+  <% end %>
+
+  <% if form %>
+    <div class="log-field">
+      <%= f.label :source, t("logs.form.source") %>
+      <%= f.select :source, options_for_select(form.sources.map { |source| [ log_source_label(source), source.key ] }, form.source) %>
+    </div>
+
+    <div class="log-field">
+      <%= f.label :host, t("logs.form.host") %>
+      <%= f.select :host, options_for_select(form.hosts.map { |host| [ host, host ] }, form.host),
+                   { include_blank: t("logs.form.all_hosts", count: form.hosts.size) } %>
+    </div>
+
+    <% if form.versions.any? %>
+      <%# Old versions' containers stay on the hosts (stopped, for rollback) until a prune, and so do
+          their logs: this is how to read what the previous release logged after a deploy replaced it. %>
+      <div class="log-field">
+        <%= f.label :version, t("logs.form.version") %>
+        <%= f.select :version,
+                     options_for_select(form.versions.map { |entry|
+                       [ entry[:running] ? t("logs.form.version_running", version: entry[:version]) :
+                                           t("logs.form.version_stopped", version: entry[:version]), entry[:version] ]
+                     }, form.version),
+                     { include_blank: t("logs.form.version_current") } %>
+      </div>
+    <% end %>
+
+    <fieldset class="log-field">
+      <legend><%= t("logs.form.since") %></legend>
+      <div class="segmented">
+        <% form.windows.each do |window| %>
+          <label class="segmented-item">
+            <%= radio_button_tag :since, window, form.since == window, id: nil %>
+            <span><%= t("logs.windows.#{window}") %></span>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+
+    <div class="log-field">
+      <%= f.label :lines, t("logs.form.lines") %>
+      <%= f.select :lines, options_for_select(LogQuery::LINE_LIMITS.map { |n| [ t("logs.form.lines_option", count: n), n ] }, form.lines),
+                   {}, class: "select-compact" %>
+    </div>
+
+    <div class="log-field log-field-keyword">
+      <%= f.label :q, t("logs.form.keyword") %>
+      <div class="log-keyword">
+        <span class="field-with-icon">
+          <%= icon_tag("search", size: :sm) %>
+          <%= f.search_field :q, value: form.keyword, placeholder: t("logs.form.keyword_placeholder"),
+                             maxlength: LogQuery::MAX_KEYWORD_LENGTH, autocomplete: "off" %>
+        </span>
+        <label class="log-check">
+          <%= check_box_tag :case, "1", form.case_sensitive, id: nil %>
+          <span><%= t("logs.form.case_sensitive") %></span>
+        </label>
+        <%= f.button type: "submit", class: "btn-primary", name: nil do %>
+          <%= icon_tag("search", size: :sm) %><span><%= t("logs.form.submit") %></span>
+        <% end %>
+      </div>
+    </div>
+  <% else %>
+    <%= f.submit t("logs.form.open"), class: "btn-quiet", name: nil, data: { auto_submit_target: "fallback" } %>
+  <% end %>
+<% end %>

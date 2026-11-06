@@ -1,8 +1,8 @@
 <section class="section">
 <h2><%= t(".title") %></h2>
-<div class="panel">
+<div class="panel panel-flush">
 
-<% events = managed_app.deploy_events.recent_first.limit(50) %>
+<% events = managed_app.deploy_events.recent_first.includes(:audit_log).limit(50) %>
 <% if events.empty? %>
   <%# An empty table explains nothing. 401 (token not recognized) and 429 (rate limited) get no app context
       and are invisible on the panel — so the troubleshooting path is given right here, the one outlet for
@@ -34,12 +34,29 @@
     <tbody>
       <% events.each do |event| %>
         <tr>
-          <td><%= event.version %></td>
+          <td><%= version_link(managed_app, event.version) %></td>
           <td><%= event.source_text %></td>
           <td><%= event.performer.presence || "—" %></td>
-          <td><%= event.command.presence || "—" %></td>
+          <td>
+            <% if event.audit_log && policy_for(managed_app).run?(Actions::Deploy) %>
+              <%= link_to event.command, managed_app_action_path(managed_app, event.audit_log) %>
+            <% else %>
+              <%= event.command.presence || "—" %>
+            <% end %>
+          </td>
           <td><%= event.started_at ? timestamp(event.started_at) : placeholder(t(".not_received")) %></td>
-          <td><%= event.succeeded_at ? timestamp(event.succeeded_at) : placeholder(t(".not_received")) %></td>
+          <td>
+            <% if event.failed? %>
+              <%# Only panel deploys can end like this: the panel ran the CLI and saw it fail. %>
+              <%= deploy_result_badge(:failure) %> <%= timestamp(event.failed_at) %>
+            <% elsif event.succeeded_at %>
+              <%= timestamp(event.succeeded_at) %>
+            <% elsif event.panel? %>
+              <%= deploy_result_badge(:running) %>
+            <% else %>
+              <%= placeholder(t(".not_received")) %>
+            <% end %>
+          </td>
           <%# Leave a trace: after an alert is resolved, "was that delayed, or observed early" can still
               be worked out. The logic is in DeployEvent#observation_delay_text
               (normally the hook report is later than the container being seen by polling, and delay is negative). %>

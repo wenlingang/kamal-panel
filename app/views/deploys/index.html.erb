@@ -1,0 +1,66 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <div class="head-actions">
+    <% if @deployable_ids.any? %>
+      <%= link_to new_deploy_path, class: "btn-primary" do %>
+        <%= icon_tag("rocket", size: :sm) %><span><%= t(".new") %></span>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<section class="section">
+  <%= form_with url: deploys_path, method: :get, class: "filter-bar",
+                data: { controller: "auto-submit", action: "change->auto-submit#submit" } do |form| %>
+    <%= form.label :app_id, t(".filter_app"), class: "visually-hidden" %>
+    <%= form.select :app_id, options_for_select(@apps.map { |app| [ app.name, app.id ] }, @app_id),
+                    { include_blank: t(".filter_all_apps") } %>
+    <%= form.submit t(".filter_submit"), class: "btn-quiet", data: { auto_submit_target: "fallback" } %>
+    <% if @app_id %>
+      <%= link_to t(".filter_clear"), deploys_path, class: "filter-clear" %>
+    <% end %>
+  <% end %>
+
+  <div class="panel panel-flush">
+    <% if @entries.empty? %>
+      <p class="empty-hint"><%= t(".empty") %></p>
+    <% else %>
+      <table class="deploy-feed">
+        <thead>
+          <tr>
+            <th><%= t(".time") %></th>
+            <th><%= t(".app") %></th>
+            <th><%= t(".version") %></th>
+            <th><%= t(".kind") %></th>
+            <th><%= t(".source") %></th>
+            <th><%= t(".performer") %></th>
+            <th><%= t(".result") %></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @entries.each do |entry| %>
+            <tr>
+              <td><%= timestamp(entry.at) %></td>
+              <td><%= link_to entry.managed_app.name, managed_app_path(entry.managed_app, tab: "history") %></td>
+              <td><%= version_link(entry.managed_app, entry.version) %></td>
+              <td><%= entry.command.present? ? t("deploys.kinds.#{entry.command}", default: entry.command) : placeholder("—") %></td>
+              <td><%= deploy_source_text(entry.source) %></td>
+              <td><%= entry.performer.presence || placeholder("—") %></td>
+              <td><%= deploy_result_badge(entry.result) %></td>
+              <td>
+                <% if entry.audit_log && @deployable_ids.include?(entry.managed_app.id) %>
+                  <%= link_to t(".output"), managed_app_action_path(entry.managed_app, entry.audit_log), class: "btn-quiet" %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <p class="hint deploy-history-hint"><%= t(".truncated", count: DeployFeed::LIMIT) %></p>
+    <% end %>
+  </div>
+</section>

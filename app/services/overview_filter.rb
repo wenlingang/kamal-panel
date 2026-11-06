@@ -33,20 +33,27 @@ class OverviewFilter
     q.present? || status.present?
   end
 
-  def apply(managed_apps)
+  # statuses: an optional { app => ManagedAppStatus } the caller already built, so the level is not
+  # computed (and the observations read) a second time.
+  def apply(managed_apps, statuses: {})
     apps = managed_apps
     apps = apps.select { |app| app.name.downcase.include?(q.downcase) } if q.present?
-    apps = apps.select { |app| matches_status?(app) } if status
+    apps = apps.select { |app| matches_status?(app, statuses[app]) } if status
 
     apps
   end
 
+  # The URL params that reproduce this filter, for links that keep it (e.g. the view toggle).
+  def to_params
+    { q: q.presence, status: status }.compact
+  end
+
   private
-    def matches_status?(app)
+    def matches_status?(app, known_status)
       # that row to compute level — computing it would raise ParseError right away.
       return app.last_poll_error.present? if status == PARSE_ERROR
       return false if app.last_poll_error.present?
 
-      ManagedAppStatus.new(app).level.to_s == status
+      (known_status || ManagedAppStatus.new(app)).level.to_s == status
     end
 end

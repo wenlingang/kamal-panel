@@ -30,6 +30,12 @@ zh-CN:
   time:
     formats:
       panel: "%Y-%m-%d %H:%M"
+      # Heartbeat tooltips: rounds are seconds apart, so minutes alone would repeat.
+      precise: "%Y-%m-%d %H:%M:%S"
+      # Log lines: to the millisecond, the date without the year (a query spans at most a day).
+      log: "%m-%d %H:%M:%S.%L"
+      # Metrics chart read-outs: one sample a minute, a range of up to a week.
+      metrics_point: "%m-%d %H:%M"
 
   # On validation failure, full_messages puts the attribute name first. Without a translated name,
   # Chinese error text would be prefixed with an English column name ("Config yaml 无法解析：…").
@@ -60,6 +66,18 @@ zh-CN:
               not_a_json_object: '必须是 JSON 对象，形如 {"pre-connect": "#!/bin/sh\n..."}'
             kamal_secrets:
               registry_secret_collision: 里已经定义了 %{env}，而它同时来自选中的 registry 凭据。删掉其中一处——两处都在时，部署会安静地用错一个密码。
+            repository:
+              invalid_format: 只能是仓库路径，形如 acme/shop 或 group/subgroup/project
+            git_branch:
+              invalid_format: 不是合法的分支名
+        git_connection:
+          attributes:
+            token:
+              required_with_new_api_url: 改了 API 地址就要重新填写 token——原 token 不会被发往新地址
+            api_url:
+              not_http: 必须是 http:// 或 https:// 开头的地址
+            web_url:
+              not_http: 必须是 http:// 或 https:// 开头的地址
     models:
       managed_app: 应用
       user: 用户
@@ -74,6 +92,10 @@ zh-CN:
         registry_credential: registry 密码
         kamal_secrets: .kamal/secrets 内容
         kamal_hooks: .kamal/hooks 内容
+        git_connection: Git 连接
+        repository: 代码仓库
+        git_branch: 分支
+        version_format: 版本号格式
       user:
         email_address: 邮箱地址
         nickname: 昵称
@@ -86,6 +108,12 @@ zh-CN:
 
   # Chinese display names for roles. Used by the people page and the new/edit forms; the role values
   # in code are still admin/developer/ops.
+      git_connection:
+        name: 名字
+        provider: 平台
+        api_url: API 地址
+        web_url: 网页地址
+        token: Token
   roles:
     admin: 超管
     developer: 开发者
@@ -128,7 +156,7 @@ zh-CN:
       deactivate: 停用
       you: 当前账号
     new:
-      back: ← 人员
+      back: 人员
       title: 添加成员
       subtitle: 默认让对方通过邮件里的链接自己设密码——你不必知道别人的密码。邮件送不到时，也可以由你直接设一个。
       email: 邮箱地址
@@ -144,7 +172,7 @@ zh-CN:
       password_confirmation: 确认密码
       submit: 创建成员
     edit:
-      back: ← 人员
+      back: 人员
       subtitle: 改角色，或者指派他能动哪几个应用。
       nickname: 昵称
       nickname_hint: 留空就回到用邮箱称呼他。
@@ -206,7 +234,7 @@ zh-CN:
 
   managed_apps:
     new:
-      back: ← 总览
+      back: 总览
       title: 接入一个应用
       subtitle: 粘贴 deploy.yml 与一把能登上这些机器的 SSH 私钥。面板只读取状态，部署仍然走你原来的 kamal deploy。
       erb_warning_html: 粘贴的 deploy.yml 会交给 Kamal 解析，而 Kamal 会对它做 ERB 求值——<strong>也就是说，粘贴配置等同于在面板所在的机器上执行代码</strong>。只粘贴你信任的配置文件。
@@ -249,9 +277,33 @@ zh-CN:
             - 192.0.2.10
       kamal_secrets_placeholder: "RAILS_MASTER_KEY=…"
       kamal_hooks_placeholder: '{"pre-deploy": "#!/bin/sh\necho deploying"}'
+      git_section: 代码仓库
+      git_section_hint: 可选。配上之后，「发布」标签会列出最近的提交（或 tag）以及各自的 CI 状态、镜像是否就绪；不配也能发布，只是要手填版本号。
+      git_connection: Git 连接
+      git_connection_hint: 面板用这条连接的 token 只读地查询提交与 CI 状态。
+      go_to_git_connections: 去设置里添加
+      repository: 仓库路径
+      repository_hint: GitHub 填 owner/repo，GitLab 填完整的项目路径（可以带子组）。
+      git_branch: 分支（可留空）
+      git_branch_placeholder: 留空用仓库默认分支
+      version_format: 镜像版本号
+      version_formats:
+        sha: 完整 commit sha（Kamal 默认）
+        short_sha: 短 sha（前 7 位）
+        tag: Git tag
+      version_format_hint: CI 推镜像时打的标签是什么，这里就选什么——面板发布时把它作为 --version 交给 Kamal。
     show:
-      back: ← 总览
-      subtitle: 这个应用每台机器上现在跑的是什么，以及能对它做哪些操作。
+      back: 总览
+      running_version: 运行版本
+      host_count: 主机
+      tabs_label: 应用页分区
+      tabs:
+        overview: 概览
+        actions: 操作
+        history: 历史
+        deploy: 发布
+        logs: 日志
+        metrics: 监控
       edit: 编辑
       reactivate: 启用
       reactivate_confirm: |-
@@ -292,33 +344,90 @@ zh-CN:
       host_status: 各机器状态
       refresh_now: 立即刷新
       view_logs: 查看日志
-      lock_reading: 正在读取部署锁……
-      lock_unknown: 锁状态未知
-      lock_unknown_detail: 无法连接 primary host，操作已禁用
-      no_ssh_key: 未配置 SSH 私钥
-      no_ssh_key_detail: 面板读不了部署锁，操作已禁用。
-      no_ssh_key_link: 去编辑应用选一把私钥
-      actions_no_permission: 你能查看状态，但没有操作这个应用的权限。
-      actions_parse_error: 配置无法解析，操作已禁用。
-      lock_held: 部署进行中
-      force_unlock: 强制解锁
-      force_unlock_warning: 只有在确认锁是 CI 崩溃遗留的死锁时才这样做。正在进行的部署会被打断。
-      confirm_name_placeholder: 手输应用名确认
+      logs: 日志
+      open_in_logs: 在日志页打开
       actions: 操作
-      actions_hint: 这些操作会改变线上状态，全部记入审计。
-      affected_scope: 将操作 %{hosts} 上的 %{roles}。
-      restart: 重启
-      restart_unavailable: 暂时无法重启：观测里没有唯一一个正在运行的版本。
-      start: 启动
-      stop: 停止
-      stop_warning: 服务会真的下线，直到有人再点「启动」。
-      stop_confirm: 确认停止
-      rollback: 回滚
-      rollback_none: 没有可回滚的历史版本。
-      rollback_step_version: 选版本
-      rollback_step_scope: 确认影响面
-      rollback_step_confirm: 手输应用名确认
-      rollback_submit: 执行回滚
+      deploy_new: 发布新版本
+    actions_panel:
+      parse_error: 配置无法解析，操作已禁用。
+      audited: 这些操作会改变线上状态，全部记入审计。
+      no_permission: 你能查看这些信息，但没有操作这个应用的权限，按钮不可用。
+      scope: 影响：%{hosts} 上的 %{roles}。
+      scope_hosts: 影响：%{hosts}。
+      confirm_name_placeholder: 手输应用名确认
+      lock:
+        title: 部署锁
+        reading: 正在读取部署锁……按钮可以先用，执行前面板还会再查一次锁。
+        free: 部署锁空闲，可以操作。
+        held: 部署进行中
+        held_detail: 锁被占用期间，改变线上状态的操作不可用。
+        held_by: 持有者信息：
+        unknown: 读不到部署锁
+        unknown_detail: 按钮仍然可用：执行前面板会再查一次锁，还是查不到就不执行，并在执行页写明原因。
+        no_key: 未配置 SSH 私钥
+        no_key_detail: 所有操作都要通过 SSH 执行，配好私钥之前按钮不可用。
+        no_key_link: 去编辑应用选一把私钥
+        no_key_ask: 请让管理员给这个应用配一把私钥。
+        force_unlock: 强制解锁…
+        force_unlock_warning: 只有在确认锁是 CI 崩溃遗留的死锁时才这样做。正在进行的部署会被打断。
+        force_unlock_submit: 确认强制解锁
+      app:
+        title: 应用
+        restart: 重启
+        restart_on: 重启范围
+        restart_all_hosts: 全部主机
+        restart_confirm: |-
+          重启 %{name}？
+          用当前运行的版本 %{version} 重新启动容器（范围见上方），kamal-proxy 会在新容器健康后切换流量。
+        restart_unavailable: 暂时不能重启：观测里没有唯一一个正在运行的版本，重启需要知道用哪个版本。
+        start: 启动
+        start_confirm: |-
+          启动 %{name}？
+          在 %{hosts} 上启动已有的容器。
+        stop: 停止…
+        stop_warning: 服务会真的下线，直到有人再点「启动」。
+        stop_submit: 确认停止
+        maintenance: 维护模式…
+        maintenance_warning: kamal-proxy 对所有请求返回 503 维护页，容器继续运行，直到有人点「恢复上线」。
+        maintenance_submit: 进入维护模式
+        live: 恢复上线
+        live_confirm: |-
+          让 %{name} 恢复上线？
+          kamal-proxy 重新把请求转给应用。
+      rollback:
+        title: 回滚
+        none: 没有可回滚的历史版本。
+        step_version: 选版本
+        step_scope: 确认影响面
+        step_confirm: 手输应用名确认
+        submit: 执行回滚
+      accessories:
+        title: 附属服务
+        none: deploy.yml 里没有配置 accessories。
+        name: 名称
+        image: 镜像
+        hosts: 主机
+        container: 容器
+        restart: 重启
+        restart_confirm: |-
+          重启附属服务 %{accessory}？
+          在 %{hosts} 上停止再启动容器 %{container}，数据目录保留。依赖它的应用会短暂连不上。
+        reboot: 重建…
+        reboot_warning: 删除容器 %{container} 并从镜像重新创建，数据目录保留，依赖它的应用在此期间不可用。配置里 files 引用的本地文件面板拿不到，用了 files 的附属服务会重建失败。
+        reboot_submit: 确认重建
+      proxy:
+        title: 代理
+        explain: kamal-proxy 每台主机只有一个，由这台主机上的所有应用共用。
+        restart: 重启代理…
+        restart_warning: 影响的不只是 %{name}：%{hosts} 上所有应用的请求都会短暂中断。
+        restart_submit: 确认重启代理
+      housekeeping:
+        title: 维护
+        prune: 清理旧镜像
+        prune_explain: 删除已停止的旧容器（只保留最近几个，由 retain_containers 决定）和不再使用的镜像。被清理掉的版本之后无法回滚。
+        prune_confirm: |-
+          清理 %{name} 的旧容器和镜像？
+          在 %{hosts} 上执行；被清理掉的版本之后无法回滚。
     refreshing:
       collecting: 正在向各机器采集……
     deploy_alerts:
@@ -382,26 +491,39 @@ zh-CN:
       generate_confirm: |-
         为 %{name} 生成上报 token？
         生成之后脚本只显示这一次，离开页面就只能重新生成。这是可选增强，不配也不影响面板的其他功能。
+    tab_deploy:
+      title: 发布新版本
+      intro_html: 镜像由 CI 构建并推送，面板只选版本并执行 <code>kamal deploy --skip-push --version &lt;版本&gt;</code>：各主机从 registry 拉取这个镜像，不在面板上构建。
+      parse_error: 配置无法解析，暂时不能发布。
+      no_permission: 你能查看这个应用，但没有发布它的权限。
+      no_key: 这个应用还没有配置 SSH 私钥，选好版本之后也无法执行发布。
+      loading: 正在向 Git 平台与镜像仓库查询……
+      no_repository: 还没有配置代码仓库，下面只能手填版本号。
+      configure_repository: 去配置代码仓库
+      ask_admin: 请让管理员给这个应用配置代码仓库。
 
   actions:
     # Broadcast to #action-result by the background job when the action finishes. The wording and
-    # the two sentences in actions.show are two render paths for the same thing: on page load the
-    # view renders by result, and during execution RunActionJob broadcasts a replacement. Both sides
-    # are needed; don't change only one.
-    result:
-      succeeded: 已完成 —— 面板正在重新采集确认
-      failed: 失败
-    show:
-      back: ← %{name}
-      title: "%{action} —— %{app}"
-      subtitle: 执行过程逐行显示在下方。这一页不会自动跳转，请看完输出再离开。
-      output: 执行输出
-      running: 执行中……
+    # The status bar above the output (actions/_run_status). The page renders it on load and
+    # RunActionJob re-renders the same partial when the run ends, so there is one set of copy.
+    run_status:
+      running: 执行中
+      success: 已完成
+      success_detail: 面板正在重新采集，用新的观测确认结果。
+      failure: 失败
       interrupted: 已中断
       interrupted_detail: 执行在中途被打断（进程重启或任务丢失），没有拿到最终结果。请到应用页确认当前状态，需要的话重新执行。
-      succeeded: 已完成
-      succeeded_detail: 面板正在重新采集，用新的观测确认结果。
-      failed: 失败
+      duration: 耗时 %{duration}
+    show:
+      back: '%{name}'
+      title: "%{action} —— %{app}"
+      subtitle: 执行过程逐行显示在上方。这一页不会自动跳转，请看完输出再离开。
+      started_by: 发起人
+      started_at: 开始于
+      target_version: 目标版本
+      target: 目标
+      hosts: 主机
+      output: 执行输出
       back_to_app: 返回应用
 
   layouts:
@@ -413,7 +535,12 @@ zh-CN:
       credentials: 凭据
       sign_out: 退出
       language: 界面语言
-      switch_language: 切换
+      menu: 菜单
+      main_nav: 主导航
+      settings: 设置
+      deploys: 发布
+      logs: 日志
+      git: Git
 
   sessions:
     new:
@@ -440,7 +567,7 @@ zh-CN:
       deactivated_hint: 停用时释放了凭据绑定。启用之后需要重新选一次凭据才能恢复采集。
       deactivated_badge: 已停用
       title: 总览
-      subtitle: 每个应用当前跑的是哪一版、几台机器在跑、这些数据有多旧。有问题的排在颜色上。
+      subtitle: 每个应用跑的是哪一版、几台机器在跑，以及最近 40 轮采集是否一直正常。
       add: 接入一个应用
       empty: 这里还是空的。接入一个应用只需要一份 deploy.yml 和一把 SSH 私钥——被管的服务器上什么都不用装。
       filter_name: 应用名
@@ -450,6 +577,17 @@ zh-CN:
       filter_submit: 筛选
       filter_clear: 清除筛选
       no_matches_html: 没有符合条件的应用。%{link}看全部。
+      view_label: 显示方式
+      view_cards: 卡片
+      view_table: 列表
+    summary:
+      label: 按状态统计
+      all: 全部应用
+    cards:
+      open: 打开
+      open_label: 打开 %{name}
+      deploy: 发布
+      deploy_label: 发布 %{name}
     grid:
       app: 应用
       status: 状态
@@ -464,6 +602,87 @@ zh-CN:
       stale: 已过期
       never_collected: 从未采集
       partially_collected: 部分主机尚未采集
+
+  quick_actions:
+    restart: 重启
+    actions: 操作
+    actions_label: 打开 %{name} 的操作
+    logs: 日志
+    logs_label: 查看 %{name} 的日志
+    restart_unavailable: 不能重启：观测里没有唯一一个正在运行的版本
+    restart_no_key: 不能重启：这个应用还没有配置 SSH 私钥
+    restart_confirm: |-
+      重启 %{name}？
+      用当前运行的版本 %{version} 重新启动所有主机上的容器。部署锁会在执行前检查。
+
+  shared:
+    heartbeat:
+      none: 还没有采集记录
+      all_ok: 最近 %{count} 轮全部正常
+      problems: 最近 %{count} 轮中有 %{problems} 轮异常
+
+  logs:
+    index:
+      title: 日志
+      subtitle: 选一个应用，跨主机按来源、时间和关键字查容器日志。查询只读，不记审计。
+      no_apps: 没有你可以查看日志的应用。日志对 admin、ops 和应用成员开放。
+      pick_title: 选择应用
+      pick_hint: 只列出你有权查看日志、且配置能解析的应用。
+      config_unparseable: "%{name} 的配置无法解析，暂时不能查询日志。修好 deploy.yml 后再来。"
+    form:
+      app: 应用
+      pick_app: 选择应用…
+      open: 打开
+      source: 来源
+      host: 主机
+      all_hosts: 全部主机（%{count} 台）
+      since: 时间范围
+      lines: 每台行数
+      lines_option: 最近 %{count} 行
+      keyword: 关键字
+      keyword_placeholder: 固定字符串，在主机上过滤
+      case_sensitive: 区分大小写
+      submit: 查询
+      version: 版本
+      version_current: 当前运行中
+      version_running: "%{version}（运行中）"
+      version_stopped: "%{version}（已停止）"
+    windows:
+      all: 全部
+      5m: 5 分钟
+      15m: 15 分钟
+      1h: 1 小时
+      6h: 6 小时
+      24h: 24 小时
+    sources:
+      app: 应用（全部角色）
+      role: 角色：%{name}
+      accessory: 附属服务：%{name}
+      proxy: kamal-proxy
+    viewer:
+      loading: 正在登录主机读取日志…
+      only_problems: 只看错误/警告
+      wrap: 自动换行
+      follow: 实时跟随
+      following: 实时跟随中，每 3 秒拉取新日志。
+      paused_hidden: 页面在后台，实时跟随已暂停。
+      follow_limited: 查询太频繁，稍后自动重试。
+      follow_failed: 拉取新日志失败，稍后自动重试。
+    results:
+      summary_html: "%{hosts} 台主机 · %{lines} 行 · 用时 %{duration}"
+      truncated: 结果过多，只保留最新的 %{count} 行。
+      output_label: 日志输出
+      empty: 这个时间范围内没有日志。
+      invalid: 查询条件无效，请重新选择。
+      rate_limited: 查询太频繁：每 2 秒最多查询一次，请稍后再试。
+    errors:
+      with_detail: "%{message}（%{detail}）"
+      no_credential: 这个应用还没有配置 SSH 私钥，无法登录主机读取日志。
+      unreachable: 主机无法连接
+      no_container: 最近一轮采集里这台主机上没有运行中的容器
+      container_missing: 容器不存在或无法读取
+      container_stopped: 容器没有在运行
+      failed: 读取失败
 
   audit_logs:
     index:
@@ -520,6 +739,7 @@ zh-CN:
     delayed_seconds: 延迟 %{seconds} 秒
     inferred: 面板推断
     hook_reported: hook 上报
+    panel: 面板发布
 
   rollback_candidates:
     cleaned_up: "%{hosts} 上已被清理"
@@ -531,6 +751,8 @@ zh-CN:
     no_permission: 没有权限执行该操作
     confirm_name_failed: "确认失败：请手输应用名"
     unknown_action: 未知操作
+    invalid_target: 操作目标不在这个应用的配置里，未执行。
+    config_unparseable: 配置无法解析，操作未执行。
     rate_limited: 请稍后再试。
     bad_credentials: 邮箱地址或密码不正确。
     password:
@@ -557,6 +779,14 @@ zh-CN:
       last_admin_demote: 不能降级最后一个 admin
       last_admin_deactivate: 不能停用最后一个 admin
       self_deactivate: 不能停用自己，请让另一位 admin 操作
+    invalid_version: 版本号不合法：只能由字母、数字、下划线、点和连字符组成，且不能以点或连字符开头。未执行。
+    git_connection:
+      added: 已添加 %{name}
+      updated: 已更新 %{name}
+      deleted: 已删除 %{name}
+      blocked: "%{name} 正被 %{apps} 使用，删不掉。先在这些应用的编辑页里换掉或清空 Git 连接。"
+      check_ok: "%{name} 连接正常，token 属于 %{login}。"
+      check_failed: "%{name} 连接失败：%{reason}"
 
   audit:
     actions:
@@ -566,6 +796,12 @@ zh-CN:
       start: 启动
       rollback: 回滚
       force_unlock: 强制解锁
+      maintenance: 维护模式
+      live: 恢复上线
+      accessory_restart: 重启附属服务
+      accessory_reboot: 重建附属服务
+      proxy_restart: 重启代理
+      prune: 清理旧镜像
       logs: 查看日志
       # Access actions (AuditLog::ACCESS_ACTIONS). A dot in an action name is the hierarchy
       # separator in i18n, so they are written hierarchically here; the lookup string is still
@@ -589,6 +825,12 @@ zh-CN:
         create: 添加 registry 密码
         rotate: 替换 registry 密码
         delete: 删除 registry 密码
+      deploy: 发布
+      git_connection:
+        create: 添加 Git 连接
+        update: 修改 Git 连接
+        rotate: 替换 Git token
+        delete: 删除 Git 连接
 
     details:
       app:
@@ -605,3 +847,161 @@ zh-CN:
       lead: 你可以在这里重置密码：
       link: 打开重置页面
       expiry: 这个链接将在 %{duration}后失效。
+  app_deploys:
+    manual_form:
+      title: 手填版本号
+      label: 版本号
+      placeholder: 例如 9f3c2a1e 或 v1.4.2
+      submit: 下一步
+      hint: 填 CI 推送镜像时用的标签。下一步会先显示确认页，不会立刻执行。
+    versions:
+      git_unavailable: "Git 平台暂时不可用：%{reason}。仍可以在下方手填版本号发布。"
+      empty: 这个分支上没有找到提交（或仓库里还没有 tag）。
+      change: 变更
+      version: 版本
+      author: 作者
+      ci: CI
+      image: 镜像
+      commit_unknown: 读不到这个提交
+      ago: "%{time}前"
+      pick: 发布此版本
+      legend: 列出最近 %{count} 个版本。CI 失败或镜像缺失的版本不能选；状态未知的可以选，确认页会再提示。
+      blockers:
+        ci_failed: CI 失败，不能发布
+        image_missing: 镜像仓库里没有这个版本
+      warnings:
+        ci_not_success: CI 尚未通过
+        image_unknown: 无法确认镜像是否已推送
+    new:
+      back: "%{name}"
+      title: 发布 %{name}
+      subtitle: 确认下面的变更与影响范围。点「确认发布」后立即执行，并记入审计。
+      current: 当前线上
+      current_unknown: 尚未观测到
+      target: 目标版本
+      ago: "%{time}前"
+      ci: CI 状态
+      no_repository: 未配置代码仓库
+      image: 镜像
+      scope: 影响范围
+      command: 将执行
+      warnings:
+        drift: "线上版本不一致（%{current}）：发布会把所有主机统一到 %{version}。"
+        redeploy: "%{version} 已经在线上运行，这次是重新部署同一个版本。"
+        ci_failed: 这个版本的 CI 失败了。
+        ci_not_success: 这个版本的 CI 尚未通过（或无法查询）。
+        image_missing: 镜像仓库里找不到这个版本的镜像，发布会在拉取镜像这一步失败。
+        image_unknown: 无法确认镜像是否已推送（没有 registry 凭据，或镜像仓库暂时不可达）。
+      changes:
+        one: 新增 1 个提交
+        other: 新增 %{count} 个提交
+      compare_link: 在 Git 平台上对比
+      older_target:
+        one: 目标比当前线上旧 1 个提交，这次发布相当于回退。
+        other: 目标比当前线上旧 %{count} 个提交，这次发布相当于回退。
+      no_changes: 两个版本之间没有新增提交。
+      truncated: 仅显示 %{shown} 个，共 %{total} 个。
+      submit: 确认发布
+      cancel: 返回
+      no_key: 这个应用还没有配置 SSH 私钥
+      lock_note: 执行前面板会检查部署锁；锁被占用时不会执行，并在执行页写明原因。
+
+  deploys:
+    live: 线上
+    ci:
+      success: CI 通过
+      failure: CI 失败
+      running: CI 运行中
+      pending: CI 排队中
+      none: 无 CI
+      unknown: CI 未知
+    image:
+      present: 镜像就绪
+      missing: 镜像缺失
+      unknown: 镜像未知
+    results:
+      success: 成功
+      failure: 失败
+      running: 进行中
+      unfinished: 未收尾
+      not_run: 未执行
+    kinds:
+      deploy: 发布
+      rollback: 回滚
+    index:
+      title: 发布
+      subtitle: 所有应用最近的部署：面板发起的、hook 上报的，以及面板从观测中推断出的。
+      new: 新建发布
+      filter_app: 按应用筛选
+      filter_all_apps: 全部应用
+      filter_submit: 筛选
+      filter_clear: 清除筛选
+      empty: 还没有部署记录。
+      time: 时间
+      app: 应用
+      version: 版本
+      kind: 类型
+      source: 来源
+      performer: 发起人
+      result: 结果
+      output: 输出
+      truncated: 仅显示最近 %{count} 条。
+    new:
+      back: 发布
+      title: 新建发布
+      subtitle: 先选要发布的应用。
+      none: 没有你能发布的应用。
+      app: 应用
+      repository: 代码仓库
+      manual_only: 未配置，需手填版本号
+      pick: 选择
+
+  git_connections:
+    providers:
+      github: GitHub
+      gitlab: GitLab
+    index:
+      title: Git 连接
+      subtitle: 面板只读地查询提交、tag 与 CI 状态所用的 token。在应用的编辑页里选用。
+      add: 添加连接
+      empty: 还没有 Git 连接。没有它，发布时只能手填版本号。
+      name: 名字
+      provider: 平台
+      api_url: API 地址
+      token: Token
+      used_by: 使用应用
+      unused: 没有
+      check: 测试连接
+      delete: 删除
+      delete_confirm: |-
+        删除 %{name}？
+        删除后无法恢复，需要时只能重新添加。
+    form:
+      name: 名字
+      provider: 平台
+      provider_locked: 平台创建后不能改：各应用的仓库路径是按这个平台填的。
+      api_url: API 地址（可留空）
+      api_url_hint: 留空用官方地址（GitHub：https://api.github.com，GitLab：https://gitlab.com/api/v4）。自建 GitLab 填 https://你的域名/api/v4。
+      web_url: 网页地址（可留空）
+      web_url_hint: 用来拼提交、tag 和对比页的链接。留空用 https://github.com 或 https://gitlab.com。
+      token: Token
+      token_hint: 只需要只读权限：GitHub 用 fine-grained token 勾选 Contents、Commit statuses 与 Checks 的只读；GitLab 用 read_api。保存后不再显示。
+      token_keep: 留空则保留当前 token（%{hint}）。
+      cancel: 取消
+    new:
+      title: 添加 Git 连接
+      subtitle: 保存后 token 不再显示，只能整体替换。
+    edit:
+      subtitle: Token 只能整体替换，不能查看。
+      effective: 修改之后立刻对 %{apps} 生效。
+      no_apps: （当前没有应用用它）
+
+  git_providers:
+    errors:
+      unreachable: 连不上（%{detail}）
+      unauthorized: token 无效或已过期
+      forbidden: token 没有访问权限
+      rate_limited: 请求太频繁，被平台限流了，稍后再试
+      not_found: 找不到仓库 %{repository}（或 token 无权访问它）
+      http_status: 平台返回了 HTTP %{status}
+      bad_response: 平台返回的内容无法解析

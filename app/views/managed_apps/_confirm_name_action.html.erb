@@ -1,0 +1,20 @@
+<%# A dangerous action: collapsed by default, and it runs only after the app name is typed by hand
+    (the server checks confirm_name again — this form is a convenience, not the guard).
+    locals: managed_app, name (action name), summary, warning, submit, disabled, params (extra hidden fields) %>
+<% params = local_assigns.fetch(:params, {}) %>
+<details class="confirm-action">
+  <summary><%= summary %></summary>
+  <p><%= warning %></p>
+  <%= form_with url: managed_app_actions_path(managed_app), method: :post do |form| %>
+    <fieldset class="action-fieldset" <%= "disabled" if disabled %>>
+      <%= form.hidden_field :name, value: name, id: nil %>
+      <% params.each do |key, value| %>
+        <%= form.hidden_field key, value: value, id: nil %>
+      <% end %>
+      <%= form.text_field :confirm_name, id: [ name, params[:target], "confirm_name" ].compact.join("_").parameterize(separator: "_"),
+                                         placeholder: managed_app.name, autocomplete: "off",
+                                         "aria-label": t("managed_apps.actions_panel.confirm_name_placeholder") %>
+      <%= form.submit submit, class: "btn-danger" %>
+    </fieldset>
+  <% end %>
+</details>

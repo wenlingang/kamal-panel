@@ -2,17 +2,20 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A read-only(-ish) control panel for [Kamal](https://kamal-deploy.org/) deployments: one
-Application × Host table that answers "is anything broken?" in a few seconds, read over SSH
-from the state Kamal already produces. It does **not** replace Kamal — deploys still happen
-via `kamal deploy` from CI.
+A lightweight ops platform for [Kamal](https://kamal-deploy.org/) deployments: an overview that
+answers "is anything broken?" in a few seconds, centralized logs across apps, deploying a version
+CI already built from the panel, everyday actions (restart, stop/start, maintenance, rollback…),
+and alert rules with notifications (webhook, Feishu, Slack, email). It works over SSH through
+Kamal's own commands and does **not** replace Kamal — images are still built by CI.
 
 **Website:** <https://wenlingang.github.io/kamal-panel-site/> · **Docs:** <https://wenlingang.github.io/kamal-panel-site/docs/>
 
 > [!WARNING]
 > **The panel's security level equals the security level of every server it manages.**
 > Anyone who can submit a `deploy.yml` to it can run arbitrary Ruby on its host, so only
-> trusted admins should be able to add applications. Read the
+> trusted admins should be able to add applications. The panel also reaches out: Git provider
+> tokens (commits, CI status), registry probing, and notification webhooks — credentials only
+> admins manage. Read the
 > [security posture](https://wenlingang.github.io/kamal-panel-site/docs/#security) before you deploy it anywhere.
 
 ## Deploy
@@ -27,6 +30,10 @@ export AR_ENCRYPTION_PRIMARY_KEY=... AR_ENCRYPTION_DETERMINISTIC_KEY=... AR_ENCR
 bin/kamal setup                # bin/kamal deploy thereafter
 ```
 
+Links in alert notifications need the panel's own address: set `PANEL_URL=https://panel.example.com`
+(unset, notifications carry no link). The email channel and password resets need SMTP: `SMTP_ADDRESS`,
+`SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `PANEL_MAIL_FROM`.
+
 Then create the first admin account: [Deploying the panel](https://wenlingang.github.io/kamal-panel-site/docs/#deploy).
 
 ## Development
@@ -34,7 +41,7 @@ Then create the first admin account: [Deploying the panel](https://wenlingang.gi
 ```sh
 bin/setup
 bin/rails db:encryption:init                              # add the keys to development credentials
-bin/rails demo:seed                                       # optional: one demo app per state
+bin/rails demo:seed                                       # optional: demo apps, deploys, alerts
 bin/rails demo:refresh                                    # bring the demo back to "now" before a look
 docker compose -f docker-compose.test.yml up -d --build  # fake SSH hosts the tests run against
 bin/rails test:all                                        # foreground, single process

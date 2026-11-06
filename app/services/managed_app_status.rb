@@ -14,14 +14,45 @@ class ManagedAppStatus
     PollCadence::IDLE * STALE_MULTIPLIER
   end
 
+  # The level of one collection round judged on its own rows alone: no config, no clock. The
+  # heartbeat strip (StatusHistory) uses it for past rounds, where "is this stale now" and "which
+  # hosts does today's deploy.yml list" are not questions that round can answer. #level layers
+  # exactly those two checks on top, so the rules for drift / unhealthy / unreachable live once.
+  def self.round_level(observations)
+    return :unknown     if observations.empty?
+    return :drift       if versions_of(observations).size > 1
+    return :unhealthy   if unhealthy_rows?(observations)
+    return :unreachable if observations.any? { |o| !o.reachable }
+
+    :ok
+  end
+
+  # Only look at running containers: stopped older versions are rollback candidates, not drift.
+  def self.versions_of(observations)
+    observations.group_by(&:host).flat_map do |_host, host_observations|
+      running = host_observations.select { |o| RUNNING_STATUSES.include?(o.docker_status) }
+      (running.presence || host_observations).filter_map(&:version)
+    end.uniq
+  end
+
+  # An unhealthy container, or a host that answered but runs none of this app's containers.
+  def self.unhealthy_rows?(observations)
+    return true if observations.any? { |o| o.health == "unhealthy" }
+
+    observations.group_by(&:host).any? do |_host, host_observations|
+      next false unless host_observations.any?(&:reachable)
+
+      host_observations.none? { |o| RUNNING_STATUSES.include?(o.docker_status) }
+    end
+  end
+
   def initialize(managed_app)
     @managed_app = managed_app
   end
 
   def level
-    return :unknown     if observations.empty?
-    return :drift       if drift?
-    return :unhealthy   if unhealthy?
+    round = self.class.round_level(observations)
+    return round if round != :ok && round != :unreachable
     return :unreachable if unreachable? || stale?
 
     :ok
@@ -54,12 +85,24 @@ class ManagedAppStatus
     versions.size > 1
   end
 
-  # Only look at running containers: stopped older versions are rollback candidates, not drift.
+  # The individual conditions behind #level, for alert rules (spec 8): level picks the single
+  # worst one, but a rule on "unhealthy" must still see an unhealthy container on an app that also
+  # drifted.
+  def unhealthy?
+    self.class.unhealthy_rows?(observations)
+  end
+
+  def unreachable_or_stale?
+    unreachable? || stale?
+  end
+
+  # Hosts that didn't answer last round, plus configured hosts never observed.
+  def unreachable_hosts
+    (observations.reject(&:reachable).map(&:host) + missing_configured_hosts).uniq
+  end
+
   def versions
-    observations.group_by(&:host).flat_map do |_host, host_observations|
-      running = host_observations.select { |o| RUNNING_STATUSES.include?(o.docker_status) }
-      (running.presence || host_observations).filter_map(&:version)
-    end.uniq
+    self.class.versions_of(observations)
   end
 
   def observed_at
@@ -154,18 +197,6 @@ class ManagedAppStatus
 
     def observations
       @observations ||= Observation.latest_for(managed_app).to_a
-    end
-
-    def unhealthy?
-      observations.any? { |o| o.health == "unhealthy" } || any_reachable_host_without_running_container?
-    end
-
-    def any_reachable_host_without_running_container?
-      observations.group_by(&:host).any? do |_host, host_observations|
-        next false unless host_observations.any?(&:reachable)
-
-        host_observations.none? { |o| RUNNING_STATUSES.include?(o.docker_status) }
-      end
     end
 
     def unreachable?

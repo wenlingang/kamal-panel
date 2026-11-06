@@ -1,0 +1,41 @@
+<%# locals: managed_app, status
+    The version list calls the Git platform and the registry, so it loads in a frame: the tab itself renders
+    from the database straight away (spec 2: no page waits on a remote). target _top: picking a version leads
+    to the confirm page, which replaces the whole page. %>
+<section class="section">
+  <div class="section-head">
+    <h2><%= t(".title") %></h2>
+  </div>
+  <p class="hint"><%= t(".intro_html").html_safe %></p>
+
+  <% if managed_app.last_poll_error.present? %>
+    <p class="hint"><%= t(".parse_error") %></p>
+  <% elsif !policy_for(managed_app).act? %>
+    <p class="hint"><%= t(".no_permission") %></p>
+  <% else %>
+    <% if managed_app.ssh_credential.nil? %>
+      <p class="callout callout-warn"><%= t(".no_key") %></p>
+    <% end %>
+
+    <% if managed_app.git_configured? %>
+      <%= turbo_frame_tag :deploy_versions, src: versions_managed_app_deploy_path(managed_app), target: "_top" do %>
+        <div class="panel">
+          <p class="loading-hint"><%= icon_tag("loader-circle", size: :sm, css: "spin") %><%= t(".loading") %></p>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="panel">
+        <p class="empty-hint">
+          <%= t(".no_repository") %>
+          <% if policy_for(managed_app).assign_credentials? %>
+            <%= link_to t(".configure_repository"), edit_managed_app_path(managed_app, anchor: "git") %>
+          <% else %>
+            <%= t(".ask_admin") %>
+          <% end %>
+        </p>
+      </div>
+    <% end %>
+
+    <%= render "app_deploys/manual_form", managed_app: managed_app %>
+  <% end %>
+</section>

@@ -79,22 +79,26 @@ class PollManagedAppJob < ApplicationJob
       deliver_overview_refresh
     end
 
-    # The detail page subscribes to "managed_app_<id>"; #host-status is replaced as a whole after
-    # each collection round.
+    # The detail page subscribes to "managed_app_<id>"; #host-status, the header badge and the
+    # header heartbeat are replaced as a whole after each collection round. On tabs other than
+    # the overview there is no #host-status, and Turbo simply skips that replace.
     def broadcast_host_status_refresh(managed_app)
       managed_app.reload
       status = ManagedAppStatus.new(managed_app)
 
       locals = { managed_app: managed_app, status: status }
+      history = StatusHistory.new(managed_app)
       replacements = {
         "host-status" => ApplicationController.render(partial: "managed_apps/host_status", locals:),
-        "app-status" => ApplicationController.render(partial: "managed_apps/status_badge", locals:)
+        "app-status" => ApplicationController.render(partial: "managed_apps/status_badge", locals:),
+        "app-heartbeat" => ApplicationController.render(partial: "shared/heartbeat",
+                                                        locals: { history:, id: "app-heartbeat" })
       }
 
       deliver_host_status_refresh(managed_app, replacements)
     end
 
-    # One broadcast carrying both replacements, so the header badge and the table never disagree.
+    # One broadcast carrying every replacement, so the header and the table never disagree.
     def deliver_host_status_refresh(managed_app, replacements)
       content = replacements.map do |target, html|
         Turbo::StreamsChannel.turbo_stream_action_tag(:replace, target:, template: html)

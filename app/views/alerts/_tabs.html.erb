@@ -1,0 +1,7 @@
+<%# locals: current (:events / :rules / :channels). Plain links, like the app page's tabs: each tab has an
+    address and works without JS. %>
+<nav class="tabs" aria-label="<%= t("alerts.tabs.label") %>">
+  <% { events: alerts_path, rules: alert_rules_path, channels: alert_channels_path }.each do |tab, path| %>
+    <%= link_to t("alerts.tabs.#{tab}"), path, class: "tab", "aria-current": ("page" if current == tab) %>
+  <% end %>
+</nav>

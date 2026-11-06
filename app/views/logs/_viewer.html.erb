@@ -1,0 +1,43 @@
+<%# The query form plus the results. Shared by /logs and the app's Logs tab (which fixes the app and keeps the
+    person on the app page). The results are a frame: the shell renders at once and the SSH round fills it in.
+    The view toggles (only errors, wrap, follow) live outside the frame, so they survive a reload of the results.
+    locals: form (LogQueryForm), apps (nil on the app tab), url (form action), hidden (extra hidden fields) %>
+<% results_url = logs_results_path(params: form.query_params) %>
+<div class="log-viewer" data-controller="log-viewer"
+     data-log-viewer-url-value="<%= results_url %>"
+     data-log-viewer-max-rows-value="<%= LogQuery::MAX_ENTRIES %>"
+     data-log-viewer-following-text-value="<%= t("logs.viewer.following") %>"
+     data-log-viewer-paused-text-value="<%= t("logs.viewer.paused_hidden") %>"
+     data-log-viewer-limited-text-value="<%= t("logs.viewer.follow_limited") %>"
+     data-log-viewer-failed-text-value="<%= t("logs.viewer.follow_failed") %>"
+     data-action="turbo:frame-load->log-viewer#loaded">
+  <%= render "logs/query_form", form: form, apps: apps, managed_app: form.managed_app, url: url, hidden: hidden %>
+
+  <div class="log-toolbar">
+    <p class="log-follow-status" data-log-viewer-target="status" role="status" aria-live="polite"></p>
+    <div class="log-toggles">
+      <button type="button" class="btn-quiet" aria-pressed="false"
+              data-log-viewer-target="problemsButton" data-action="log-viewer#toggleProblems">
+        <%= icon_tag("triangle-alert", size: :sm) %><span><%= t("logs.viewer.only_problems") %></span>
+      </button>
+      <button type="button" class="btn-quiet" aria-pressed="true"
+              data-log-viewer-target="wrapButton" data-action="log-viewer#toggleWrap">
+        <%= icon_tag("list", size: :sm) %><span><%= t("logs.viewer.wrap") %></span>
+      </button>
+      <% if form.followable? %>
+        <button type="button" class="btn" aria-pressed="false"
+                data-log-viewer-target="followButton" data-action="log-viewer#toggleFollow">
+          <%= icon_tag("refresh-cw", size: :sm) %><span><%= t("logs.viewer.follow") %></span>
+        </button>
+      <% end %>
+    </div>
+  </div>
+
+  <%= turbo_frame_tag "log_results", src: results_url, class: "log-results" do %>
+    <div class="terminal log-terminal">
+      <p class="loading-hint log-loading">
+        <%= icon_tag("loader-circle", size: :sm, css: "spin") %><span><%= t("logs.viewer.loading") %></span>
+      </p>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,115 @@
+<% preview = @preview %>
+<%= breadcrumb(t(".back", name: @managed_app.name), managed_app_path(@managed_app, tab: "deploy")) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title", name: @managed_app.name) %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <div class="deploy-route">
+      <div>
+        <span class="deploy-route-label"><%= t(".current") %></span>
+        <% if preview.current_versions.empty? %>
+          <%= placeholder(t(".current_unknown")) %>
+        <% else %>
+          <%= version_links(@managed_app, preview.current_versions) %>
+        <% end %>
+      </div>
+      <%= icon_tag("chevron-right", size: :md, css: "deploy-route-arrow") %>
+      <div>
+        <span class="deploy-route-label"><%= t(".target") %></span>
+        <%= version_link(@managed_app, @version) %>
+      </div>
+    </div>
+
+    <% if (commit = preview.target_commit) %>
+      <p class="deploy-target-commit">
+        <%= author_avatar(commit) %>
+        <%= link_to commit.title.presence || commit.sha, commit.web_url, title: commit.message,
+                    target: "_blank", rel: "noopener noreferrer" %>
+        <span class="hint">
+          <%= commit.author_name %>
+          <% if commit.committed_at %>· <%= t(".ago", time: time_ago_in_words(commit.committed_at)) %><% end %>
+        </span>
+      </p>
+    <% end %>
+
+    <dl class="facts">
+      <dt><%= t(".ci") %></dt>
+      <dd><%= @managed_app.git_configured? ? ci_badge(preview.ci) : placeholder(t(".no_repository")) %></dd>
+      <dt><%= t(".image") %></dt>
+      <dd><%= image_badge(preview.image) %></dd>
+      <dt><%= t(".scope") %></dt>
+      <dd>
+        <% @managed_app.parsed_config.roles.each do |role| %>
+          <div><strong><%= role[:name] %></strong> <span class="mono"><%= joined_list(role[:hosts]) %></span></div>
+        <% end %>
+      </dd>
+      <dt><%= t(".command") %></dt>
+      <dd><code>kamal <%= Actions::Deploy.new(@managed_app, target_version: @version).cli_args.join(" ") %></code></dd>
+    </dl>
+  </div>
+</section>
+
+<% if preview.git_error %>
+  <p class="callout callout-warn" role="alert"><%= t("app_deploys.versions.git_unavailable", reason: preview.git_error.message) %></p>
+<% end %>
+
+<% if preview.warnings.any? %>
+  <div class="callout callout-warn" role="alert">
+    <ul class="warning-list">
+      <% preview.warnings.each do |warning| %>
+        <li><%= t(".warnings.#{warning}", version: @version, current: preview.current_versions.join(" / ")) %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<% if (comparison = preview.comparison) %>
+  <section class="section">
+    <div class="section-head">
+      <h2><%= t(".changes", count: comparison[:total]) %></h2>
+      <%= link_to comparison[:web_url], class: "btn-quiet", target: "_blank", rel: "noopener noreferrer" do %>
+        <%= icon_tag("external-link", size: :sm) %><span><%= t(".compare_link") %></span>
+      <% end %>
+    </div>
+    <div class="panel panel-flush">
+      <% if comparison[:commits].empty? %>
+        <p class="empty-hint">
+          <%= comparison[:behind_by].positive? ? t(".older_target", count: comparison[:behind_by]) : t(".no_changes") %>
+        </p>
+      <% else %>
+        <ul class="commit-list">
+          <% comparison[:commits].each do |commit| %>
+            <li>
+              <%= author_avatar(commit) %>
+              <%= link_to commit.title.presence || commit.sha, commit.web_url, title: commit.message,
+                          target: "_blank", rel: "noopener noreferrer" %>
+              <span class="mono hint"><%= display_version(commit.sha) %></span>
+              <span class="hint"><%= commit.author_name %></span>
+            </li>
+          <% end %>
+        </ul>
+        <% if comparison[:total] > comparison[:commits].size %>
+          <p class="hint deploy-history-hint"><%= t(".truncated", shown: comparison[:commits].size, total: comparison[:total]) %></p>
+        <% end %>
+      <% end %>
+    </div>
+  </section>
+<% elsif preview.compare_url %>
+  <p class="hint"><%= link_to t(".compare_link"), preview.compare_url, target: "_blank", rel: "noopener noreferrer" %></p>
+<% end %>
+
+<div class="form-actions">
+  <%= button_to managed_app_deploy_path(@managed_app), method: :post, params: { version: @version },
+                class: "btn-primary", disabled: @managed_app.ssh_credential.nil?,
+                title: (t(".no_key") if @managed_app.ssh_credential.nil?) do %>
+    <%= icon_tag("rocket", size: :sm) %><span><%= t(".submit") %></span>
+  <% end %>
+  <%= link_to t(".cancel"), managed_app_path(@managed_app, tab: "deploy"), class: "btn" %>
+</div>
+<p class="hint"><%= t(".lock_note") %></p>

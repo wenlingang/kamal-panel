@@ -1,0 +1,28 @@
+service: blog
+image: example/blog
+
+servers:
+  web:
+    - 10.0.0.1
+    - 10.0.0.2
+
+registry:
+  server: registry.example.com
+  username: someone
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+
+ssh:
+  user: deploy
+
+accessories:
+  db:
+    image: postgres:16
+    host: 10.0.0.3
+  cache:
+    image: redis:7
+    roles:
+      - web

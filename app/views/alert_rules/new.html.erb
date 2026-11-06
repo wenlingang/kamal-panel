@@ -1,0 +1,14 @@
+<%= breadcrumb(t("alert_rules.index.title"), alert_rules_path) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= render "form", rule: @rule %>
+  </div>
+</section>

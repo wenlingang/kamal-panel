@@ -1,0 +1,17 @@
+<%= breadcrumb(t("git_connections.index.title"), git_connections_path) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= @connection.name %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <p class="warning">
+      <%= t(".effective", apps: app_name_list(@connection.managed_apps, empty: t(".no_apps"))) %>
+    </p>
+    <%= render "form", connection: @connection %>
+  </div>
+</section>

@@ -57,7 +57,10 @@ module DeployEvents
         boundary = managed_app.last_converged_at
         return false if boundary.nil?
 
+        # A failed panel deploy of this version doesn't explain the convergence: something else
+        # brought it up, and that is worth its own inferred row.
         managed_app.deploy_events
+                   .not_failed
                    .where(version: version)
                    .where(created_at: boundary..)
                    .exists?

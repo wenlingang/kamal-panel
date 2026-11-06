@@ -13,8 +13,8 @@ class HookTokensController < ApplicationController
       # the script with changes in scroll position and focus.
       format.turbo_stream { @managed_app, @token = app, token }
       # Without Turbo (JS disabled), fall back to a redirect; the token goes via flash and the view
-      # renders it.
-      format.html { redirect_to app, flash: { hook_token: token } }
+      # renders it. The reporting section lives on the History tab.
+      format.html { redirect_to managed_app_path(app, tab: "history"), flash: { hook_token: token } }
     end
   end
 end

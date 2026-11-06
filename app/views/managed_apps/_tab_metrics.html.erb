@@ -1,0 +1,130 @@
+<%# locals: managed_app, status (nil when the config cannot be parsed)
+    Resource metrics collected once a minute by CollectMetricsJob (docker stats + /proc over SSH). Rendering reads
+    rows only, never SSH. The host list comes from the parsed config, so a broken config shows the callout instead. %>
+<% if status.nil? %>
+  <p class="callout callout-warn"><%= t("metrics.tab.config_unparseable") %></p>
+<% else %>
+  <% range = Metrics::TimeRange.new(params[:range]) %>
+  <% metrics = Metrics::AppMetrics.new(managed_app, range:) %>
+  <section class="section metrics">
+    <div class="section-head">
+      <h2><%= t("metrics.tab.title") %></h2>
+      <nav class="segmented" aria-label="<%= t("metrics.tab.range_label") %>">
+        <% Metrics::TimeRange.keys.each do |key| %>
+          <%= link_to t("metrics.ranges.#{key}"), managed_app_path(managed_app, tab: "metrics", range: (key unless key == Metrics::TimeRange::DEFAULT)),
+                      class: "segmented-item", "aria-current": ("page" if range.key == key) %>
+        <% end %>
+      </nav>
+    </div>
+
+    <% if !metrics.any_data? %>
+      <div class="panel empty-state">
+        <%= icon_tag("activity", css: "empty-icon") %>
+        <p class="empty-hint">
+          <% if managed_app.ssh_credential_id.nil? %>
+            <%= t("metrics.tab.empty_no_key") %>
+          <% else %>
+            <%= t("metrics.tab.empty", range: t("metrics.ranges.#{range.key}")) %>
+          <% end %>
+        </p>
+      </div>
+    <% else %>
+      <% containers = metrics.latest_containers %>
+      <h3 class="metrics-subhead"><%= t("metrics.tab.containers") %></h3>
+      <div class="panel panel-flush">
+        <% if containers.empty? %>
+          <p class="empty-hint"><%= t("metrics.tab.no_recent_containers") %></p>
+        <% else %>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th><%= t("metrics.table.container") %></th>
+                <th><%= t("metrics.table.host") %></th>
+                <th class="num"><%= t("metrics.table.cpu") %></th>
+                <th class="num"><%= t("metrics.table.memory") %></th>
+                <th class="num"><%= t("metrics.table.memory_percent") %></th>
+                <th class="num"><%= t("metrics.table.pids") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% containers.each do |metric| %>
+                <tr>
+                  <td>
+                    <span class="mono"><%= metric.source %></span>
+                    <small class="muted"><%= t("metrics.kinds.#{metric.kind}") %><% if metric.version %> · <span class="mono"><%= metric.version %></span><% end %></small>
+                  </td>
+                  <td class="mono"><%= metric.host %></td>
+                  <td class="num"><%= format_percent(metric.cpu_percent) %></td>
+                  <td class="num">
+                    <%= format_bytes(metric.mem_bytes) %>
+                    <small class="muted">/ <%= metric.mem_limit_bytes ? format_bytes(metric.mem_limit_bytes) : t("metrics.table.no_limit") %></small>
+                  </td>
+                  <td class="num"><%= usage_value(metric.mem_percent) %></td>
+                  <td class="num"><%= metric.pids || placeholder("—") %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% end %>
+      </div>
+      <p class="hint"><%= t("metrics.tab.cpu_hint") %></p>
+
+      <div class="metrics-charts">
+        <%= metrics_chart(title: t("metrics.charts.container_cpu"), series: metrics.container_cpu_series, range:, unit: :percent) %>
+        <% limits = metrics.container_mem_limits %>
+        <%= metrics_chart(title: t("metrics.charts.container_memory"), series: metrics.container_mem_series, range:, unit: :bytes,
+                          references: limits.map { |key, value| { label: t("metrics.charts.limit", series: key.sub("@", " @ ")), value: } }) %>
+      </div>
+
+      <h3 class="metrics-subhead"><%= t("metrics.tab.hosts") %></h3>
+      <% host_series = metrics.host_series %>
+      <% metrics.latest_hosts.each do |host, latest| %>
+        <section class="panel metrics-host">
+          <div class="metrics-host-head">
+            <h4 class="mono"><%= host %></h4>
+            <% if latest %>
+              <dl class="metrics-facts">
+                <div>
+                  <dt><%= t("metrics.host.load") %></dt>
+                  <dd><%= format_load(latest.load1) %> <small class="muted"><%= t("metrics.host.cpus", count: latest.cpus.to_i) %></small></dd>
+                </div>
+                <div>
+                  <dt><%= t("metrics.host.cpu") %></dt>
+                  <dd><%= usage_value(latest.cpu_percent) %></dd>
+                </div>
+                <div>
+                  <dt><%= t("metrics.host.memory") %></dt>
+                  <dd><%= usage_value(latest.mem_used_percent) %> <small class="muted"><%= format_bytes(latest.mem_used_bytes) %> / <%= format_bytes(latest.mem_total_bytes) %></small></dd>
+                </div>
+                <div>
+                  <dt><%= t("metrics.host.disk") %></dt>
+                  <dd><%= usage_value(latest.disk_used_percent) %> <small class="muted"><%= format_bytes(latest.disk_used_bytes) %> / <%= format_bytes(latest.disk_total_bytes) %></small></dd>
+                </div>
+                <% if latest.swap_total_bytes.to_i.positive? %>
+                  <div>
+                    <dt><%= t("metrics.host.swap") %></dt>
+                    <dd><%= format_bytes(latest.swap_used_bytes) %> <small class="muted">/ <%= format_bytes(latest.swap_total_bytes) %></small></dd>
+                  </div>
+                <% end %>
+              </dl>
+            <% else %>
+              <p class="empty-hint"><%= t("metrics.tab.no_recent_host") %></p>
+            <% end %>
+          </div>
+          <% series = host_series.fetch(host) %>
+          <div class="metrics-charts">
+            <%= metrics_chart(title: t("metrics.charts.host_usage"), unit: :percent, range:, y_max: 100,
+                              series: [
+                                series[:cpu].with(label: t("metrics.host.cpu")),
+                                series[:mem].with(label: t("metrics.host.memory")),
+                                series[:disk].with(label: t("metrics.host.disk"))
+                              ]) %>
+            <%= metrics_chart(title: t("metrics.charts.host_load"), unit: :number, range:,
+                              series: [ series[:load1].with(label: t("metrics.host.load1")) ],
+                              references: [ { label: t("metrics.host.cpu_count"), value: series[:cpus].latest } ]) %>
+          </div>
+        </section>
+      <% end %>
+    <% end %>
+  </section>
+<% end %>

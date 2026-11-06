@@ -10,7 +10,10 @@ class ApplicationController < ActionController::Base
     ManagedApp => ManagedAppPolicy,
     User => UserPolicy,
     Credential => CredentialPolicy,
-    RegistryCredential => RegistryCredentialPolicy
+    RegistryCredential => RegistryCredentialPolicy,
+    GitConnection => GitConnectionPolicy,
+    AlertRule => AlertRulePolicy,
+    NotificationChannel => NotificationChannelPolicy
   }.freeze
 
   class_attribute :authorization_rules, default: [], instance_writer: false

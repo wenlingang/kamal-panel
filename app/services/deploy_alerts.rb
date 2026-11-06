@@ -50,6 +50,9 @@ class DeployAlerts
       not_superseded(
         managed_app.deploy_events
                    .where(succeeded_at: nil)
+                   # A failed panel deploy did finish, just badly; it is shown in the history,
+                   # not as a deploy that never reported back.
+                   .not_failed
                    .where.not(started_at: nil)
                    .where(started_at: ..DeployEvent::UNFINISHED_AFTER.ago)
                    .where(created_at: RECENT_WINDOW.ago..)

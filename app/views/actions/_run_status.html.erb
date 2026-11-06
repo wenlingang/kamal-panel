@@ -1,0 +1,19 @@
+<%# The status bar above the output. RunActionJob re-renders this partial when the run ends and replaces
+    #action-result with it, so it must keep that id and read only its locals.
+    locals: log (AuditLog) %>
+<% state = if log.result == "pending"
+             log.interrupted? ? "interrupted" : "running"
+           else
+             log.result
+           end %>
+<% icon = { "running" => "loader-circle", "success" => "circle-check",
+            "failure" => "circle-x", "interrupted" => "circle-alert" }.fetch(state) %>
+<div id="action-result" class="run-status run-<%= state %>">
+  <span class="run-state"><%= icon_tag(icon, css: ("spin" if state == "running")) %><strong><%= t("actions.run_status.#{state}") %></strong></span>
+  <% if (detail = t("actions.run_status.#{state}_detail", default: "")).present? %>
+    <span class="run-detail"><%= detail %></span>
+  <% end %>
+  <% if log.duration_ms %>
+    <span class="run-duration"><%= t("actions.run_status.duration", duration: duration_text(log.duration_ms)) %></span>
+  <% end %>
+</div>

@@ -19,6 +19,16 @@ production: &default
   prune_observations:
     class: PruneObservationsJob
     schedule: every day at 4am
+  # Resource metrics: docker stats + /proc on every host of every app with an SSH key, once a
+  # minute (CollectMetricsJob per app).
+  collect_all_metrics:
+    class: CollectAllMetricsJob
+    schedule: every minute
+  # Alert rules (spec 8). Log-keyword rules are only scheduled from here; each runs on its own
+  # window (EvaluateLogRuleJob).
+  evaluate_alert_rules:
+    class: EvaluateAlertRulesJob
+    schedule: every 30 seconds
 
 development:
   <<: *default

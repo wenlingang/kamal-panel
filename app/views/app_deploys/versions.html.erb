@@ -1,0 +1,63 @@
+<%= turbo_frame_tag :deploy_versions do %>
+  <% if @git_error %>
+    <p class="callout callout-warn" role="alert"><%= t(".git_unavailable", reason: @git_error) %></p>
+  <% elsif @rows.blank? %>
+    <div class="panel"><p class="empty-hint"><%= t(".empty") %></p></div>
+  <% else %>
+    <div class="panel panel-flush">
+      <table class="deploy-versions">
+        <thead>
+          <tr>
+            <th><%= t(".change") %></th>
+            <th><%= t(".version") %></th>
+            <th><%= t(".author") %></th>
+            <th><%= t(".ci") %></th>
+            <th><%= t(".image") %></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @rows.each do |row| %>
+            <% commit = row.commit %>
+            <tr class="<%= 'is-blocked' if row.blocker %>">
+              <td class="commit-title">
+                <% if commit %>
+                  <%= link_to commit.title.presence || commit.sha, commit.web_url, title: commit.message,
+                              target: "_blank", rel: "noopener noreferrer" %>
+                <% else %>
+                  <%= placeholder(t(".commit_unknown")) %>
+                <% end %>
+                <% if row.live %><%= live_badge %><% end %>
+              </td>
+              <td><%= version_link(@managed_app, row.version) %></td>
+              <td>
+                <% if commit %>
+                  <span class="commit-author">
+                    <%= author_avatar(commit) %>
+                    <span><%= commit.author_name %></span>
+                  </span>
+                  <% if commit.committed_at %>
+                    <span class="hint"><%= time_tag(commit.committed_at, t(".ago", time: time_ago_in_words(commit.committed_at)),
+                                                    title: l(commit.committed_at, format: :panel)) %></span>
+                  <% end %>
+                <% end %>
+              </td>
+              <td><%= ci_badge(row.ci) %></td>
+              <td><%= image_badge(row.image) %></td>
+              <td>
+                <% if row.blocker %>
+                  <span class="row-blocker"><%= t(".blockers.#{row.blocker}") %></span>
+                <% else %>
+                  <%= link_to t(".pick"), new_managed_app_deploy_path(@managed_app, version: row.version),
+                              class: "btn-quiet",
+                              title: (row.warnings.map { |w| t(".warnings.#{w}") }.join(t("common.error_separator")).presence) %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint"><%= t(".legend", count: DeployCandidates::LIMIT) %></p>
+  <% end %>
+<% end %>

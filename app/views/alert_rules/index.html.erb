@@ -1,0 +1,62 @@
+<%= render "alerts/head" %>
+
+<%= render "alerts/tabs", current: :rules %>
+
+<section class="section">
+  <div class="panel panel-flush">
+    <% if @rules.empty? %>
+      <p class="empty-hint"><%= t(".empty") %></p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".name") %></th>
+            <th><%= t(".condition") %></th>
+            <th><%= t(".scope") %></th>
+            <th><%= t(".channels") %></th>
+            <th><%= t(".state") %></th>
+            <%= allowed_to(:manage, AlertRule) do %><th></th><% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @rules.each do |rule| %>
+            <tr>
+              <td><%= rule.name %></td>
+              <td>
+                <%= rule.condition_label %>
+                <p class="hint"><%= alert_rule_summary(rule) %></p>
+                <% if rule.log_keyword? && rule.last_error.present? %>
+                  <p class="hint result-failure">
+                    <%= t(".last_error", time: timestamp(rule.last_error_at)) %>
+                    <span class="mono"><%= rule.last_error %></span>
+                  </p>
+                <% end %>
+              </td>
+              <td><%= alert_scope_label(rule) %></td>
+              <td><%= joined_list(rule.notification_channels.map(&:name), empty: placeholder(t(".no_channels"))) %></td>
+              <td>
+                <% if !rule.enabled? %>
+                  <span class="badge"><%= t(".disabled") %></span>
+                <% elsif (count = @firing_counts[rule.id].to_i).positive? %>
+                  <strong class="result-failure"><%= t(".firing", count:) %></strong>
+                <% else %>
+                  <%= t(".quiet") %>
+                <% end %>
+              </td>
+              <%= allowed_to(:manage, AlertRule) do %>
+                <td>
+                  <div class="row-actions">
+                    <%= link_to t("common.edit"), edit_alert_rule_path(rule), class: "btn-quiet" %>
+                    <%= button_to t(".delete"), alert_rule_path(rule), method: :delete, class: "btn-quiet btn-danger",
+                                  form: { data: { turbo_confirm: t(".delete_confirm", name: rule.name),
+                                                  confirm_danger: true } } %>
+                  </div>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</section>

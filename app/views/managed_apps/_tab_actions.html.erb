@@ -1,0 +1,27 @@
+<%# locals: managed_app, status %>
+<%# An app whose config cannot be parsed has no service/destination/primary_host/accessories to use —
+    the panel would raise Kamal::ConfigParser::ParseError (status is nil exactly then; locks/show checks
+    last_poll_error the same way). The cost is that in the short window between a parse failure and the next
+    poll the action buttons go away along with the data — the width of this window depends on the fastest
+    polling interval in PollCadence (currently BURST = 2 seconds), and is not a constant that always holds:
+    if the polling interval is widened later, this window will quietly widen with it, and at that point it
+    must be re-evaluated whether this is still enough (a minor from the task-5 review). %>
+<%# Reading the lock really has to SSH in, and one unreachable host makes it wait out the full connection
+    timeout (measured 3.4 seconds), while everything else here comes from the database and the config. So the
+    buttons render right away with the lock "being read", and the frame then reloads the same panel with the
+    lock state it read. Not loading: :lazy — lazy would wait until the frame scrolls into view, moving the
+    slowness to the moment of scrolling. target _top: the forms inside lead to the action page, which must
+    replace the whole page, not this frame. %>
+<section class="section actions">
+  <h2><%= t("managed_apps.show.actions") %></h2>
+  <% if managed_app.last_poll_error.present? %>
+    <p class="hint"><%= t("managed_apps.actions_panel.parse_error") %></p>
+  <% else %>
+    <% lock = lock_state_for(managed_app) %>
+    <%# Without an SSH key there is no lock to read: render the final state and skip the request. %>
+    <%= turbo_frame_tag :lock_and_actions, src: (managed_app_lock_path(managed_app) unless lock[:state] == :no_key),
+                        target: "_top" do %>
+      <%= render "managed_apps/actions_panel", managed_app: managed_app, lock: lock %>
+    <% end %>
+  <% end %>
+</section>

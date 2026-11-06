@@ -1,11 +1,28 @@
-<p class="breadcrumb"><%= link_to t(".back", name: @managed_app.name), @managed_app %></p>
+<%= breadcrumb(t(".back", name: @managed_app.name), @managed_app) %>
 
 <div class="page-head">
   <div class="page-title">
     <%# The action name goes through audit_action_label: before, the raw action_name was printed here, so the page title
         showed a raw key like "restart", while the same action on the audit page was already in Chinese. %>
     <h1><%= t(".title", action: audit_action_label(@audit_log), app: @managed_app.name) %></h1>
-    <p class="page-sub"><%= t(".subtitle") %></p>
+    <dl class="head-facts">
+      <div><dt><%= t(".started_by") %></dt><dd><%= @audit_log.user&.display_name || "—" %></dd></div>
+      <div><dt><%= t(".started_at") %></dt><dd><%= timestamp(@audit_log.created_at) %></dd></div>
+      <% if @audit_log.target_version.present? %>
+        <div><dt><%= t(".target_version") %></dt><dd class="mono"><%= @audit_log.target_version %></dd></div>
+      <% end %>
+      <% if @audit_log.target.present? %>
+        <div><dt><%= t(".target") %></dt><dd class="mono"><%= @audit_log.target %></dd></div>
+      <% end %>
+      <% if @audit_log.hosts.present? %>
+        <div><dt><%= t(".hosts") %></dt><dd class="mono"><%= joined_list(@audit_log.hosts) %></dd></div>
+      <% end %>
+    </dl>
+  </div>
+  <div class="head-actions">
+    <%= link_to @managed_app, class: "btn" do %>
+      <%= icon_tag("arrow-left", size: :sm) %><span><%= t(".back_to_app") %></span>
+    <% end %>
   </div>
 </div>
 
@@ -15,31 +32,23 @@
     streaming output was never actually wired up before. %>
 <%= turbo_stream_from "action_#{@audit_log.id}" %>
 
-<section class="section">
-  <h2><%= t(".output") %></h2>
-  <div class="panel">
-    <%# Output already persisted must be rendered first: someone who refreshes the page, or only opens it after execution has finished,
-        would otherwise see a blank box and think "nothing happened". New lines afterwards are appended by the subscription above.
-
-        The ids #action-output and #action-result are the targets of RunActionJob's
-        broadcasts; renaming them would silently break streaming output and the final state. %>
-    <pre id="action-output" class="action-output"><% @audit_log.output_digest.to_s.each_line do |line| %><div class="output-line"><%= line.chomp %></div><% end %></pre>
-
-    <p id="action-result" class="action-result">
-      <% case @audit_log.result %>
-      <% when "pending" %>
-        <% if @audit_log.interrupted? %>
-          <strong><%= t(".interrupted") %></strong> —— <%= t(".interrupted_detail") %>
-        <% else %>
-          <%= t(".running") %>
-        <% end %>
-      <% when "success" %>
-        <strong><%= t(".succeeded") %></strong> —— <%= t(".succeeded_detail") %>
-      <% else %>
-        <strong><%= t(".failed") %></strong>
-      <% end %>
-    </p>
+<%# The ids #action-output and #action-result are the targets of RunActionJob's
+    broadcasts; renaming them would silently break streaming output and the final state.
+    The live region is the stable wrapper, not #action-result itself: the replaced element is new
+    each time, and a region that is swapped out is not reliably announced. %>
+<section class="terminal" aria-labelledby="terminal-title">
+  <div class="run-bar" role="status" aria-live="polite">
+    <%= render "actions/run_status", log: @audit_log %>
   </div>
+  <div class="terminal-head">
+    <h2 id="terminal-title"><%= icon_tag("terminal", size: :sm) %><%= t(".output") %></h2>
+    <% if @audit_log.command.present? %>
+      <code class="terminal-command">$ <%= @audit_log.command %></code>
+    <% end %>
+  </div>
+  <%# Output already persisted must be rendered first: someone who refreshes the page, or only opens it after execution has finished,
+      would otherwise see a blank box and think "nothing happened". New lines afterwards are appended by the subscription above. %>
+  <pre id="action-output" class="action-output"><% @audit_log.output_digest.to_s.each_line do |line| %><div class="output-line"><%= line.chomp %></div><% end %></pre>
 </section>
 
-<p><%= link_to t(".back_to_app"), @managed_app %></p>
+<p class="hint terminal-note"><%= t(".subtitle") %></p>

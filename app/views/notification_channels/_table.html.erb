@@ -1,0 +1,54 @@
+<%# locals: channels, manage (true on the settings page: edit / test / delete buttons). Targets are always
+    masked: a Slack or Feishu webhook URL is itself the credential. %>
+<% if channels.empty? %>
+  <p class="empty-hint"><%= t("notification_channels.table.empty") %></p>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th><%= t("notification_channels.table.name") %></th>
+        <th><%= t("notification_channels.table.kind") %></th>
+        <th><%= t("notification_channels.table.target") %></th>
+        <th><%= t("notification_channels.table.used_by") %></th>
+        <th><%= t("notification_channels.table.last_delivery") %></th>
+        <% if manage %><th></th><% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <% channels.each do |channel| %>
+        <tr>
+          <td>
+            <%= channel.name %>
+            <% unless channel.enabled? %><span class="badge"><%= t("notification_channels.table.disabled") %></span><% end %>
+          </td>
+          <td><%= t("notification_channels.kinds.#{channel.kind}") %></td>
+          <td class="mono"><%= channel.target_hint %></td>
+          <td><%= joined_list(channel.alert_rules.map(&:name), empty: placeholder(t("notification_channels.table.unused"))) %></td>
+          <td>
+            <% if channel.last_error_at && (channel.last_delivered_at.nil? || channel.last_error_at > channel.last_delivered_at) %>
+              <strong class="result-failure"><%= t("notification_channels.table.failed_at", time: timestamp(channel.last_error_at)) %></strong>
+              <% if manage %><p class="hint mono"><%= channel.last_error %></p><% end %>
+            <% elsif channel.last_delivered_at %>
+              <%= t("notification_channels.table.delivered_at", time: timestamp(channel.last_delivered_at)) %>
+            <% else %>
+              <%= placeholder(t("notification_channels.table.never")) %>
+            <% end %>
+          </td>
+          <% if manage %>
+            <td>
+              <div class="row-actions">
+                <%= button_to t("notification_channels.table.test"), test_delivery_notification_channel_path(channel),
+                              method: :post, class: "btn-quiet" %>
+                <%= link_to t("common.edit"), edit_notification_channel_path(channel), class: "btn-quiet" %>
+                <%= button_to t("notification_channels.table.delete"), notification_channel_path(channel),
+                              method: :delete, class: "btn-quiet btn-danger",
+                              form: { data: { turbo_confirm: t("notification_channels.table.delete_confirm", name: channel.name),
+                                              confirm_danger: true } } %>
+              </div>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

@@ -774,4 +774,38 @@ class Kamal::ConfigParserTest < ActiveSupport::TestCase
       "this fixture already has a registry section; use it to confirm parsing is not broken"
     assert_equal "KAMAL_REGISTRY_PASSWORD", parsed.registry_password_env
   end
+
+  test "parses the app image and its full repository path" do
+    parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
+
+    assert_equal "example/blog", parsed.image
+    assert_equal "registry.example.com/example/blog", parsed.repository
+  end
+
+  test "parses accessories with their hosts, image and Kamal's container name" do
+    parsed = Kamal::ConfigParser.call(yaml: file_fixture("accessory_deploy.yml").read, destination: "production")
+
+    assert_equal %w[db cache], parsed.accessory_names
+    assert_equal({ name: "db", hosts: [ "10.0.0.3" ], image: "postgres:16", container_name: "blog-db" },
+                 parsed.accessory("db"))
+    # roles: resolves to that role's hosts; no destination suffix in the container name
+    assert_equal({ name: "cache", hosts: %w[10.0.0.1 10.0.0.2], image: "redis:7", container_name: "blog-cache" },
+                 parsed.accessory("cache"))
+    assert_equal %w[10.0.0.1 10.0.0.2 10.0.0.3], parsed.all_hosts
+  end
+
+  test "an app without accessories parses to an empty list" do
+    parsed = Kamal::ConfigParser.call(yaml: simple_yaml, destination: "production")
+
+    assert_equal [], parsed.accessories
+    assert_nil parsed.accessory("db")
+  end
+
+  test "accessory hosts go through the same host allowlist as app hosts" do
+    yaml = file_fixture("accessory_deploy.yml").read.sub("host: 10.0.0.3", "host: \"-oProxyCommand=evil\"")
+
+    assert_raises(Kamal::ConfigParser::ParseError) do
+      Kamal::ConfigParser.call(yaml: yaml, destination: "production")
+    end
+  end
 end

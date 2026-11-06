@@ -1,0 +1,251 @@
+# Alerting (spec 8): rules, notification channels, alert events and the notifications themselves.
+# Kept in its own file so the feature's strings sit together; I18n deep-merges it with zh-CN.yml.
+zh-CN:
+  layouts:
+    application:
+      alerts: 告警
+      notifications: 通知
+
+  activerecord:
+    errors:
+      models:
+        notification_channel:
+          attributes:
+            target:
+              not_https: 必须是 https:// 开头的完整地址——地址里带着 token，通知内容里有应用名和日志片段
+              invalid_email: 必须是邮箱地址，多个用英文逗号分隔
+              too_many_recipients: 最多 %{count} 个收件人
+        alert_rule:
+          attributes:
+            log_source:
+              requires_app: 只有选定了一个应用时才能指定 app 以外的日志来源
+    attributes:
+      notification_channel:
+        name: 名字
+        kind: 类型
+        target: 地址
+        secret: 签名密钥
+        enabled: 启用
+      alert_rule:
+        name: 名字
+        condition: 条件
+        managed_app: 应用
+        for_minutes: 持续时间
+        keyword: 关键字
+        window_minutes: 时间窗
+        threshold: 阈值
+        log_source: 日志来源
+        metric_threshold: 阈值
+        enabled: 启用
+
+  flash:
+    notification_channel:
+      added: 已添加 %{name}
+      updated: 已更新 %{name}
+      deleted: 已删除 %{name}
+      test_ok: 测试通知已发到 %{name}，去那边看看收到没有。
+      test_failed: "%{name} 发送失败：%{reason}"
+    alert_rule:
+      added: 已添加规则 %{name}
+      updated: 已更新规则 %{name}
+      deleted: 已删除规则 %{name}
+
+  audit:
+    actions:
+      notification_channel:
+        create: 添加通知渠道
+        update: 修改通知渠道
+        rotate: 替换通知地址或密钥
+        delete: 删除通知渠道
+      alert_rule:
+        create: 添加告警规则
+        update: 修改告警规则
+        delete: 删除告警规则
+
+  alerts:
+    states:
+      pending: 待确认
+      firing: 触发中
+      resolved: 已恢复
+    tabs:
+      label: 告警分区
+      events: 告警
+      rules: 规则
+      channels: 通知渠道
+    links:
+      app: 打开应用
+      logs: 日志
+    index:
+      title: 告警
+      subtitle: 规则持续成立时触发并通知，条件消失后自动恢复。
+      add_rule: 新建规则
+      manage_channels: 管理通知渠道
+      firing: 触发中（%{count}）
+      none_firing: 当前没有触发中的告警。
+      since_html: 自 %{time} 起，已持续 %{duration}
+      history: 历史
+      filter_app: 应用
+      filter_all_apps: 全部应用
+      filter_state: 状态
+      filter_all_states: 全部状态
+      filter_submit: 筛选
+      filter_clear: 清除筛选
+      no_matches: 没有符合筛选条件的告警。
+      empty: 还没有任何告警记录。
+      started_at: 开始
+      app: 应用
+      rule: 规则
+      state: 状态
+      message: 内容
+      resolved_at: 恢复
+      lasted: 持续 %{duration}
+      older: 更早的记录 →
+    channels:
+      hint: 通知渠道由超管在「设置 → 通知」里管理；这里只显示脱敏后的地址。
+
+  alert_events:
+    messages:
+      unhealthy: 有容器健康检查失败，或有主机上没有运行中的容器。
+      drift: 各主机运行的版本不一致：%{versions}
+      unreachable: 主机连不上：%{hosts}
+      stale: 采集数据已过期：面板有一段时间没读到全部主机了。
+      config_broken: deploy.yml 无法解析，面板读不到这个应用的状态：%{error}
+      deploy_failed: 版本 %{version} 发布失败。
+      deploy_unfinished: 版本 %{version} 的发布开始 %{minutes} 分钟后仍未上报完成。
+      action_failed: "「%{action}」执行失败（%{user}）。"
+      log_keyword: 最近 %{window} 分钟日志里「%{keyword}」出现 %{count} 次（阈值 %{threshold}）。
+      cpu_high: 应用容器最近 3 分钟平均 CPU %{percent}%（阈值 %{threshold}%）。
+      memory_high: 容器 %{container}（%{host}）内存占比 %{percent}%（阈值 %{threshold}%）。
+      host_memory_high: 主机 %{host} 内存已用 %{percent}%（阈值 %{threshold}%）。
+      host_disk_high: 主机 %{host} 根分区已用 %{percent}%（阈值 %{threshold}%）。
+
+  alert_rules:
+    all_apps: 所有启用的应用
+    conditions:
+      unhealthy: 应用不健康
+      unreachable: 主机不可达 / 数据过期
+      drift: 版本漂移
+      deploy_failed: 发布失败
+      action_failed: 操作失败
+      log_keyword: 日志关键字
+      cpu_high: 容器 CPU 过高
+      memory_high: 容器内存过高
+      host_memory_high: 主机内存过高
+      host_disk_high: 主机磁盘将满
+    summary:
+      log_keyword: "%{window} 分钟内「%{keyword}」≥ %{threshold} 次（来源 %{source}）"
+      per_event: 每次发生即通知一次
+      metric: ≥ %{threshold}%，持续 %{count} 分钟后触发
+      metric_immediately: ≥ %{threshold}% 即触发
+      immediately: 成立即触发
+      for_minutes: 持续 %{count} 分钟后触发
+    index:
+      title: 告警规则
+      empty: 还没有规则。没有规则就不会有告警。
+      name: 名字
+      condition: 条件
+      scope: 范围
+      channels: 通知渠道
+      state: 状态
+      last_error: 上次读日志失败（%{time}）：
+      no_channels: 不通知（只记录）
+      disabled: 已停用
+      firing: "%{count} 个触发中"
+      quiet: 正常
+      delete: 删除
+      delete_confirm: 删除规则 %{name}？它的告警记录会一并删除。
+    new:
+      title: 新建告警规则
+      subtitle: 选一个条件、一个范围，再选通知到哪里。
+    edit:
+      subtitle: 改了条件或范围后，这条规则当前未恢复的告警会被关闭（不发通知）。
+    form:
+      name: 名字
+      condition: 条件
+      condition_hint: 状态类条件（不健康、不可达、漂移、资源用量、日志关键字）持续成立才触发，消失后发恢复通知；发布失败、操作失败是一次性事件，每次失败通知一次，之后同一应用再次成功即自动恢复。
+      app: 应用
+      for_minutes: 持续多少分钟才触发
+      for_minutes_hint: 0–120，默认 2。用来滤掉一闪而过的抖动；发布失败、操作失败不看这一项。
+      log_settings: 日志关键字设置
+      log_settings_hint: 仅「日志关键字」条件使用。面板每个时间窗通过 SSH 读一次日志，读不到的主机不算「0 次」。
+      keyword: 关键字
+      keyword_hint: 按固定字符串匹配，不区分大小写。
+      window_minutes: 时间窗（分钟）
+      window_minutes_hint: 1–60，默认 5。也是检查的频率。
+      threshold: 出现多少次算成立
+      metric_settings: 资源阈值
+      metric_settings_hint: 仅资源类条件（CPU、内存、磁盘）使用。数据来自每分钟一次的监控采集（需要应用配置了 SSH 私钥）；5 分钟内没有数据时不做判断，已触发的告警保持原样。kamal-proxy 不计入。
+      metric_threshold: 阈值（%）
+      metric_threshold_hint: 1–100，默认 90。CPU 看应用容器最近 3 分钟的平均值（100% 等于一个核）；内存看任一容器的内存占比；主机内存、磁盘看应用任一主机的已用比例。
+      log_source: 日志来源
+      log_source_hint: 默认 app（应用的全部角色）。选定单个应用时也可以填 app:<角色>、accessory:<名字> 或 proxy。
+      channels: 通知渠道
+      no_channels: 还没有通知渠道，告警只会记录在这里。
+      add_channel: 去添加
+      enabled: 启用这条规则
+      cancel: 取消
+
+  notification_channels:
+    kinds:
+      webhook: Webhook
+      feishu: 飞书机器人
+      slack: Slack
+      email: 邮件
+    table:
+      empty: 还没有通知渠道。
+      name: 名字
+      kind: 类型
+      target: 地址
+      used_by: 使用它的规则
+      last_delivery: 最近投递
+      disabled: 已停用
+      unused: 未使用
+      failed_at: "%{time} 失败"
+      delivered_at: "%{time} 成功"
+      never: 还没发过
+      test: 发送测试
+      delete: 删除
+      delete_confirm: 删除通知渠道 %{name}？使用它的规则之后不再通知到这里。
+    index:
+      title: 通知渠道
+      subtitle: 告警通知发到哪里。地址和密钥只能整体替换，不会再显示。
+      add: 添加渠道
+      no_panel_url: 没有设置 PANEL_URL，通知里不会带回到面板的链接。
+    new:
+      title: 添加通知渠道
+      subtitle: 添加后可以先「发送测试」，确认收得到再挂到规则上。
+    edit:
+      subtitle: 地址和密钥留空表示不变。
+    form:
+      name: 名字
+      kind: 类型
+      kind_locked: 类型创建后不能改：地址的含义取决于类型。需要换类型请新建一个。
+      target: 地址
+      target_hint: Webhook / 飞书 / Slack 填完整的 https 地址；邮件填收件人，多个用英文逗号分隔（需要配置 SMTP）。
+      target_keep: 留空则保持现在的（%{hint}）。
+      secret: 签名密钥（可选）
+      secret_hint: 飞书机器人开启了「签名校验」时填它的密钥；Webhook 填了会在 X-Kamal-Panel-Signature 头里带上请求体的 HMAC-SHA256 签名。留空则保持不变。
+      clear_secret: 移除现在的密钥
+      enabled: 启用
+      cancel: 取消
+
+  notifiers:
+    test_rule: 测试通知
+    test_text: 这是来自 Kamal Panel 的测试通知（渠道：%{channel}）。收到说明配置正确。
+    prefix:
+      firing: 告警
+      reminder: 仍在告警
+      resolved: 已恢复
+      test: 测试
+    started_at: 开始于 %{time}
+    resolved_at: 恢复于 %{time}
+    open_panel: 在面板中查看
+
+  managed_apps:
+    firing_alerts:
+      since: "%{time}前开始"
+      all: 查看这个应用的全部告警
+
+  overviews:
+    summary:
+      alerts_firing: 告警触发中

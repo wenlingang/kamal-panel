@@ -26,6 +26,11 @@ module KamalPanel
     config.time_zone = ENV.fetch("PANEL_TIME_ZONE", "Asia/Shanghai")
     # config.eager_load_paths << Rails.root.join("extras")
 
+    # The panel's own public address (e.g. https://panel.example.com), for links in alert
+    # notifications and emails, which are read outside any request and so can't take the host from
+    # one. Unset: notifications go out without a link (see PanelUrl).
+    config.x.panel_url = ENV["PANEL_URL"].presence&.chomp("/")
+
     # The panel UI is in Chinese, so the strings Rails itself produces (time_ago_in_words,
     # validation error messages, etc.) must be Chinese too; translations come from rails-i18n.
     # fallbacks go here rather than only in production: when a translation is missing, better to

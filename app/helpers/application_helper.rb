@@ -35,12 +35,11 @@ module ApplicationHelper
     end
   end
 
-  # The top nav highlights by [section], not by page.
-  def nav_link_to(label, path, controllers:, icon: nil)
-    current = Array(controllers).include?(controller.controller_path)
-
-    link_to path, class: ("is-current" if current) do
-      icon ? icon_tag(icon, size: :sm) + label.to_s : label.to_s
+  # "Up one level" above a page title. The arrow is an icon rather than a "←" in the copy, so the
+  # label reads cleanly to screen readers and lines up with the title's left edge.
+  def breadcrumb(label, path)
+    tag.p(class: "breadcrumb") do
+      link_to(path) { icon_tag("arrow-left", size: :sm) + tag.span(label) }
     end
   end
 
@@ -69,9 +68,10 @@ module ApplicationHelper
 
   def app_name_list(apps, empty:) = joined_list(apps.map(&:name), empty:)
 
-  LOCALE_LABELS = { "zh-CN" => "中", "en" => "EN" }.freeze
+  # Each language in its own words, so someone who can't read the current UI language still finds theirs.
+  LOCALE_NAMES = { "zh-CN" => "简体中文", "en" => "English" }.freeze
 
-  def locale_label(locale) = LOCALE_LABELS.fetch(locale, locale)
+  def locale_name(locale) = LOCALE_NAMES.fetch(locale, locale)
 
   def user_identity(user)
     return "" if user.nil?
@@ -97,9 +97,10 @@ module ApplicationHelper
   end
 
   def audit_object(log)
+    # An action aimed inside the app (an accessory, one host) shows that target next to the version.
     subject =
-      if log.target_user           then user_identity(log.target_user)
-      elsif log.target_version.present? then log.target_version
+      if log.target_user then user_identity(log.target_user)
+      else [ log.target, log.target_version ].compact_blank.join(" · ").presence
       end
     note = audit_detail_text(log)
 

@@ -1,0 +1,11 @@
+<h2 style="font-size: 16px; margin: 0 0 12px;"><%= @message.title %></h2>
+<p style="white-space: pre-wrap; margin: 0 0 12px;"><%= @message.text %></p>
+<% if @message.started_at && !@message.test? %>
+  <p style="margin: 0; color: #555;"><%= t("notifiers.started_at", time: @message.started_at.in_time_zone.strftime("%Y-%m-%d %H:%M:%S %Z")) %></p>
+<% end %>
+<% if @message.resolved_at %>
+  <p style="margin: 0; color: #555;"><%= t("notifiers.resolved_at", time: @message.resolved_at.in_time_zone.strftime("%Y-%m-%d %H:%M:%S %Z")) %></p>
+<% end %>
+<% if @message.url %>
+  <p style="margin: 12px 0 0;"><%= link_to t("notifiers.open_panel"), @message.url %></p>
+<% end %>

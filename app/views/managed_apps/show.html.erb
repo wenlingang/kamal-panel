@@ -1,19 +1,59 @@
-<p class="breadcrumb"><%= link_to t(".back"), root_path %></p>
+<% broken = @managed_app.last_poll_error.present? %>
+<%# The header must still render when the config cannot be parsed: nothing here touches parsed_config for a
+    broken app (see the comment on the parse-error branch of the overview tab). %>
+<% status = ManagedAppStatus.new(@managed_app) unless broken %>
 
-<div class="page-head">
+<%= breadcrumb(t(".back"), root_path) %>
+
+<div class="page-head app-head">
   <div class="page-title">
     <h1>
       <%= @managed_app.name %>
-      <%= render "managed_apps/status_badge", managed_app: @managed_app,
-                 status: (ManagedAppStatus.new(@managed_app) unless @managed_app.last_poll_error.present?) %>
+      <%= render "managed_apps/status_badge", managed_app: @managed_app, status: status %>
     </h1>
-    <%# The subtitle does not touch parsed_config: when config parsing fails this page must still render
-        (see the comment on the last_poll_error branch below). %>
-    <p class="page-sub"><%= t(".subtitle") %></p>
+    <dl class="head-facts">
+      <div>
+        <dt><%= t(".running_version") %></dt>
+        <dd>
+          <% if status.nil? || status.versions.empty? %>
+            <%= placeholder("—") %>
+          <% else %>
+            <%= version_links(@managed_app, status.versions) %>
+            <% if status.drift? %>
+              <strong class="suffix"><%= t("overviews.grid.version_drift", count: status.versions.size) %></strong>
+            <% end %>
+          <% end %>
+        </dd>
+      </div>
+      <div>
+        <dt><%= t(".destination") %></dt>
+        <dd><%= @managed_app.destination.presence || placeholder(t(".destination_none")) %></dd>
+      </div>
+      <% unless broken %>
+        <div>
+          <dt><%= t(".host_count") %></dt>
+          <dd><%= @managed_app.cached_app_hosts.size %></dd>
+        </div>
+      <% end %>
+    </dl>
   </div>
+  <%# Primary actions slot: deploying comes first. %>
   <div class="head-actions">
+    <% if !broken && policy_for(@managed_app).act? %>
+      <%= link_to managed_app_path(@managed_app, tab: "deploy"), class: "btn-primary" do %>
+        <%= icon_tag("rocket", size: :sm) %><span><%= t(".deploy_new") %></span>
+      <% end %>
+    <% end %>
+    <%# Restart from the header without opening the actions tab. Skipped for an unparseable config: the
+        actions tab says why nothing can run then. %>
+    <% unless broken %>
+      <%= render "managed_apps/quick_actions", managed_app: @managed_app,
+                 show_actions_link: @tab != "actions", logs_link: (managed_app_path(@managed_app, tab: "logs") unless @tab == "logs") %>
+    <% end %>
     <%= allowed_to(:act, @managed_app) do %>
-      <%= link_to t(".edit"), edit_managed_app_path(@managed_app), class: "btn" %>
+      <%= link_to edit_managed_app_path(@managed_app), class: "btn" do %>
+        <%= icon_tag("pencil", size: :sm) %><span><%= t(".edit") %></span>
+      <% end %>
     <% end %>
     <%= allowed_to(:deactivate, @managed_app) do %>
       <% if @managed_app.deactivated? %>
@@ -26,7 +66,15 @@
       <% end %>
     <% end %>
   </div>
+  <div class="head-pulse">
+    <%# Replaced by PollManagedAppJob after each round (target id: app-heartbeat). %>
+    <%= render "shared/heartbeat", history: StatusHistory.new(@managed_app), id: "app-heartbeat" %>
+  </div>
 </div>
+
+<%# Replaced by the PollManagedAppJob broadcast after collection finishes: #app-status, #app-heartbeat and,
+    on the overview tab, #host-status. Subscribed on every tab so the header stays live. %>
+<%= turbo_stream_from "managed_app_#{@managed_app.id}" %>
 
 <% if @managed_app.deactivated? %>
   <%# After deactivation this page can still be opened — if it could not be seen there would be no way to re-enable it — but it must say clearly what state it is in now. %>
@@ -36,166 +84,29 @@
   </p>
 <% end %>
 
-<%# Replaced by the PollManagedAppJob broadcast after collection finishes: #host-status %>
-<%= turbo_stream_from "managed_app_#{@managed_app.id}" %>
-
-<%= render "managed_apps/deploy_alerts", managed_app: @managed_app %>
-
-<% if @managed_app.last_poll_error.present? %>
+<% if broken %>
   <%# A config parse failure must speak loudly in the UI, not just leave one log line — otherwise polling would
       stall silently and permanently, and the operator would only see the data getting older without knowing why
-      (see final review I4). %>
+      (see final review I4). It sits above the tabs so no tab can hide it. %>
   <div class="config-parse-error-banner" role="alert">
     <strong><%= t(".parse_error_title") %></strong>
     <p><%= t(".parse_error_body", since: time_ago_in_words(@managed_app.first_poll_error_at)) %></p>
     <pre><code><%= @managed_app.last_poll_error %></code></pre>
   </div>
-
-  <%# When the config cannot be parsed, almost everything displayed below originally depends on re-parsing the config
-      (service name, Registry, role list, the config-derived "data age" / "some hosts
-      not yet collected") — continuing to call them would blow up with ParseError again inside this template,
-      and this time in the render phase, where it is not caught by the job's rescue (this is exactly the hole found
-      and needing to be plugged together during this fix). So here it degrades to reading only the raw observations,
-      no longer touching parsed_config. %>
-  <section class="section">
-    <h2><%= t(".basics") %></h2>
-    <div class="panel">
-      <dl>
-        <dt><%= t(".destination") %></dt>
-        <dd><%= @managed_app.destination.presence || placeholder(t(".destination_none")) %></dd>
-      </dl>
-    </div>
-  </section>
-
-  <section class="section">
-  <h2><%= t(".last_good_observations") %></h2>
-  <div class="panel">
-  <p class="hint"><%= t(".last_good_hint") %></p>
-  <table class="host-table">
-    <thead>
-      <tr>
-        <th><%= t(".host") %></th>
-        <th><%= t(".version") %></th>
-        <th><%= t(".docker_status") %></th>
-        <th><%= t(".reachable") %></th>
-        <th><%= t(".observed_at") %></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% Observation.latest_for(@managed_app).sort_by(&:host).each do |o| %>
-        <tr>
-          <td><%= o.host %></td>
-          <td><%= o.version || "—" %></td>
-          <td><%= o.docker_status || "—" %></td>
-          <td><%= o.reachable ? t(".yes") : t(".no") %></td>
-          <td><%= t(".ago", time: time_ago_in_words(o.observed_at)) %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-  </div>
-  </section>
-<% else %>
-<section class="section">
-  <h2><%= t(".basics") %></h2>
-  <div class="panel">
-    <dl>
-      <dt><%= t(".service") %></dt>     <dd><%= @managed_app.service %></dd>
-      <dt><%= t(".destination") %></dt> <dd><%= @managed_app.destination.presence || placeholder(t(".destination_none")) %></dd>
-      <dt><%= t(".registry") %></dt>    <dd><%= @managed_app.parsed_config.registry_server %></dd>
-      <dt><%= t(".ssh_credential") %></dt>
-      <dd><%= @managed_app.ssh_credential&.fingerprint || placeholder(t(".ssh_credential_none")) %></dd>
-      <dt><%= t(".members") %></dt>
-      <dd>
-        <%# Read-only. The only write entry for membership is the people page (design 11 §5.2). %>
-        <%= joined_list(@managed_app.members.map(&:display_name), empty: placeholder(t(".members_none"))) %>
-      </dd>
-    </dl>
-
-    <%# A soft hint is not validation: the server in deploy.yml can change at any time, and a hard block would block the wrong people.
-        When the credential has no server there is nothing to compare against, so no hint is shown. %>
-    <% if (cred = @managed_app.registry_credential) && cred.server.present? &&
-          cred.server != @managed_app.parsed_config.registry_server %>
-      <p class="warning">
-        <%= t(".registry_mismatch", credential: cred.name, credential_server: cred.server,
-                                    app_server: @managed_app.parsed_config.registry_server) %>
-      </p>
-    <% end %>
-  </div>
-</section>
-
-  <section class="section">
-  <h2><%= t(".roles") %></h2>
-  <div class="panel">
-  <table>
-    <thead>
-      <tr>
-        <th><%= t(".role") %></th>
-        <th><%= t(".role_hosts") %></th>
-        <th><%= t(".container_prefix") %></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @managed_app.parsed_config.roles.each do |role| %>
-        <tr>
-          <td><%= role[:name] %></td>
-          <td><%= role[:hosts].join(", ") %></td>
-          <td><code><%= role[:container_prefix] %></code></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-  </div>
-</section>
-
-  <section class="section">
-  <div class="section-head">
-    <h2><%= t(".host_status") %></h2>
-    <%# The panel is already polling (every 10 seconds when someone is viewing this page). This button is for the "need
-        to know right now" case: it pushes the cadence to the burst tier and immediately enqueues one collection; the result is
-        swapped back by the PollManagedAppJob broadcast, with no whole-page refresh. %>
-    <div class="head-actions">
-      <%= button_to t(".refresh_now"), managed_app_refreshes_path(@managed_app), method: :post %>
-      <%= allowed_to(:view_logs, @managed_app) do %>
-        <%= button_to t(".view_logs"), managed_app_actions_path(@managed_app),
-                      method: :post, params: { name: "logs" } %>
-      <% end %>
-    </div>
-  </div>
-  <div class="panel">
-
-  <% status = ManagedAppStatus.new(@managed_app) %>
-
-  <%= render "managed_apps/host_status", managed_app: @managed_app, status: status %>
-  </div>
-</section>
 <% end %>
 
-<%# An app whose config cannot be parsed has no service/destination/primary_host to use —
-    KamalLock would raise Kamal::ConfigParser::ParseError right in this branch (see
-    the comment on the last_poll_error branch above). This unless skips "lock status + action
-    buttons" as a whole; the cost is that in the short time window between a parse failure and the next poll
-    the action buttons disappear along with it, not just the data getting stale — the width of this window depends on
-    the fastest polling interval in PollCadence (currently BURST = 2 seconds), and is not a
-    constant that always holds: if the polling interval is widened later, this window will quietly widen with it,
-    and at that point it must be re-evaluated whether this is still enough (a minor from the task-5 review). %>
-<%# The lock status really has to SSH in to read, and one unreachable host makes it wait out the full connection timeout (measured 3.4 seconds),
-    while the rest of this page comes entirely from the database (within 25ms). So it is put, together with the action area hanging off it,
-    into a lazily loaded frame: the page appears first, and the lock status arrives afterwards. %>
-<%# Do not use loading: :lazy — the lock block is below the first screen, and lazy would wait until someone scrolls down before starting to read,
-    so the "slowness" moves from opening the page to the moment of scrolling. Load immediately: the main document is interactive in 340ms,
-    and this request finishes in parallel and then fills in the content. %>
-<%# The section and its panel stay put while the frame loads, so the page doesn't jump when the lock
-    status arrives. %>
-<section class="section actions">
-  <h2><%= t(".actions") %></h2>
-  <div class="panel">
-    <%= turbo_frame_tag :lock_and_actions, src: managed_app_lock_path(@managed_app) do %>
-      <p class="hint"><%= t(".lock_reading") %></p>
-    <% end %>
-  </div>
-</section>
+<%= render "managed_apps/firing_alerts", managed_app: @managed_app %>
+<%= render "managed_apps/deploy_alerts", managed_app: @managed_app %>
 
-<%= render "managed_apps/deploy_history", managed_app: @managed_app %>
+<%# Server-rendered tabs: plain links with ?tab=, so every tab has an address and works without JS.
+    Logs is left out for people who may not read this app's logs. %>
+<nav class="tabs" aria-label="<%= t(".tabs_label") %>">
+  <% visible_tabs.each do |tab| %>
+    <%= link_to t(".tabs.#{tab}"), managed_app_path(@managed_app, tab: (tab unless tab == "overview")),
+                class: "tab", "aria-current": ("page" if @tab == tab) %>
+  <% end %>
+</nav>
 
-<%= render "managed_apps/deploy_reporting", managed_app: @managed_app %>
+<div class="tab-body">
+  <%= render "managed_apps/tab_#{@tab}", managed_app: @managed_app, status: status %>
+</div>

@@ -1,0 +1,40 @@
+<%# The frame body: summary, hosts that couldn't be read, then the merged lines (oldest first, newest at the
+    bottom, like a terminal). data-cursor / data-seen are where follow mode picks up (LogQuery::Result). %>
+<%= turbo_frame_tag "log_results", class: "log-results" do %>
+  <% hosts = @query.source.hosts %>
+  <% if @result.errors.any? %>
+    <ul class="callout callout-warn log-errors">
+      <% @result.errors.each do |error| %>
+        <li>
+          <% if error.host %>
+            <span class="log-host <%= log_host_class(error.host, hosts) %>"><%= error.host %></span>
+          <% end %>
+          <span><%= log_error_message(error) %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <section class="terminal log-terminal" aria-labelledby="log-results-title">
+    <div class="terminal-head">
+      <h2 id="log-results-title"><%= icon_tag("terminal", size: :sm) %><%= @managed_app.name %></h2>
+      <span class="log-summary">
+        <%= t("logs.results.summary_html",
+              hosts: @result.host_count,
+              lines: tag.span(@result.entries.size, data: { log_viewer_target: "count" }),
+              duration: duration_text(@result.duration_ms)) %>
+      </span>
+      <% if @result.truncated %>
+        <span class="log-summary"><%= t("logs.results.truncated", count: LogQuery::MAX_ENTRIES) %></span>
+      <% end %>
+    </div>
+    <div class="log-output" data-log-viewer-target="output" tabindex="0"
+         aria-label="<%= t("logs.results.output_label") %>"
+         data-cursor="<%= @result.cursor.utc.iso8601(9) %>" data-seen="<%= @result.boundary_keys.join(",") %>">
+      <% if @result.entries.empty? %>
+        <p class="log-empty" data-log-viewer-target="empty"><%= t("logs.results.empty") %></p>
+      <% end %>
+      <%= log_rows(@result.entries, hosts: hosts, pattern: log_keyword_pattern(@query.keyword, @query.case_sensitive)) %>
+    </div>
+  </section>
+<% end %>

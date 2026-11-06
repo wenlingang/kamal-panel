@@ -3,13 +3,13 @@
        这一份不能用 --mark-* 变量：标签栏里的图标拿不到页面的自定义属性，
        所以颜色是字面值，深浅两套靠 SVG 内部自带的媒体查询切换。 -->
   <style>
-    .tile { fill: #2a2724 }
+    .tile { fill: #2e5bda }
     .card { fill: #ffffff }
-    .cord { fill: #f0a500 }
+    .cord { fill: #ffc53d }
     @media (prefers-color-scheme: dark) {
-      .tile { fill: #38342f }
-      .card { fill: #f6f4ef }
-      .cord { fill: #f5b942 }
+      .tile { fill: #3b66dd }
+      .card { fill: #ffffff }
+      .cord { fill: #ffd166 }
     }
   </style>
   <rect width="24" height="24" rx="6" class="tile"/>

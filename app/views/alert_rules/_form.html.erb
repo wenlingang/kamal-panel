@@ -1,0 +1,107 @@
+<%# locals: rule. The condition-specific fields carry data-conditions; alert-rule-form shows only the ones
+    for the chosen condition. Without JS all of them show, each hint saying when it applies. %>
+<%= form_with model: rule, data: { controller: "alert-rule-form" } do |form| %>
+  <% if rule.errors.any? %>
+    <ul class="errors">
+      <% rule.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <div>
+    <%= form.label :name, t("alert_rules.form.name") %>
+    <%= form.text_field :name, autocomplete: "off" %>
+  </div>
+
+  <div>
+    <%= form.label :condition, t("alert_rules.form.condition") %>
+    <%= form.select :condition, AlertRule::CONDITIONS.map { |c| [ t("alert_rules.conditions.#{c}"), c ] }, {},
+                    data: { alert_rule_form_target: "condition", action: "change->alert-rule-form#toggle" } %>
+    <p class="hint"><%= t("alert_rules.form.condition_hint") %></p>
+  </div>
+
+  <div>
+    <%= form.label :managed_app_id, t("alert_rules.form.app") %>
+    <%= form.select :managed_app_id, @apps.map { |app| [ app.name, app.id ] },
+                    { include_blank: t("alert_rules.all_apps") } %>
+  </div>
+
+  <div data-alert-rule-form-target="section" data-conditions="<%= (AlertRule::STATE_CONDITIONS + AlertRule::LOG_CONDITIONS).join(" ") %>">
+    <%= form.label :for_minutes, t("alert_rules.form.for_minutes") %>
+    <%= form.number_field :for_minutes, min: AlertRule::FOR_MINUTES.min, max: AlertRule::FOR_MINUTES.max, step: 1 %>
+    <p class="hint"><%= t("alert_rules.form.for_minutes_hint") %></p>
+  </div>
+
+  <fieldset class="rule-fieldset" data-alert-rule-form-target="section" data-conditions="log_keyword">
+    <legend><%= t("alert_rules.form.log_settings") %></legend>
+    <p class="hint"><%= t("alert_rules.form.log_settings_hint") %></p>
+
+    <div>
+      <%= form.label :keyword, t("alert_rules.form.keyword") %>
+      <%= form.text_field :keyword, autocomplete: "off", maxlength: LogQuery::MAX_KEYWORD_LENGTH, class: "mono" %>
+      <p class="hint"><%= t("alert_rules.form.keyword_hint") %></p>
+    </div>
+
+    <div>
+      <%= form.label :window_minutes, t("alert_rules.form.window_minutes") %>
+      <%= form.number_field :window_minutes, min: AlertRule::WINDOW_MINUTES.min, max: AlertRule::WINDOW_MINUTES.max, step: 1,
+                                             placeholder: AlertRule::DEFAULT_WINDOW_MINUTES %>
+      <p class="hint"><%= t("alert_rules.form.window_minutes_hint") %></p>
+    </div>
+
+    <div>
+      <%= form.label :threshold, t("alert_rules.form.threshold") %>
+      <%= form.number_field :threshold, min: 1, max: AlertRule::MAX_THRESHOLD, step: 1, placeholder: 1 %>
+    </div>
+
+    <div>
+      <%= form.label :log_source, t("alert_rules.form.log_source") %>
+      <%= form.text_field :log_source, autocomplete: "off", placeholder: "app", class: "mono" %>
+      <p class="hint"><%= t("alert_rules.form.log_source_hint") %></p>
+    </div>
+  </fieldset>
+
+  <fieldset class="rule-fieldset" data-alert-rule-form-target="section" data-conditions="<%= AlertRule::METRIC_CONDITIONS.join(" ") %>">
+    <legend><%= t("alert_rules.form.metric_settings") %></legend>
+    <p class="hint"><%= t("alert_rules.form.metric_settings_hint") %></p>
+
+    <div>
+      <%= form.label :metric_threshold, t("alert_rules.form.metric_threshold") %>
+      <%= form.number_field :metric_threshold, min: AlertRule::METRIC_THRESHOLDS.min, max: AlertRule::METRIC_THRESHOLDS.max, step: 1,
+                                               placeholder: AlertRule::DEFAULT_METRIC_THRESHOLD %>
+      <p class="hint"><%= t("alert_rules.form.metric_threshold_hint") %></p>
+    </div>
+  </fieldset>
+
+  <div>
+    <p class="field-label"><%= t("alert_rules.form.channels") %></p>
+    <% if @channels.empty? %>
+      <p class="hint">
+        <%= t("alert_rules.form.no_channels") %>
+        <%= allowed_to(:manage, NotificationChannel) do %>
+          <%= link_to t("alert_rules.form.add_channel"), new_notification_channel_path %>
+        <% end %>
+      </p>
+    <% else %>
+      <%= form.collection_check_boxes :notification_channel_ids, @channels, :id, :name do |box| %>
+        <label class="check-row">
+          <%= box.check_box %>
+          <span><%= box.text %><% unless box.object.enabled? %> <span class="badge"><%= t("notification_channels.table.disabled") %></span><% end %></span>
+        </label>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div>
+    <label class="check-row">
+      <%= form.check_box :enabled %>
+      <span><%= t("alert_rules.form.enabled") %></span>
+    </label>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit t("common.save"), class: "btn-primary" %>
+    <%= link_to t("alert_rules.form.cancel"), alert_rules_path, class: "btn" %>
+  </div>
+<% end %>

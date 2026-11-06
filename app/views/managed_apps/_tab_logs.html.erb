@@ -1,0 +1,17 @@
+<%# locals: managed_app, status (nil when the config cannot be parsed)
+    The same viewer as /logs with this app fixed, so people stay on the app page. The form posts back to this
+    tab (GET, conditions in the URL). Only reachable with view_logs? (ManagedAppsController#visible_tabs). %>
+<% if status.nil? %>
+  <p class="callout callout-warn"><%= t("logs.index.config_unparseable", name: managed_app.name) %></p>
+<% else %>
+  <section class="section">
+    <div class="section-head">
+      <h2><%= t("managed_apps.show.logs") %></h2>
+      <%= link_to logs_path(params: LogQueryForm.new(managed_app, params).query_params), class: "btn-quiet" do %>
+        <%= icon_tag("external-link", size: :sm) %><span><%= t("managed_apps.show.open_in_logs") %></span>
+      <% end %>
+    </div>
+    <%= render "logs/viewer", form: LogQueryForm.new(managed_app, params), apps: nil,
+               url: managed_app_path(managed_app), hidden: { tab: "logs" } %>
+  </section>
+<% end %>
