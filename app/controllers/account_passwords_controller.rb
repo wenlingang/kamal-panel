@@ -20,7 +20,9 @@ class AccountPasswordsController < ApplicationController
     # submit would report success without changing anything.
     return reject(t("flash.password.blank")) if params[:password].blank?
 
-    if user.update(params.permit(:password, :password_confirmation))
+    # has_secure_password only checks the confirmation when one is sent; a request leaving it out
+    # would skip the check, so a missing confirmation counts as an empty (mismatching) one.
+    if user.update(password: params[:password], password_confirmation: params[:password_confirmation].to_s)
       # Everywhere else is signed out — the usual reason to change a password is suspecting someone
       # else has it. The session doing the change stays.
       user.sessions.where.not(id: Current.session.id).destroy_all

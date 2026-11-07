@@ -46,6 +46,24 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "the sign-in form offers remember me" do
     get new_session_path
     assert_select "input[type=checkbox][name=remember_me]"
+    assert_select "label", text: /#{Session::REMEMBERED_FOR.in_days.to_i}/
+  end
+
+  test "the session expires on the server, whatever the cookie says" do
+    post session_path, params: { email_address: @user.email_address, password: "password" }
+    session = @user.sessions.order(:id).last
+    assert_in_delta Session::UNREMEMBERED_FOR.from_now, session.expires_at, 5
+
+    # A browser restoring its last session brings a "session" cookie back; the row decides.
+    session.update!(expires_at: 1.minute.ago)
+    get root_path
+    assert_redirected_to new_session_path
+  end
+
+  test "remember me gives the session the long lifetime on the server too" do
+    post session_path, params: { email_address: @user.email_address, password: "password", remember_me: "1" }
+
+    assert_in_delta Session::REMEMBERED_FOR.from_now, @user.sessions.order(:id).last.expires_at, 5
   end
 
   test "create with invalid credentials" do

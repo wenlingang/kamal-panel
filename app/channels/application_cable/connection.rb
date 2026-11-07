@@ -7,11 +7,11 @@ module ApplicationCable
     end
 
     private
-      # Repeating the deactivation check from Authentication#find_session_by_cookie here is
-      # deliberate.
+      # The same check as Authentication#find_session_by_cookie (expired, deactivated), through
+      # the one shared method so the two ways in can't drift apart.
       def set_current_user
-        session = Session.find_by(id: cookies.signed[:session_id])
-        return if session.nil? || session.user.deactivated?
+        session = Session.usable_by_id(cookies.signed[:session_id])
+        return if session.nil?
 
         self.current_user = session.user
       end

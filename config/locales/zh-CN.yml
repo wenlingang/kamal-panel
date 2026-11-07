@@ -560,7 +560,7 @@ zh-CN:
       password: 密码
       submit: 登录
       forgot: 忘记密码？
-      remember_me: 记住我，30 天内免登录
+      remember_me: 记住我，%{days} 天内免登录
 
   passwords:
     new:

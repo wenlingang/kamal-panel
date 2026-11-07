@@ -541,7 +541,7 @@ en:
       password: Password
       submit: Sign in
       forgot: Forgot your password?
-      remember_me: Keep me signed in for 30 days
+      remember_me: Keep me signed in for %{days} days
 
   passwords:
     new:

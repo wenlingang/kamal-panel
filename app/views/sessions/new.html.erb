@@ -20,7 +20,7 @@
           job: the autocomplete hints above are what let its password manager offer to save and fill it. %>
       <label class="check-row auth-remember">
         <%= check_box_tag :remember_me, "1", params[:remember_me] == "1" %>
-        <span><%= t(".remember_me") %></span>
+        <span><%= t(".remember_me", days: Session::REMEMBERED_FOR.in_days.to_i) %></span>
       </label>
       <%= form.submit t(".submit"), class: "btn-primary" %>
     <% end %>

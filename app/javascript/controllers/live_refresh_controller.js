@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { Turbo } from "@hotwired/turbo-rails"
+import { application } from "controllers/application"
 
 // Keeps parts of a page live without refreshing the page.
 //
@@ -13,6 +14,16 @@ import { Turbo } from "@hotwired/turbo-rails"
 // Signals arrive once per app per polling round, so they are coalesced: at most one fetch in
 // flight, at most one per minInterval, and none while the tab is hidden (a pending signal is
 // caught up on when it becomes visible again).
+//
+// The server's signal, <turbo-stream action="live_refresh" target="…">, goes straight to this
+// controller on the target element. Registered here, next to the only thing that handles it;
+// controllers are eager-loaded, so this runs before any stream can arrive.
+Turbo.StreamActions.live_refresh = function () {
+  this.targetElements.forEach((element) => {
+    application.getControllerForElementAndIdentifier(element, "live-refresh")?.signal()
+  })
+}
+
 export default class extends Controller {
   static targets = ["region"]
   static values = { minInterval: { type: Number, default: 5000 } }
@@ -41,6 +52,8 @@ export default class extends Controller {
     const wait = Math.max(0, this.lastRun + this.minIntervalValue - Date.now())
     this.timer = setTimeout(() => {
       this.timer = null
+      // Hidden while waiting: keep the signal pending, visibilitychange picks it up.
+      if (document.hidden) return
       this.reload()
     }, wait)
   }
@@ -61,9 +74,18 @@ export default class extends Controller {
       if (!response.ok || response.redirected) return
 
       const fresh = new DOMParser().parseFromString(await response.text(), "text/html")
+      const freshIds = [ ...fresh.querySelectorAll("[data-live-refresh-target~='region']") ].map((el) => el.id)
+      const currentIds = this.regionTargets.map((region) => region.id)
+
+      // The page changed shape (first app onboarded, last one filtered away…): regions can't be
+      // matched up, so fall back to one ordinary (morphing) Turbo refresh. Rare, unlike the per-round updates.
+      if (freshIds.join() !== currentIds.join()) {
+        Turbo.visit(window.location.href, { action: "replace" })
+        return
+      }
+
       this.regionTargets.forEach((region) => {
-        const replacement = fresh.getElementById(region.id)
-        if (replacement) Turbo.morphChildren(region, replacement)
+        Turbo.morphChildren(region, fresh.getElementById(region.id))
       })
     } catch (error) {
       if (error.name !== "AbortError") console.warn("[live-refresh]", error)

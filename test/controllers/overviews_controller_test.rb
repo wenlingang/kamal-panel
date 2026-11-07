@@ -57,8 +57,19 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "##{OverviewSignal::TARGET}[data-controller=live-refresh]" do
       assert_select "#overview-summary[data-live-refresh-target=region] .status-strip"
       assert_select "#overview-results[data-live-refresh-target=region] .app-card"
+      assert_select "#overview-deactivated[data-live-refresh-target=region]"
       assert_select "[data-live-refresh-target=region] form.filter-bar", count: 0
     end
+  end
+
+  # With no app yet the regions differ (the client then falls back to one Turbo refresh), but the
+  # empty state still has to be inside a live region, or onboarding the first app never shows up.
+  test "the empty overview is live too" do
+    ManagedApp.delete_all
+
+    get overview_path
+
+    assert_select "##{OverviewSignal::TARGET} #overview-empty[data-live-refresh-target=region]"
   end
 
   test "lists all apps when there are no filter params" do
