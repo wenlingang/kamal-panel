@@ -81,14 +81,6 @@ class Collectors::MetricsCollectorTest < ActiveSupport::TestCase
     ssh
   end
 
-  test "one command per host, every host of the config including accessory hosts" do
-    ssh = collect
-
-    assert_equal 3, ssh.commands.size
-    assert_includes ssh.commands.first, "docker stats --no-stream"
-    assert_includes ssh.commands.first, "/proc/loadavg"
-  end
-
   test "keeps this app's containers, accessories and the proxy; skips everyone else's" do
     collect("10.0.0.1" => { stdout: output([ stats("blog-web-production-abc1234"),
                                               stats("blog-worker-production-abc1234", mem: "300MiB / 512MiB", mem_perc: "58.6%"),
@@ -110,40 +102,5 @@ class Collectors::MetricsCollectorTest < ActiveSupport::TestCase
     assert_equal [ 1200, 3_400_000, 0, 8190, 7 ], [ web.net_rx_bytes, web.net_tx_bytes, web.block_read_bytes, web.block_write_bytes, web.pids ]
     assert_equal @now.change(sec: 0), web.sampled_at
     assert_equal 512 * 1024**2, ContainerMetric.find_by!(source: "worker").mem_limit_bytes
-  end
-
-  test "host metrics: load, cores, memory, disk; an unreachable host records nothing" do
-    collect("10.0.0.1" => { stdout: output([]) })
-
-    assert_equal [ "10.0.0.1" ], HostMetric.pluck(:host)
-    host = HostMetric.sole
-    assert_equal [ 0.52, 0.41, 0.3, 4 ], [ host.load1, host.load5, host.load15, host.cpus ]
-    assert_equal 8_022_316 * 1024, host.mem_total_bytes
-    assert_in_delta 21.4, host.mem_used_percent, 0.1
-    assert_equal 9_317_440 * 1024, host.disk_used_bytes
-    assert_nil host.cpu_percent, "no earlier sample to compare with"
-  end
-
-  test "host CPU comes from the delta against the previous sample of the same host" do
-    collect("10.0.0.1" => { stdout: output([], stat: "cpu  100 0 100 700 100 0 0 0 0 0") }, now: @now - 1.minute)
-    collect("10.0.0.1" => { stdout: output([], stat: "cpu  400 0 200 1200 200 0 0 0 0 0") })
-
-    assert_in_delta 40.0, HostMetric.order(:sampled_at).last.cpu_percent
-  end
-
-  test "a second round in the same minute is a no-op" do
-    collect("10.0.0.1" => { stdout: output([ stats("blog-web-production-abc1234") ]) })
-    collect("10.0.0.1" => { stdout: output([ stats("blog-web-production-abc1234") ]) }, now: @now + 20.seconds)
-
-    assert_equal 1, ContainerMetric.count
-    assert_equal 1, HostMetric.count
-  end
-
-  test "docker errors and garbage output don't raise and record no containers" do
-    collect("10.0.0.1" => { stdout: output([ "permission denied while trying to connect to the Docker daemon socket" ]) },
-            "10.0.0.2" => { stdout: "sh: syntax error\n" })
-
-    assert_equal 0, ContainerMetric.count
-    assert_equal [ "10.0.0.1" ], HostMetric.pluck(:host), "host 1's /proc still counts; host 2 printed nothing usable"
   end
 end

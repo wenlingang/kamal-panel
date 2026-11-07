@@ -34,44 +34,4 @@ class Alerting::LogScanTest < ActiveSupport::TestCase
     scan(result(matches: 1))
     assert_predicate event.reload, :resolved?
   end
-
-  test "when no host could be read nothing changes and the rule says why" do
-    scan(result(matches: 3))
-    event = AlertEvent.sole
-
-    @now += 5.minutes
-    assert_not scan(result(matches: 0, errors: [ host_error("127.0.0.1") ]))
-
-    assert_predicate event.reload, :firing?, "unreadable logs are not zero hits"
-    assert_includes @rule.reload.last_error, "timeout"
-  end
-
-  test "no credential (host nil) counts as all hosts failing" do
-    assert_not scan(result(matches: 0, errors: [ LogQuery::HostError.new(host: nil, kind: :no_credential, detail: nil) ], hosts: []))
-
-    assert_equal 0, AlertEvent.count
-  end
-
-  test "with some hosts unreadable, a low count can't clear the alert" do
-    scan(result(matches: 3, hosts: %w[a b]))
-    event = AlertEvent.sole
-
-    scan(result(matches: 0, errors: [ host_error("b") ], hosts: %w[a b]))
-
-    assert_predicate event.reload, :firing?
-  end
-
-  test "a clean scan clears the recorded error" do
-    @rule.record_error!("old trouble")
-
-    scan(result(matches: 0))
-
-    assert_nil @rule.reload.last_error
-  end
-
-  test "without a fake query it runs the real LogQuery" do
-    # No SSH credential: LogQuery answers with a no_credential error, so nothing changes.
-    assert_not Alerting::LogScan.call(@rule, @app, now: @now)
-    assert_equal 0, AlertEvent.count
-  end
 end

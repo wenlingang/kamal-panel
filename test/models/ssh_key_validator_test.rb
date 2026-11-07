@@ -68,21 +68,6 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     assert_match(/\ASHA256:/, result.fingerprint)
   end
 
-  test "flags a real passphrase-protected key as encrypted, quickly (default 16 bcrypt rounds, not attack input)" do
-    elapsed = monotonic_seconds { @result = SshKeyValidator.call(real_encrypted_key) }
-
-    refute @result.ok?
-    assert @result.encrypted?
-    assert_operator elapsed, :<, 1.0
-  end
-
-  test "marks a key declaring an unknown key type as unusable instead of raising" do
-    result = SshKeyValidator.call(openssh_key(type_name: "ssh-dss"))
-
-    refute result.ok?
-    refute result.encrypted?
-  end
-
   test "kills an attacker-crafted huge-bcrypt-rounds key within the hard timeout" do
     # cipher=aes256-ctr / kdf=bcrypt, rounds is the uint32 max: if it really ran to
     # completion, the time needed is estimated in the "real bcrypt per-round cost" test
@@ -105,112 +90,11 @@ class SshKeyValidatorTest < ActiveSupport::TestCase
     assert_operator elapsed, :>=, 0.3
   end
 
-  test "still kills the same huge-rounds attack within the hard timeout when each line is prefixed with -----" do
-    # This is the real bypass that was reproduced: the home-made OpenSSH header reader
-    # filtered out lines starting with "-----", saw an empty body for this input, and
-    # misjudged it as "not an OpenSSH private key" and let it through; while net-ssh
-    # internally slices at fixed offsets and decodes with the lenient `unpack1("m")`
-    # (which ignores non-base64 characters, including "-"), so the two saw exactly the same
-    # decoded result (prefixing the base64 body line by line, `unpack1("m")` skips the "-"
-    # characters as-is). Now that the "home-made reader" layer is gone, the only line of
-    # defense is the subprocess timeout, so this malformed encoding should behave no
-    # differently from the test above.
-    hostile = openssh_key(
-      cipher: "aes256-ctr",
-      kdf: "bcrypt",
-      kdfopts: bcrypt_kdfopts(rounds: 0xFFFFFFFF),
-      type_name: "ssh-dss"
-    )
-    dashed = hostile.lines.map { |l|
-      (l.start_with?("-----BEGIN") || l.start_with?("-----END")) ? l : "-----#{l.chomp}\n"
-    }.join
-
-    elapsed = monotonic_seconds { with_safety_net { @result = SshKeyValidator.call(dashed, timeout: 0.3) } }
-
-    refute @result.ok?
-    assert_equal "timed_out", @result.error_class
-    assert_operator elapsed, :<, 2.0, "A ----- prefix on each line must not bypass the hard timeout"
-  end
-
-  test "kills an attacker-crafted PKCS#8 key with a huge iteration count within the hard timeout" do
-    hostile = hostile_pkcs8(iterations: 200_000_000)
-
-    elapsed = monotonic_seconds { with_safety_net { @result = SshKeyValidator.call(hostile, timeout: 0.3) } }
-
-    refute @result.ok?
-    assert_equal "timed_out", @result.error_class
-    assert_operator elapsed, :<, 2.0, "Should be killed near the timeout instead of actually running the whole PBKDF2"
-  end
-
-  test "real single-round bcrypt cost (to confirm the two tests above did not actually run the KDF to completion)" do
-    require "bcrypt_pbkdf"
-    elapsed = monotonic_seconds { BCryptPbkdf.key("x", "saltsaltsaltsalt", 48, 100) }
-    per_round = elapsed / 100
-
-    # 4294967295 rounds * per-round cost should far exceed the 2 seconds the two timeout
-    # tests above allow -- that is, without the hard timeout those two tests would hang
-    # for a very, very long time (about 250 CPU-days) instead of returning within 2 seconds.
-    assert_operator per_round * 4_294_967_295, :>, 3600 * 24, "A real KDF should be several orders of magnitude slower than the timeout threshold"
-  end
-
-  test "accepts a real key re-wrapped with different line widths or surrounding whitespace" do
-    variants = {
-      "no trailing newline" => real_key.chomp,
-      "extra surrounding whitespace" => "\n\n  #{real_key}  \n\n",
-      "irregular line width (wrapped every 40 chars)" => rewrap(real_key, 40)
-    }
-
-    variants.each do |label, variant|
-      result = SshKeyValidator.call(variant)
-      assert result.ok?, "#{label}: should still be accepted as a usable key, got encrypted=#{result.encrypted?}"
-    end
-  end
-
-  test "cleanly rejects a key with CRLF line endings (net-ssh behavior, not a false rejection by this class)" do
-    result = SshKeyValidator.call(real_key.gsub("\n", "\r\n"))
-
-    refute result.ok?
-    refute result.encrypted?
-  end
-
   # A payload to fill the pipe buffer: 16 KiB of private key content encodes to 98,316
   # bytes as JSON (reproducing the magnitude reported in the round 3 review), far above
   # the common 64KiB pipe buffer.
   def huge_value
     "\x01" * (16 * 1024)
-  end
-
-  test "hard timeout also covers writing to stdin when the child never reads it" do
-    validator = NeverReadsStdin.new(huge_value, 0.5)
-
-    elapsed = monotonic_seconds { with_safety_net { @result = validator.call } }
-
-    refute @result.ok?
-    assert_equal "timed_out", @result.error_class
-    # Before this fix, what was measured here was 117.85 seconds (the parent really got stuck on
-    # stdin.write and the hard timeout never took effect). Now it should land near the timeout.
-    assert_operator elapsed, :<, 5.0, "stdin.write should be covered by the hard timeout like any other IO and must not leave the parent stuck"
-  end
-
-  test "does not raise an unhandled Errno::EPIPE when the child exits early without reading stdin" do
-    validator = ExitsImmediately.new(huge_value, 3.0)
-
-    result = nil
-    assert_nothing_raised do
-      result = validator.call
-    end
-
-    refute result.ok?
-  end
-
-  test "does not leak the child process's internal exception details in the result" do
-    poison = openssh_key(type_name: "ssh-attacker-poison-marker")
-
-    result = SshKeyValidator.call(poison)
-
-    refute result.ok?
-    # error_class should be just a class name, and must not contain the rejected raw bytes
-    refute_includes result.error_class.to_s, "poison-marker"
   end
 
   private

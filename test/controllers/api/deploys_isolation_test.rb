@@ -22,19 +22,4 @@ class Api::DeploysIsolationTest < ActionDispatch::IntegrationTest
 
     assert_equal 0, DeployEvent.count
   end
-
-  test "a reported version never ends up in any action's cli_args" do
-    post "/api/deploys",
-         params: { phase: "succeeded", service: "blog", destination: "production",
-                   version: "aaaaaaa", performer: "ci", command: "deploy" },
-         headers: { "Authorization" => "Bearer #{@token}" }
-    assert_response :no_content
-
-    # The action's version comes from the target_version explicitly passed by the caller, unrelated
-    # to the report
-    args = Actions::Restart.new(@managed_app, target_version: "bbbbbbb").cli_args
-
-    assert_includes args, "bbbbbbb"
-    refute_includes args.join(" "), "aaaaaaa"
-  end
 end

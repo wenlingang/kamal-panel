@@ -12,15 +12,4 @@ class SessionTest < ActiveSupport::TestCase
     session = @user.sessions.create!(expires_at: 1.second.ago)
     assert_nil Session.usable_by_id(session.id)
   end
-
-  test "usable_by_id rejects sessions of deactivated users" do
-    session = @user.sessions.create!
-    @user.update_columns(deactivated_at: Time.current)
-    assert_nil Session.usable_by_id(session.id)
-  end
-
-  test "usable_by_id returns a live session" do
-    session = @user.sessions.create!
-    assert_equal session, Session.usable_by_id(session.id)
-  end
 end

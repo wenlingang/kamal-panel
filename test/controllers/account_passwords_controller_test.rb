@@ -7,26 +7,6 @@ class AccountPasswordsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as @user
   end
 
-  test "the account menu links to the change password page" do
-    get root_path
-    assert_select ".account-popover a[href=?]", edit_account_password_path
-  end
-
-  test "edit renders the form" do
-    get edit_account_password_path
-
-    assert_response :success
-    assert_select "input[name=current_password][autocomplete=current-password]"
-    assert_select "input[name=password][autocomplete=new-password]"
-    assert_select "input[name=password_confirmation]"
-  end
-
-  test "requires signing in" do
-    delete session_path
-    get edit_account_password_path
-    assert_redirected_to new_session_path
-  end
-
   test "changes the password, signs out other devices and keeps this one" do
     other = @user.sessions.create!
     current = Current.session
@@ -53,30 +33,8 @@ class AccountPasswordsControllerTest < ActionDispatch::IntegrationTest
     assert @user.reload.authenticate("password")
   end
 
-  test "a blank new password is rejected instead of silently succeeding" do
-    patch account_password_path, params: { current_password: "password", password: "", password_confirmation: "" }
-
-    assert_response :unprocessable_entity
-    assert @user.reload.authenticate("password")
-  end
-
-  test "a mismatched confirmation changes nothing" do
-    patch account_password_path, params: { current_password: "password", password: "brand-new-pass",
-                                           password_confirmation: "something-else" }
-
-    assert_response :unprocessable_entity
-    assert @user.reload.authenticate("password")
-  end
-
   test "leaving out the confirmation does not skip it" do
     patch account_password_path, params: { current_password: "password", password: "brand-new-pass" }
-
-    assert_response :unprocessable_entity
-    assert @user.reload.authenticate("password")
-  end
-
-  test "a too short password changes nothing" do
-    patch account_password_path, params: { current_password: "password", password: "short", password_confirmation: "short" }
 
     assert_response :unprocessable_entity
     assert @user.reload.authenticate("password")

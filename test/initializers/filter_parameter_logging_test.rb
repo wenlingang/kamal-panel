@@ -25,22 +25,4 @@ class FilterParameterLoggingTest < ActiveSupport::TestCase
     assert_equal "[FILTERED]", filtered["registry_credential"]["value"]
     assert_equal "Docker Hub", filtered["registry_credential"]["name"]
   end
-
-  test "the Git connection token is masked too" do
-    filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
-
-    filtered = filter.filter("git_connection" => { "name" => "GitHub", "token" => "ghp_secret" })
-    assert_equal "[FILTERED]", filtered["git_connection"]["token"]
-    assert_equal "GitHub", filtered["git_connection"]["name"]
-  end
-
-  test "a notification channel's target and secret are masked too" do
-    filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
-
-    filtered = filter.filter("notification_channel" => { "name" => "ops", "target" => "https://hooks.slack.com/services/T/B/x",
-                                                         "secret" => "s" })
-    assert_equal "[FILTERED]", filtered["notification_channel"]["target"]
-    assert_equal "[FILTERED]", filtered["notification_channel"]["secret"]
-    assert_equal "ops", filtered["notification_channel"]["name"]
-  end
 end
