@@ -533,6 +533,7 @@ zh-CN:
       audit: 审计
       people: 人员
       credentials: 凭据
+      change_password: 修改密码
       sign_out: 退出
       language: 界面语言
       menu: 菜单
@@ -542,6 +543,16 @@ zh-CN:
       logs: 日志
       git: Git
 
+  account_passwords:
+    edit:
+      title: 修改密码
+      subtitle: 改完后其他设备上的登录会全部退出，当前这个保持登录。
+      current_password: 当前密码
+      password: 新密码
+      password_hint: 至少 8 个字符。
+      password_confirmation: 确认新密码
+      submit: 修改密码
+
   sessions:
     new:
       title: 登录
@@ -549,6 +560,7 @@ zh-CN:
       password: 密码
       submit: 登录
       forgot: 忘记密码？
+      remember_me: 记住我，30 天内免登录
 
   passwords:
     new:
@@ -616,6 +628,24 @@ zh-CN:
       用当前运行的版本 %{version} 重新启动所有主机上的容器。部署锁会在执行前检查。
 
   shared:
+    auth_hero:
+      eyebrow: Kamal 部署的运维台
+      title: 每一次部署，都有据可查。
+      lead: Kamal 管理的应用、主机与发布集中在一处：发布、查日志、收告警、看资源，不必再逐台 SSH。
+      pulse: 持续读数中
+      features:
+        deploy:
+          title: 发布
+          body: 在面板上发布与回滚，关联 Git 提交
+        logs:
+          title: 日志
+          body: 跨主机集中检索容器日志
+        alerts:
+          title: 告警
+          body: 按规则监测，异常即时通知
+        metrics:
+          title: 资源
+          body: 每个容器的 CPU、内存实时读数
     heartbeat:
       none: 还没有采集记录
       all_ok: 最近 %{count} 轮全部正常
@@ -760,6 +790,9 @@ zh-CN:
       reset_done: 密码已重置。
       mismatch: 两次输入的密码不一致。
       bad_token: 重置链接无效或已过期。
+      changed: 密码已修改，其他设备上的登录已退出。
+      wrong_current: 当前密码不正确。
+      blank: 请填写新密码。
     credential:
       added: 已添加 %{name}
       replaced: 已替换 %{name}
@@ -811,6 +844,7 @@ zh-CN:
         update_role: 修改角色
         deactivate: 停用成员
         reactivate: 启用成员
+        change_password: 修改自己的密码
       app:
         add_member: 添加应用成员
         remove_member: 移除应用成员

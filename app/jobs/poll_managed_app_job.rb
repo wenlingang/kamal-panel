@@ -74,7 +74,8 @@ class PollManagedAppJob < ApplicationJob
       managed_app.update_columns(**attrs)
     end
 
-    # The overview page subscribes to "overview"; notified once per collection round.
+    # The overview page subscribes to "overview"; signalled once per collection round (it
+    # fetches and morphs its own regions, see OverviewSignal).
     def broadcast_overview_refresh
       deliver_overview_refresh
     end
@@ -110,7 +111,7 @@ class PollManagedAppJob < ApplicationJob
     end
 
     def deliver_overview_refresh
-      Turbo::StreamsChannel.broadcast_refresh_to("overview")
+      OverviewSignal.broadcast
     rescue StandardError => e
       Rails.logger.error("[poll] 总览页广播投递失败：#{e.class}: #{e.message}")
     end

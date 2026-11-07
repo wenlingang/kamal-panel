@@ -4,6 +4,8 @@ Rails.application.routes.draw do
   # admin-only, while changing language must be available to everyone (see the comment at the top of
   # LocalesControllerTest).
   resource :locale, only: [ :update ]
+  # Change your own password while signed in. Same reasoning as :locale: no user id, only one's own.
+  resource :account_password, only: [ :edit, :update ], path: "account/password"
   resources :passwords, param: :token
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

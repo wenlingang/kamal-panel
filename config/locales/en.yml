@@ -514,6 +514,7 @@ en:
       audit: Audit
       people: People
       credentials: Credentials
+      change_password: Change password
       sign_out: Sign out
       language: Interface language
       menu: Menu
@@ -523,6 +524,16 @@ en:
       logs: Logs
       git: Git
 
+  account_passwords:
+    edit:
+      title: Change password
+      subtitle: Every other device gets signed out; this one stays signed in.
+      current_password: Current password
+      password: New password
+      password_hint: At least 8 characters.
+      password_confirmation: Confirm new password
+      submit: Change password
+
   sessions:
     new:
       title: Sign in
@@ -530,6 +541,7 @@ en:
       password: Password
       submit: Sign in
       forgot: Forgot your password?
+      remember_me: Keep me signed in for 30 days
 
   passwords:
     new:
@@ -597,6 +609,24 @@ en:
       Boots the running version %{version} again on every host. The deploy lock is checked before it runs.
 
   shared:
+    auth_hero:
+      eyebrow: The control room for Kamal deploys
+      title: Know where every deploy stands.
+      lead: Apps, hosts and releases managed by Kamal, in one place — ship, read logs, get alerted and watch resources without SSHing into a single box.
+      pulse: Taking readings
+      features:
+        deploy:
+          title: Deploys
+          body: ship and roll back from the panel, tied to Git commits
+        logs:
+          title: Logs
+          body: query containers across every host at once
+        alerts:
+          title: Alerts
+          body: rules that notify you the moment something drifts
+        metrics:
+          title: Resources
+          body: live CPU and memory for each container
     heartbeat:
       none: No polling rounds yet
       all_ok: All of the last %{count} rounds OK
@@ -754,6 +784,9 @@ en:
       reset_done: Your password has been reset.
       mismatch: The two passwords do not match.
       bad_token: That reset link is invalid or has expired.
+      changed: Password changed. You've been signed out on every other device.
+      wrong_current: The current password is incorrect.
+      blank: Enter a new password.
     credential:
       added: Added %{name}
       replaced: Replaced %{name}
@@ -801,6 +834,7 @@ en:
         update_role: Change role
         deactivate: Deactivate member
         reactivate: Reactivate member
+        change_password: Change own password
       app:
         add_member: Add app member
         remove_member: Remove app member

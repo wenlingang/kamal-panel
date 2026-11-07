@@ -1,6 +1,6 @@
 module Alerting
   # Tells open pages that alerts changed, in the same style as PollManagedAppJob: the alerts page
-  # and the overview refresh themselves (morph); an app's page gets its alert banner replaced in
+  # refreshes itself (morph), the overview is signalled to update its live regions; an app's page gets its alert banner replaced in
   # place (refreshing it whole would reload its SSH frames). Failures are logged, never raised: a
   # missed repaint must not undo an evaluation.
   module Broadcast
@@ -8,7 +8,7 @@ module Alerting
 
     def call(app_ids)
       Turbo::StreamsChannel.broadcast_refresh_to("alerts")
-      Turbo::StreamsChannel.broadcast_refresh_to("overview")
+      OverviewSignal.broadcast
 
       ManagedApp.where(id: app_ids.to_a).find_each do |app|
         html = ApplicationController.render(partial: "managed_apps/firing_alerts", locals: { managed_app: app })

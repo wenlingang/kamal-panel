@@ -701,6 +701,7 @@ pre code {
   font: inherit;
   font-size: var(--text-sm);
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -2169,29 +2170,30 @@ button:disabled {
 }
 
 /* ── Sign-in pages ─────────────────────────────────────────────────── */
-/* The only centred layout: nothing to scan here, one thing to do. The card is
-   the one place a resting surface is elevated — it floats alone on the canvas. */
+/* Two halves: the graphite hero (what this is, told with the mark's story — see
+   shared/_auth_hero) and the form on the canvas. The card is the one place a
+   resting surface is elevated: it floats alone on the canvas. Below 900px the
+   hero shrinks to a band above the form. */
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
 .page-auth {
   display: grid;
-  min-height: 100vh;
-  place-items: start center;
-  padding: 12vh var(--space-lg) var(--space-xxl);
+  place-items: center;
   max-width: none;
+  padding: var(--space-xxl) var(--space-lg);
+  background:
+    radial-gradient(circle at 70% 18%, var(--signal-tint), transparent 55%),
+    radial-gradient(var(--rule) var(--hairline), transparent var(--hairline)) 0 0 / 1.5rem 1.5rem,
+    var(--canvas);
 }
 
 .auth {
   width: min(100%, 25rem);
-}
-
-.auth-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  margin: 0 auto var(--space-xl);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  animation: auth-rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) 150ms both;
 }
 
 .auth-card {
@@ -2207,6 +2209,11 @@ button:disabled {
   font-size: var(--text-xl);
 }
 
+.auth-remember {
+  margin: var(--space-xs) 0 var(--space-sm);
+  color: var(--ink-muted);
+}
+
 .auth-card input[type="text"],
 .auth-card input[type="email"],
 .auth-card input[type="password"],
@@ -2218,6 +2225,11 @@ button:disabled {
   height: calc(var(--control-md) + var(--space-xs));
   margin-top: var(--space-xs);
   font-size: var(--text-base);
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.auth-card input[type="submit"]:active {
+  transform: translateY(var(--hairline));
 }
 
 .auth-card .flash-alert,
@@ -2232,6 +2244,270 @@ button:disabled {
   max-width: none;
   margin-top: var(--space-lg);
   text-align: center;
+}
+
+/* The hero. Graphite in both themes, like the sidebar it shares tokens with. */
+.auth-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-xxl) clamp(var(--space-xxl), 5vw, 4.5rem);
+  overflow: hidden;
+  color: var(--side-ink);
+  background:
+    radial-gradient(ellipse at 50% 0%, var(--side-current-bg), transparent 65%),
+    var(--side-bg);
+}
+
+.auth-hero-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  color: var(--side-current-ink);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.auth-sky {
+  display: block;
+  width: min(100%, 30rem);
+  margin: auto auto 0;
+  overflow: visible;
+  animation: auth-rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.auth-star {
+  fill: var(--side-ink);
+  animation: auth-twinkle 4s ease-in-out infinite;
+}
+
+.auth-star--d1 { animation-delay: -1s; }
+.auth-star--d2 { animation-delay: -2s; }
+.auth-star--d3 { animation-delay: -3s; }
+
+.auth-scale {
+  fill: none;
+  stroke: var(--side-rule);
+  stroke-width: 1;
+}
+
+.auth-scale path {
+  stroke-dasharray: 2 4;
+  stroke: var(--side-muted);
+  opacity: 0.45;
+}
+
+.auth-horizon {
+  stroke: var(--side-muted);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.auth-observer {
+  fill: var(--mark-gold);
+}
+
+/* The sight sweeps from 55° left of the zenith to the target (27° right),
+   holds while the altitude is read, then sweeps back. Rotating around the
+   observer: 160 / 320 and 170 / 190 of the view box. */
+.auth-sight {
+  stroke: var(--side-accent);
+  stroke-width: 1.5;
+  fill: var(--side-accent);
+  transform-box: view-box;
+  transform-origin: 50% 89.47%;
+  transform: rotate(27deg);
+  animation: auth-sweep 9s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+.auth-target-star {
+  fill: var(--mark-gold);
+}
+
+.auth-target-halo {
+  fill: var(--mark-gold);
+  opacity: 0.2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: auth-lock 9s ease-out infinite;
+}
+
+.auth-readout {
+  fill: var(--mark-gold);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  animation: auth-readout 9s ease infinite;
+}
+
+.auth-hero-copy {
+  max-width: 34rem;
+  margin: 0 0 auto;
+  animation: auth-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 100ms both;
+}
+
+.auth-hero-eyebrow {
+  margin: 0 0 var(--space-sm);
+  color: var(--side-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-hero-title {
+  margin: 0 0 var(--space-md);
+  color: var(--side-current-ink);
+  font-size: var(--text-display);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.auth-hero-lead {
+  margin: 0 0 var(--space-xl);
+  color: var(--side-ink);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.auth-features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg) var(--space-xl);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-features li {
+  display: flex;
+  gap: var(--space-md);
+  color: var(--side-muted);
+  line-height: 1.5;
+  animation: auth-rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.auth-features li:nth-child(1) { animation-delay: 250ms; }
+.auth-features li:nth-child(2) { animation-delay: 330ms; }
+.auth-features li:nth-child(3) { animation-delay: 410ms; }
+.auth-features li:nth-child(4) { animation-delay: 490ms; }
+
+.auth-features strong {
+  display: block;
+  color: var(--side-current-ink);
+  font-weight: 600;
+}
+
+.auth-feature-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  color: var(--side-accent);
+  background: var(--side-hover);
+  border: var(--hairline) solid var(--side-rule);
+  border-radius: var(--radius-control);
+}
+
+/* A heartbeat strip with a reading travelling along it: each cell brightens in
+   turn (delay by its index), so a pulse runs left to right. */
+.auth-pulse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--side-muted);
+  font-size: var(--text-xs);
+}
+
+.auth-pulse-cells {
+  display: flex;
+  flex: 1;
+  gap: var(--heartbeat-gap);
+  height: var(--space-md);
+}
+
+.auth-pulse-cells i {
+  flex: 1;
+  background: var(--ok-edge);
+  border-radius: var(--radius-cell);
+  opacity: 0.35;
+  animation: auth-pulse 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+.auth-pulse-label {
+  flex: none;
+}
+
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes auth-twinkle {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 0.25; }
+}
+
+@keyframes auth-sweep {
+  0%, 100% { transform: rotate(-55deg); }
+  42%, 70% { transform: rotate(27deg); }
+}
+
+@keyframes auth-lock {
+  0%, 40%   { opacity: 0; transform: scale(0.4); }
+  46%       { opacity: 0.45; transform: scale(1.4); }
+  70%       { opacity: 0.2; transform: scale(1); }
+  80%, 100% { opacity: 0; transform: scale(0.4); }
+}
+
+@keyframes auth-readout {
+  0%, 44%   { opacity: 0; }
+  50%, 68%  { opacity: 1; }
+  76%, 100% { opacity: 0; }
+}
+
+@keyframes auth-pulse {
+  0%, 30%, 100% { opacity: 0.35; }
+  10%           { opacity: 1; }
+}
+
+@media (max-width: 899.98px) {
+  .auth-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .auth-hero {
+    gap: var(--space-md);
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .auth-sky,
+  .auth-hero-lead,
+  .auth-features,
+  .auth-pulse {
+    display: none;
+  }
+
+  .auth-hero-copy {
+    margin: 0;
+  }
+
+  .auth-hero-title {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .page-auth {
+    place-items: start center;
+    padding-top: var(--space-xxl);
+  }
 }
 
 /* ── Custom select (select_controller) ─────────────────────────────── */

@@ -1,0 +1,35 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%# The flash above the page carries the error (wrong current password, too short, mismatch). The
+        hidden username field lets the browser's password manager know whose password is being
+        changed, so it offers to update the saved entry rather than create a new one. %>
+    <%= form_with url: account_password_path, method: :patch do |form| %>
+      <input type="email" name="username" value="<%= Current.user.email_address %>" autocomplete="username" hidden>
+
+      <div>
+        <%= label_tag :current_password, t(".current_password") %>
+        <%= form.password_field :current_password, required: true, autocomplete: "current-password", maxlength: 72 %>
+      </div>
+
+      <div>
+        <%= label_tag :password, t(".password") %>
+        <%= form.password_field :password, required: true, autocomplete: "new-password", minlength: 8, maxlength: 72 %>
+        <p class="hint"><%= t(".password_hint") %></p>
+      </div>
+
+      <div>
+        <%= label_tag :password_confirmation, t(".password_confirmation") %>
+        <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", maxlength: 72 %>
+      </div>
+
+      <%= form.submit t(".submit"), class: "btn-primary" %>
+    <% end %>
+  </div>
+</section>

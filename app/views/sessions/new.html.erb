@@ -1,11 +1,6 @@
 <%# The auth page is the only "centered card" layout in the whole panel: there is no operations data to scan here,
     only one thing to do. Inner pages conversely are all left-aligned and high-density (the density tiers of main design 8.6). %>
 <div class="auth">
-  <p class="auth-brand">
-    <%= render "shared/mark", size: "28px" %>
-    Kamal Panel
-  </p>
-
   <div class="auth-card">
     <h1><%= t(".title") %></h1>
 
@@ -21,6 +16,12 @@
         <%= label_tag :password, t(".password") %>
         <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72 %>
       </div>
+      <%# Unchecked means the sign-in lasts until the browser closes. Saving the password itself is the browser's
+          job: the autocomplete hints above are what let its password manager offer to save and fill it. %>
+      <label class="check-row auth-remember">
+        <%= check_box_tag :remember_me, "1", params[:remember_me] == "1" %>
+        <span><%= t(".remember_me") %></span>
+      </label>
       <%= form.submit t(".submit"), class: "btn-primary" %>
     <% end %>
   </div>

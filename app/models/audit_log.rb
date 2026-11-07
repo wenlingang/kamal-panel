@@ -14,7 +14,7 @@ class AuditLog < ApplicationRecord
   INTERRUPTED_AFTER = KamalCli::Invocation::DEFAULT_TIMEOUT + 5.minutes
 
   ACCESS_ACTIONS = %w[
-    user.create user.update_role user.deactivate user.reactivate
+    user.create user.update_role user.deactivate user.reactivate user.change_password
     app.add_member app.remove_member app.update app.deactivate app.reactivate
     credential.create credential.rotate credential.delete
     registry_credential.create registry_credential.rotate registry_credential.delete

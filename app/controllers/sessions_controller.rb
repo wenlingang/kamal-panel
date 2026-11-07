@@ -11,7 +11,7 @@ class SessionsController < ApplicationController
     # A deactivated account and a wrong password get the same message: treating them differently
     # would confirm to an unauthenticated person that this email exists.
     if user && !user.deactivated?
-      start_new_session_for user
+      start_new_session_for user, remember: params[:remember_me] == "1"
       redirect_to after_authentication_url
     else
       flash.now[:alert] = t("flash.bad_credentials")

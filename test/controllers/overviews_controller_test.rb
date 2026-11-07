@@ -47,6 +47,20 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".status-badge", text: I18n.t("statuses.unreachable"), count: 0
   end
 
+  # The live-refresh controller morphs only these two regions; the filter bar sits outside both,
+  # so a background update never touches a search box someone is typing in.
+  test "marks the summary and the results as live regions, leaving the filter bar out" do
+    app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
+
+    get overview_path
+
+    assert_select "##{OverviewSignal::TARGET}[data-controller=live-refresh]" do
+      assert_select "#overview-summary[data-live-refresh-target=region] .status-strip"
+      assert_select "#overview-results[data-live-refresh-target=region] .app-card"
+      assert_select "[data-live-refresh-target=region] form.filter-bar", count: 0
+    end
+  end
+
   test "lists all apps when there are no filter params" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "shop", versions: %w[bbbbbbb ccccccc])

@@ -1,0 +1,82 @@
+<%# The signed-out pages' left half: what this panel is, told with the brand's own story. The mark is a kamal,
+    the instrument Arab navigators used to measure a star's altitude; the drawing below is that reading in
+    progress — the sight sweeps up from the horizon, locks onto the gold star, reads the altitude, lets go.
+    The panel does the same for deploys: it does not steer, it keeps taking readings.
+
+    Everything here is decoration plus a short pitch: the drawing and the heartbeat strip are aria-hidden,
+    and with prefers-reduced-motion they simply stand still (the base stylesheet switches every animation off,
+    and every element rests in its visible state). Below 900px only the brand and the headline remain. %>
+<aside class="auth-hero" aria-labelledby="auth-hero-title">
+  <p class="auth-hero-brand">
+    <%= render "shared/mark", size: "1.75rem", reading: true %>
+    Kamal Panel
+  </p>
+
+  <svg class="auth-sky" viewBox="0 0 320 190" aria-hidden="true" focusable="false"
+       xmlns="http://www.w3.org/2000/svg">
+    <%# Background stars: positions are fixed so the sky looks the same on every visit. %>
+    <g class="auth-stars">
+      <% [ [ 28, 34, 1.1, 0 ], [ 62, 92, 0.8, 2 ], [ 96, 22, 1.3, 1 ], [ 132, 58, 0.7, 3 ], [ 176, 18, 1, 2 ],
+           [ 248, 30, 0.8, 0 ], [ 282, 76, 1.2, 3 ], [ 300, 20, 0.7, 1 ], [ 44, 128, 0.9, 1 ], [ 268, 120, 0.8, 2 ],
+           [ 112, 108, 0.6, 0 ], [ 196, 96, 0.7, 3 ], [ 234, 74, 0.6, 1 ], [ 14, 82, 0.7, 2 ], [ 152, 36, 0.6, 0 ] ].each do |x, y, r, delay| %>
+        <circle class="auth-star auth-star--d<%= delay %>" cx="<%= x %>" cy="<%= y %>" r="<%= r %>"/>
+      <% end %>
+    </g>
+
+    <%# Altitude arcs and degree ticks around the observer, who stands at (160, 170) on the horizon. %>
+    <g class="auth-scale">
+      <% [ 48, 88, 128 ].each do |r| %>
+        <path d="M <%= 160 - r %> 170 A <%= r %> <%= r %> 0 0 1 <%= 160 + r %> 170"/>
+      <% end %>
+      <% (0..180).step(10).each do |deg| %>
+        <% rad = deg * Math::PI / 180
+           inner = deg % 30 == 0 ? 121 : 124 %>
+        <line x1="<%= (160 + 128 * Math.cos(rad)).round(2) %>" y1="<%= (170 - 128 * Math.sin(rad)).round(2) %>"
+              x2="<%= (160 + inner * Math.cos(rad)).round(2) %>" y2="<%= (170 - inner * Math.sin(rad)).round(2) %>"/>
+      <% end %>
+    </g>
+    <line class="auth-horizon" x1="8" y1="170" x2="312" y2="170"/>
+
+    <%# The sight: a line from the observer, swept by rotating its group around the observer. %>
+    <g class="auth-sight">
+      <line x1="160" y1="170" x2="160" y2="30"/>
+      <circle cx="160" cy="30" r="2"/>
+    </g>
+
+    <%# The target star sits 63° above the horizon: 27° right of the zenith, 112 out from the observer. %>
+    <g class="auth-target">
+      <circle class="auth-target-halo" cx="210.85" cy="70.21" r="9"/>
+      <path class="auth-target-star"
+            d="M 210.85 63.21 L 212.35 68.71 L 217.85 70.21 L 212.35 71.71 L 210.85 77.21 L 209.35 71.71 L 203.85 70.21 L 209.35 68.71 Z"/>
+    </g>
+    <text class="auth-readout" x="222" y="62" font-size="9">ALT 63°</text>
+
+    <circle class="auth-observer" cx="160" cy="170" r="3"/>
+  </svg>
+
+  <div class="auth-hero-copy">
+    <p class="auth-hero-eyebrow"><%= t(".eyebrow") %></p>
+    <h2 class="auth-hero-title" id="auth-hero-title"><%= t(".title") %></h2>
+    <p class="auth-hero-lead"><%= t(".lead") %></p>
+
+    <ul class="auth-features">
+      <% { deploy: "rocket", logs: "scroll-text", alerts: "bell-ring", metrics: "activity" }.each do |key, icon| %>
+        <li>
+          <span class="auth-feature-icon"><%= icon_tag(icon) %></span>
+          <span>
+            <strong><%= t(".features.#{key}.title") %></strong>
+            <%= t(".features.#{key}.body") %>
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+
+  <%# A heartbeat strip like the overview's, with a reading travelling along it. Purely decorative. %>
+  <div class="auth-pulse" aria-hidden="true">
+    <span class="auth-pulse-cells">
+      <% 32.times do |i| %><i style="--i: <%= i %>"></i><% end %>
+    </span>
+    <span class="auth-pulse-label"><%= t(".pulse") %></span>
+  </div>
+</aside>

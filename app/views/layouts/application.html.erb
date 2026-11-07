@@ -107,6 +107,9 @@
                 <% end %>
 
                 <div class="account-section">
+                  <%= link_to edit_account_password_path, class: "account-item" do %>
+                    <%= icon_tag("key-round", size: :sm) %><span><%= t(".change_password") %></span>
+                  <% end %>
                   <%= button_to session_path, method: :delete, class: "account-item", form_class: "account-item-form" do %>
                     <%= icon_tag("log-out", size: :sm) %><span><%= t(".sign_out") %></span>
                   <% end %>
@@ -135,9 +138,12 @@
       <%# No flash here: the three signed-out pages each render flash [inside] their card. Rendering it here too
           would put it above the centered card, full width and out of line with it — and before, both sides
           rendered it, so on a failed login the same sentence appeared twice. %>
-      <main class="page page-auth">
-        <%= yield %>
-      </main>
+      <div class="auth-shell">
+        <%= render "shared/auth_hero" %>
+        <main class="page page-auth">
+          <%= yield %>
+        </main>
+      </div>
     <% end %>
   </body>
 </html>

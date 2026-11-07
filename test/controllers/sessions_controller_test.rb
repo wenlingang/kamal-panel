@@ -24,6 +24,30 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert cookies[:session_id]
   end
 
+  test "without remember me the session cookie ends with the browser" do
+    post session_path, params: { email_address: @user.email_address, password: "password" }
+
+    set_cookie = Array(response.headers["Set-Cookie"]).join("\n")
+    assert_match(/session_id=/, set_cookie)
+    refute_match(/session_id=[^\n]*expires=/i, set_cookie)
+  end
+
+  test "remember me keeps the session cookie for 30 days" do
+    freeze_time do
+      post session_path, params: { email_address: @user.email_address, password: "password", remember_me: "1" }
+
+      set_cookie = Array(response.headers["Set-Cookie"]).join("\n")
+      expires = set_cookie[/session_id=[^\n]*expires=([^;\n]+)/i, 1]
+      assert expires, "A remembered sign-in must set an expiry on the cookie"
+      assert_equal 30.days.from_now.to_i, Time.httpdate(expires).to_i
+    end
+  end
+
+  test "the sign-in form offers remember me" do
+    get new_session_path
+    assert_select "input[type=checkbox][name=remember_me]"
+  end
+
   test "create with invalid credentials" do
     post session_path, params: { email_address: @user.email_address, password: "wrong" }
 

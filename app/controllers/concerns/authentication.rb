@@ -45,10 +45,20 @@ module Authentication
       session.delete(:return_to_after_authenticating) || root_url
     end
 
-    def start_new_session_for(user)
+    # How long "remember me" keeps someone signed in. The expiry is also written into the signed
+    # cookie's own metadata, so a copied cookie stops working on the server at the same moment the
+    # browser would drop it.
+    REMEMBER_FOR = 30.days
+
+    # remember: false gives a browser-session cookie (gone when the browser closes); true keeps it
+    # for REMEMBER_FOR. Before this choice existed every cookie was permanent, which on a panel that
+    # can deploy and restart production meant a forgotten laptop stayed signed in for good.
+    def start_new_session_for(user, remember: false)
       user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
         Current.session = session
-        cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax }
+        cookie = { value: session.id, httponly: true, same_site: :lax }
+        cookie[:expires] = REMEMBER_FOR.from_now if remember
+        cookies.signed[:session_id] = cookie
       end
     end
 

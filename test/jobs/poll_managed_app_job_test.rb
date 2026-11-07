@@ -118,12 +118,11 @@ class PollManagedAppJobTest < ExecutionLayerTest
     assert_nil app.last_poll_error_at
   end
 
-  # What gets broadcast is a refresh rather than a rendered grid: the overview page
-  # supports filtering by name/status, and the server doesn't know which browser is
-  # filtering by what; rendering a full grid and swapping it in would quietly replace a
-  # filtering user's results with everything. A refresh makes each browser come back with
-  # its own current URL (i.e. its own filters) and re-request, and the page merges with morph.
-  test "broadcasts one refresh to the overview channel after polling, not a rendered grid" do
+  # What gets broadcast is a signal rather than a rendered grid: the overview page supports
+  # filtering by name/status and shows actions by role, and the server doesn't know who is looking
+  # at what. Nor is it a page refresh: with many apps that kept the page reloading non-stop. The
+  # page's live-refresh controller fetches its own URL in the background and morphs its regions.
+  test "signals the overview after polling, without a rendered grid or a page refresh" do
     FakeHost.seed_container(node: "node-1", service: "blog", role: "web",
                             destination: "production", version: "aaaaaaa")
     FakeHost.proxy_deploy(node: "node-1", service: "blog-web-production",
@@ -131,10 +130,12 @@ class PollManagedAppJobTest < ExecutionLayerTest
 
     app = build_app
 
-    assert_broadcasts("overview", 1) { PollManagedAppJob.perform_now(app) }
+    assert_broadcasts(OverviewSignal::STREAM, 1) { PollManagedAppJob.perform_now(app) }
 
-    message = ActiveSupport::JSON.decode(broadcasts("overview").last)
-    assert_includes message, 'action="refresh"'
+    message = ActiveSupport::JSON.decode(broadcasts(OverviewSignal::STREAM).last)
+    assert_includes message, 'action="live_refresh"'
+    assert_includes message, %(target="#{OverviewSignal::TARGET}")
+    refute_includes message, 'action="refresh"', "A whole-page refresh per polling round keeps the overview reloading"
     refute_includes message, 'target="overview-grid"',
       "The server must not render the grid for anyone; it does not know what they are filtering"
   end
