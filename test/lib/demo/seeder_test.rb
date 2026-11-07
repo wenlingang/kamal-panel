@@ -32,6 +32,10 @@ class Demo::SeederTest < ActiveSupport::TestCase
     assert_operator Metrics::CardSummary.for([ app("demo-shop") ]).fetch(app("demo-shop").id).cpu_percent, :>, 0
     memory = Alerting::MetricCheck.call(AlertRule.find_by!(condition: "memory_high"), app("demo-api"))
     assert_predicate memory, :holds?
+    # The seeded firing alert must say what the evaluator says, not quote some other container.
+    seeded = AlertEvent.find_by!(alert_rule: AlertRule.find_by!(condition: "memory_high"), state: "firing")
+    assert_equal memory.message_args["container"], seeded.message_args["container"]
+    assert_operator seeded.message_args["percent"], :>=, 90
     disk = HostMetric.where(host: "10.1.0.22").order(:sampled_at).last
     assert_operator disk.disk_used_percent, :>=, 90
   end

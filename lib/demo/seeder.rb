@@ -341,8 +341,11 @@ module Demo
         AlertEvent.create!(alert_rule: rules["unhealthy"], managed_app: api, state: "firing",
                            message_key: "unhealthy", started_at: now - 8.minutes, fired_at: now - 6.minutes,
                            last_notified_at: now - 6.minutes)
-        # demo-api's web container has been near its memory limit all day (seed_metrics).
-        memory = ContainerMetric.where(managed_app: api).order(:sampled_at).last
+        # demo-api's web container has been near its memory limit all day (seed_metrics). Read it the
+        # way the evaluator does — the app's own containers, the fullest one at the latest sample —
+        # not just the newest row, which could be the shared kamal-proxy at 1.5%.
+        latest_at = ContainerMetric.own.where(managed_app: api).maximum(:sampled_at)
+        memory = ContainerMetric.own.where(managed_app: api, sampled_at: latest_at).order(mem_percent: :desc).first
         AlertEvent.create!(alert_rule: rules["memory_high"], managed_app: api, state: "firing",
                            message_key: "memory_high",
                            message_args: { "container" => memory&.container_name, "host" => memory&.host,

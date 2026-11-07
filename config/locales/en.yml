@@ -654,7 +654,7 @@ en:
       follow_limited: Too many queries, retrying shortly.
       follow_failed: Fetching new lines failed, retrying shortly.
     results:
-      summary_html: "%{hosts} hosts · %{lines} lines · took %{duration}"
+      summary_html: "Hosts: %{hosts} · lines: %{lines} · took %{duration}"
       truncated:
         one: Too many results; only the newest %{count} line is kept.
         other: Too many results; only the newest %{count} lines are kept.
