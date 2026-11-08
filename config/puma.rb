@@ -35,7 +35,15 @@ port ENV.fetch("PORT", 3000)
 plugin :tmp_restart
 
 # Run the Solid Queue supervisor inside of Puma for single-server deployments.
-plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
+if ENV["SOLID_QUEUE_IN_PUMA"]
+  plugin :solid_queue
+  # async: the supervisor, dispatcher, scheduler and workers run as threads inside the Puma
+  # process instead of four forked Ruby processes. The panel usually shares a small host with
+  # production apps, and each fork cost ~50–190 MB resident (measured on a 1.7 GB host where that
+  # pushed a production app into swap). The jobs are I/O-bound (SSH, HTTP, subprocesses), so
+  # sharing one GVL costs little. SOLID_QUEUE_MODE=fork restores the old layout.
+  solid_queue_mode ENV.fetch("SOLID_QUEUE_MODE", "async")
+end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
