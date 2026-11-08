@@ -100,12 +100,14 @@ class Kamal::ConfigParser
     end
 
     def result_cache_key
-      require "kamal/version"
+      # The gem's version, not Kamal::VERSION: Kamal:: is also this app's autoloaded namespace, so a
+      # code reload in development drops the constant while `require "kamal/version"` won't run again.
+      kamal_version = Gem.loaded_specs["kamal"]&.version.to_s
 
       # NUL-separated for the same reason as ManagedApp#app_hosts_cache_key: no field boundary
       # shift can make two different inputs concatenate to the same string.
       digest = Digest::SHA256.hexdigest(
-        [ Kamal::VERSION, yaml, destination, destination_yaml ].map(&:to_s).join("\u0000")
+        [ kamal_version, yaml, destination, destination_yaml ].map(&:to_s).join("\u0000")
       )
 
       "kamal_config_parser/result/#{digest}"

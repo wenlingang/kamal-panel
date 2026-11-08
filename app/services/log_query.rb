@@ -176,10 +176,12 @@ class LogQuery
   # seen:   follow mode's boundary keys (see .drop_seen)
   # ssh / observations: injectable for tests; default to the app's real SSH session and latest
   # observations.
+  # only_hosts: narrows the source's hosts further (alert scans skip hosts with log_scan disabled).
   def initialize(managed_app, source: "app", host: nil, since: DEFAULT_WINDOW, lines: DEFAULT_LINES,
                  grep: nil, case_sensitive: false, seen: [], version: nil, ssh: nil, observations: nil,
-                 now: Time.current)
+                 now: Time.current, only_hosts: nil)
     @managed_app = managed_app
+    @only_hosts = only_hosts&.map(&:to_s)
     @now = now
     @observations = observations
     @source = resolve_source(source)
@@ -321,7 +323,10 @@ class LogQuery
                   .first(MAX_SEEN_KEYS)
     end
 
-    def query_hosts = host ? [ host ] : source.hosts
+    def query_hosts
+      hosts = host ? [ host ] : source.hosts
+      @only_hosts ? hosts & @only_hosts : hosts
+    end
 
     # { host => [[container, label], ...] } for the hosts worth an SSH round, plus errors for the
     # ones known up front to have nothing to read.

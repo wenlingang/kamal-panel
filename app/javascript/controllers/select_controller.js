@@ -1,6 +1,17 @@
 import { Controller } from "@hotwired/stimulus"
 
 // A shadcn-style trigger + menu panel. The native select is visually hidden but still carries the value in the form.
+//
+// A long list (SEARCH_MIN options or more, e.g. the app pickers once there are many apps) gets a filter box at the
+// top of the menu: typing narrows the items by substring, arrows move through what is left, Enter picks.
+// data-searchable="true" / "false" on the select forces it on or off.
+const SEARCH_MIN = 8
+
+const TEXT = {
+  zh: { search: "搜索…", empty: "没有匹配项" },
+  en: { search: "Search…", empty: "No matches" }
+}
+
 export default class extends Controller {
   connect() {
     this.select = this.element
@@ -36,6 +47,17 @@ export default class extends Controller {
 
   get options() {
     return Array.from(this.select.options)
+  }
+
+  get searchable() {
+    const forced = this.select.dataset.searchable
+    if (forced === "true") return true
+    if (forced === "false") return false
+    return this.options.length >= SEARCH_MIN
+  }
+
+  get text() {
+    return document.documentElement.lang.startsWith("zh") ? TEXT.zh : TEXT.en
   }
 
   build() {
@@ -85,6 +107,7 @@ export default class extends Controller {
 
     this.list.setAttribute("id", `${this.uid()}-list`)
     this.trigger.setAttribute("aria-controls", this.list.id)
+    if (this.searchable) this.buildSearch()
 
     this.root.append(this.trigger, this.list)
     this.select.after(this.root)
@@ -98,6 +121,91 @@ export default class extends Controller {
     })
 
     this.sync()
+  }
+
+  // The filter box sits at the top of the menu, sticky while the items scroll under it; the "no matches"
+  // row goes at the bottom.
+  buildSearch() {
+    const box = document.createElement("div")
+    box.className = "sel-search"
+    this.search = document.createElement("input")
+    this.search.type = "text"
+    this.search.autocomplete = "off"
+    this.search.spellcheck = false
+    this.search.placeholder = this.text.search
+    this.search.setAttribute("aria-label", this.text.search)
+    this.search.setAttribute("aria-controls", this.list.id)
+    box.append(this.search)
+    this.list.prepend(box)
+
+    this.emptyEl = document.createElement("div")
+    this.emptyEl.className = "sel-empty"
+    this.emptyEl.textContent = this.text.empty
+    this.emptyEl.hidden = true
+    this.list.append(this.emptyEl)
+
+    this.search.addEventListener("input", () => this.filter(this.search.value))
+    this.search.addEventListener("keydown", (e) => this.onSearchKeydown(e))
+    this.search.addEventListener("blur", () => {
+      requestAnimationFrame(() => {
+        if (this.open && !this.root.contains(document.activeElement)) this.close()
+      })
+    })
+  }
+
+  // Indices of the items currently shown (all of them unless a filter is typed).
+  get visible() {
+    return this.items.flatMap((item, i) => (item.hidden ? [] : [ i ]))
+  }
+
+  filter(query) {
+    const needle = query.trim().toLowerCase()
+    this.items.forEach((item) => {
+      item.hidden = needle !== "" && !item.textContent.toLowerCase().includes(needle)
+    })
+    const visible = this.visible
+    if (this.emptyEl) this.emptyEl.hidden = visible.length > 0
+    if (!visible.includes(this.activeIndex)) {
+      this.items[this.activeIndex]?.classList.remove("is-active")
+      this.activeIndex = -1
+      if (visible.length) this.highlight(visible[0])
+    }
+  }
+
+  // Move the highlight by step through the visible items, clamped at both ends.
+  step(by) {
+    const visible = this.visible
+    if (!visible.length) return
+    const at = visible.indexOf(this.activeIndex)
+    const next = at < 0 ? (by > 0 ? 0 : visible.length - 1) : Math.min(Math.max(at + by, 0), visible.length - 1)
+    this.highlight(visible[next])
+    this.items[this.activeIndex].scrollIntoView({ block: "nearest" })
+  }
+
+  onSearchKeydown(e) {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault()
+        this.step(1)
+        break
+      case "ArrowUp":
+        e.preventDefault()
+        this.step(-1)
+        break
+      case "Enter":
+        // Never let Enter reach the form: it would submit with the old value.
+        e.preventDefault()
+        if (this.visible.includes(this.activeIndex)) this.choose(this.activeIndex)
+        break
+      case "Escape":
+        e.preventDefault()
+        this.close()
+        this.trigger.focus()
+        break
+      case "Tab":
+        this.close()
+        break
+    }
   }
 
   uid() {
@@ -151,8 +259,13 @@ export default class extends Controller {
     this.trigger.setAttribute("aria-expanded", "true")
     this.root.classList.add("is-open")
     this.placeList()
+    if (this.search) {
+      this.search.value = ""
+      this.filter("")
+    }
     this.highlight(this.select.selectedIndex >= 0 ? this.select.selectedIndex : 0)
     this.items[this.activeIndex]?.scrollIntoView({ block: "nearest" })
+    this.search?.focus()
   }
 
   close() {

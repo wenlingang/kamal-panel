@@ -34,6 +34,22 @@ Links in alert notifications need the panel's own address: set `PANEL_URL=https:
 (unset, notifications carry no link). The email channel and password resets need SMTP: `SMTP_ADDRESS`,
 `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `PANEL_MAIL_FROM`.
 
+### Collection load
+
+The panel usually shares hosts with production apps, so how hard it probes them is yours to set:
+status-poll cadence, resource-metric interval, whether to run `docker stats` (the costly part) or
+read kamal-proxy's routing table, log-keyword scans — globally or per host. The defaults and every
+knob are documented in [`config/collection.yml`](config/collection.yml). Override them without
+rebuilding the image:
+
+- environment variables for global values, e.g. `COLLECTION_STATUS_IDLE=120`,
+  `COLLECTION_METRICS_CONTAINERS=false` (under `env.clear` in `deploy.yml`);
+- a file with the same shape, partial is fine, at `storage/collection.yml` in the panel's volume (or
+  wherever `COLLECTION_CONFIG` points) — the only way to set per-host overrides.
+
+Settings are read at boot (restart the panel to apply) and validated: a typo or an out-of-range
+value stops the boot with a message naming it.
+
 Then create the first admin account: [Deploying the panel](https://wenlingang.github.io/kamal-panel-site/docs/#deploy).
 
 ## Development

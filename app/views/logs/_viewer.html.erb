@@ -25,7 +25,7 @@
         <%= icon_tag("list", size: :sm) %><span><%= t("logs.viewer.wrap") %></span>
       </button>
       <% if form.followable? %>
-        <button type="button" class="btn" aria-pressed="false"
+        <button type="button" class="btn-quiet" aria-pressed="false"
                 data-log-viewer-target="followButton" data-action="log-viewer#toggleFollow">
           <%= icon_tag("refresh-cw", size: :sm) %><span><%= t("logs.viewer.follow") %></span>
         </button>

@@ -3,9 +3,13 @@
     the panel would raise Kamal::ConfigParser::ParseError (status is nil exactly then; locks/show checks
     last_poll_error the same way). The cost is that in the short window between a parse failure and the next
     poll the action buttons go away along with the data — the width of this window depends on the fastest
-    polling interval in PollCadence (currently BURST = 5 seconds), and is not a constant that always holds:
+    polling interval in PollCadence (status.burst in config/collection.yml, 5 seconds by default), and is not a constant that always holds:
     if the polling interval is widened later, this window will quietly widen with it, and at that point it
-    must be re-evaluated whether this is still enough (a minor from the task-5 review). %>
+    must be re-evaluated whether this is still enough (a minor from the task-5 review).
+    Re-evaluated when burst went from 2 to 5 seconds: a config that stops parsing is the deployer's own edit
+    (or a deploy changing deploy.yml), which triggers a burst, so the buttons vanish within one burst poll
+    (5–7.5 s with tick jitter) and the page then explains why; acting on stale buttons in that window would
+    fail on the same parse error anyway. Still fine; a deployer who sets burst much higher widens it. %>
 <%# Reading the lock really has to SSH in, and one unreachable host makes it wait out the full connection
     timeout (measured 3.4 seconds), while everything else here comes from the database and the config. So the
     buttons render right away with the lock "being read", and the frame then reloads the same panel with the

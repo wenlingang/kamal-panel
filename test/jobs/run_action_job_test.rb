@@ -105,7 +105,7 @@ class RunActionJobTest < ExecutionLayerTest
     log.reload
     assert_equal "success", log.result
     assert_match(/\Akamal app stop --version /, log.command)
-    assert_equal PollCadence::BURST, PollCadence.interval_for(app)
+    assert_equal PollCadence.burst, PollCadence.interval_for(app)
 
     assert_equal "exited", FakeHost.ssh("node-1", "docker inspect -f '{{.State.Status}}' #{container}").strip
   end

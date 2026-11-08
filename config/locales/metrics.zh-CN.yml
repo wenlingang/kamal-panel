@@ -23,7 +23,11 @@ zh-CN:
       containers: 容器
       hosts: 主机
       no_recent_containers: 最近 5 分钟没有读到这个应用的运行中容器。
-      no_recent_host: 最近 5 分钟没有读到这台主机的数据（连不上，或不是 Linux）。
+      no_recent_host: 最近 %{minutes} 分钟没有读到这台主机的数据（连不上，或不是 Linux）。
+      empty_not_collected: 这个应用的所有主机都已关闭指标采集（部署方在采集配置 metrics.enabled 里关闭），所以没有监控数据。
+      containers_not_collected: "以下主机按采集配置不采容器指标（metrics.containers: false），只保留主机级 CPU、内存和磁盘：%{hosts}"
+      host_not_collected: "这台主机已关闭指标采集（采集配置 metrics.enabled: false），不是采集故障。"
+      host_sampled_every: 按采集配置每 %{count} 分钟采样一次。
       cpu_hint: 容器 CPU 按 docker stats 的口径：100% 等于占满一个核。没有设置内存上限的容器，内存占比是相对整台主机。kamal-proxy 是同一主机上各应用共用的，不计入应用的合计与告警。
     table:
       container: 容器

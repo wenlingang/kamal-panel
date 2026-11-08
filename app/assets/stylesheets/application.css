@@ -2622,6 +2622,41 @@ button:disabled {
   opacity: 1;
 }
 
+/* .sel-item is display: flex, which would beat the hidden attribute the filter sets. */
+.sel-item[hidden] {
+  display: none;
+}
+
+/* Filter box of a long list: stays on top while the items scroll under it. The negative offsets
+   cancel the list's padding so nothing peeks out above it. */
+.sel-search {
+  position: sticky;
+  top: calc(-1 * var(--space-xs));
+  z-index: 1;
+  margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-xs)) var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--panel);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+
+.sel-search input {
+  width: 100%;
+  height: var(--control-sm);
+  font-size: var(--text-sm);
+}
+
+/* Type-ahead under a text field (suggest_controller), reusing the select menu's look; the field's
+   .field-with-icon wrapper is the positioning context. */
+.suggest-list {
+  top: calc(100% + var(--space-xs));
+}
+
+.sel-empty {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
 /* ── Dialogs ───────────────────────────────────────────────────────── */
 /* The confirmation dialog (app/javascript/confirm_dialog.js) and the one-time
    hook token dialog. */
@@ -2963,6 +2998,12 @@ a.version-link {
 .log-field .segmented {
   align-items: center;
   height: var(--control-md);
+}
+
+/* The row aligns its fields' bottoms, so the generic `form div` bottom margin on the time window and
+   the keyword row lifted them 16px above the selects beside them. */
+.log-query div {
+  margin-bottom: 0;
 }
 
 /* The time window is a radio group drawn as a segmented control. */

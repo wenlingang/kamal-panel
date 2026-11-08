@@ -23,7 +23,13 @@ en:
       containers: Containers
       hosts: Hosts
       no_recent_containers: No running container of this app was read in the last 5 minutes.
-      no_recent_host: Nothing read from this host in the last 5 minutes (unreachable, or not Linux).
+      no_recent_host: Nothing read from this host in the last %{minutes} minutes (unreachable, or not Linux).
+      empty_not_collected: Metrics collection is turned off for every host of this app (metrics.enabled in the collection settings), so there is nothing to show.
+      containers_not_collected: "Container metrics are not collected on these hosts (metrics.containers: false in the collection settings); host CPU, memory and disk still are: %{hosts}"
+      host_not_collected: "Metrics collection is turned off for this host (metrics.enabled: false in the collection settings); this is not a collection failure."
+      host_sampled_every:
+        one: Sampled every minute, per the collection settings.
+        other: Sampled every %{count} minutes, per the collection settings.
       cpu_hint: Container CPU is docker stats' figure — 100% is one full core. For a container without a memory limit, the memory share is of the whole host. kamal-proxy is shared by the apps on a host and is left out of an app's totals and alerts.
     table:
       container: Container

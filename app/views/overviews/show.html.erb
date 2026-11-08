@@ -42,10 +42,12 @@
         <%= hidden_field_tag :view, @view unless @view == "cards" %>
 
         <%= form.label :q, t(".filter_name"), class: "visually-hidden" %>
-        <span class="field-with-icon">
+        <span class="field-with-icon suggest" data-controller="suggest" data-suggest-items-value="<%= @app_names.to_json %>">
           <%= icon_tag("search", size: :sm) %>
           <%= form.search_field :q, value: @filter.q, placeholder: t(".filter_name_placeholder"),
-                                autocomplete: "off", class: "filter-search" %>
+                                autocomplete: "off", class: "filter-search",
+                                data: { suggest_target: "input",
+                                        action: "input->suggest#update focus->suggest#update keydown->suggest#keydown blur->suggest#close" } %>
         </span>
 
         <%= form.label :status, t(".filter_status"), class: "visually-hidden" %>

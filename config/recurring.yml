@@ -13,25 +13,25 @@ production: &default
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
-  # The status-poll tick; each app still polls on its own cadence (PollCadence). Every 5 s rather
-  # than every second: each tick is a Solid Queue job plus cache reads/writes in SQLite, and the
-  # panel usually shares a small host with production apps. Keep PollCadence::TICK in step.
+  # The status-poll tick (status.tick in config/collection.yml, 5 s by default); each app still polls
+  # on its own cadence (PollCadence). Not every second: each tick is a Solid Queue job plus cache
+  # reads/writes in SQLite, and the panel usually shares a small host with production apps.
   poll_all_managed_apps:
     class: PollAllManagedAppsJob
-    schedule: every 5 seconds
+    schedule: every <%= CollectionSettings.current.status_tick.to_i %> seconds
   prune_observations:
     class: PruneObservationsJob
     schedule: every day at 4am
-  # Resource metrics: docker stats + /proc on every host of every app with an SSH key, once a
-  # minute (CollectMetricsJob per app).
+  # Resource metrics: docker stats + /proc on every host of every app with an SSH key (CollectMetricsJob
+  # per app). Runs every minute; metrics.every in config/collection.yml decides which hosts are due.
   collect_all_metrics:
     class: CollectAllMetricsJob
     schedule: every minute
-  # Alert rules (spec 8). Log-keyword rules are only scheduled from here; each runs on its own
-  # window (EvaluateLogRuleJob).
+  # Alert rules (spec 8), every alerts.every seconds (config/collection.yml). Log-keyword rules are
+  # only scheduled from here; each runs on its own window (EvaluateLogRuleJob).
   evaluate_alert_rules:
     class: EvaluateAlertRulesJob
-    schedule: every 30 seconds
+    schedule: every <%= CollectionSettings.current.alerts_every.to_i %> seconds
 
 development:
   <<: *default

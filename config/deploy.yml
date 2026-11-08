@@ -17,8 +17,11 @@ image: your-org/kamal-panel
 #
 # The panel usually shares its host with production apps; options caps it so a collection round
 # can never starve them. cpu-shares only matters under contention (it gets a quarter of the
-# default weight then, and full speed on an idle host); memory is a hard ceiling, so check the
-# panel's real footprint (docker stats) before lowering it.
+# default weight then, and full speed on an idle host). memory is a hard ceiling for everything in
+# the container: Puma with the jobs inside (~150–250 MB) plus the kamal and ssh subprocesses that
+# deploys and actions start (each kamal is a full Ruby process, ~100–150 MB, up to JOB_THREADS at
+# once). Hitting it OOM-kills the panel mid-deploy and leaves the deploy lock on the host, so size
+# it for concurrent actions, and check docker stats during one before lowering it.
 servers:
   web:
     hosts:
@@ -26,7 +29,7 @@ servers:
     options:
       cpus: 1
       cpu-shares: 256
-      memory: 640m
+      memory: 1g
 
 # Let's Encrypt issues certificates automatically. With it you must enable config.assume_ssl and
 # config.force_ssl in config/environments/production.rb (those two lines are commented out right
@@ -59,6 +62,10 @@ env:
     # The panel's own address, for the links in alert notifications and emails. Keep it in step with
     # proxy.host.
     # PANEL_URL: https://panel.example.com
+    # How hard the panel probes the hosts it manages (config/collection.yml lists every knob;
+    # per-host overrides go in storage/collection.yml in the volume below), e.g.
+    # COLLECTION_STATUS_IDLE: 120
+    # COLLECTION_METRICS_CONTAINERS: false
 
 aliases:
   console: app exec --interactive --reuse "bin/rails console"
