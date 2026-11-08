@@ -42,7 +42,14 @@ if ENV["SOLID_QUEUE_IN_PUMA"]
   # production apps, and each fork cost ~50–190 MB resident (measured on a 1.7 GB host where that
   # pushed a production app into swap). The jobs are I/O-bound (SSH, HTTP, subprocesses), so
   # sharing one GVL costs little. SOLID_QUEUE_MODE=fork restores the old layout.
-  solid_queue_mode ENV.fetch("SOLID_QUEUE_MODE", "async")
+  #
+  # Validated here: the plugin treats anything but exactly :async as fork, so a typo ("Async",
+  # " async") would silently fork four processes and blow the container's memory limit.
+  solid_queue_mode_value = ENV.fetch("SOLID_QUEUE_MODE", "async").strip.downcase
+  unless %w[async fork].include?(solid_queue_mode_value)
+    raise ArgumentError, "SOLID_QUEUE_MODE must be async or fork, got #{ENV['SOLID_QUEUE_MODE'].inspect}"
+  end
+  solid_queue_mode solid_queue_mode_value
 end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.

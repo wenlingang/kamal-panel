@@ -19,11 +19,11 @@ class PollCadence
     end
 
     def mark_viewed!(managed_app)
-      Rails.cache.write(key(managed_app, :viewing), true, expires_in: VIEWING_TTL)
+      speed_up!(managed_app, :viewing, VIEWING_TTL)
     end
 
     def mark_burst!(managed_app)
-      Rails.cache.write(key(managed_app, :burst), true, expires_in: BURST_TTL)
+      speed_up!(managed_app, :burst, BURST_TTL)
     end
 
     # The scheduler (PollAllManagedAppsJob) uses it to claim whether it is this app's turn to run
@@ -33,15 +33,27 @@ class PollCadence
       key(managed_app, :last_run)
     end
 
-    # How long a claimed slot is held: a little less than the app's interval, so an app whose
-    # interval is a multiple of the tick is picked up on the tick it falls due, not one tick later
-    # (cache expiry and the tick would otherwise land on the same second and race).
+    # How long a claimed slot is held: half a tick less than the app's interval. The slot is claimed
+    # when PollAllManagedAppsJob actually runs, which trails its tick by queue and worker-polling
+    # delay (a second or more when the workers are busy with SSH); half a tick absorbs that jitter
+    # on either side, so an app is picked up on the tick it falls due rather than one tick later,
+    # while the tick before still finds the slot taken.
     def slot_ttl_for(managed_app)
-      interval_for(managed_app) - [ 1.second, tick / 2.0 ].min
+      interval_for(managed_app) - tick / 2.0
     end
 
     private
       def settings = CollectionSettings.current
+
+      # The slot was claimed with the interval in force at the time — up to a minute for an idle
+      # app. When the app turns viewed or bursting, release that slot so the faster cadence starts
+      # on the next tick instead of after the old claim runs out. Only on the change: the page
+      # renews :viewing every 10 seconds, and releasing on every renewal would poll on each one.
+      def speed_up!(managed_app, flag, ttl)
+        already = flag?(managed_app, flag)
+        Rails.cache.write(key(managed_app, flag), true, expires_in: ttl)
+        Rails.cache.delete(last_run_key(managed_app)) unless already
+      end
 
       def flag?(managed_app, name)
         Rails.cache.read(key(managed_app, name)).present?
