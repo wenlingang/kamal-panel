@@ -2,7 +2,14 @@
 class PollCadence
   IDLE     = 60.seconds
   VIEWING  = 10.seconds
-  BURST    = 2.seconds
+  # No faster than the scheduler's tick (config/recurring.yml, poll_all_managed_apps).
+  BURST    = 5.seconds
+
+  # How often PollAllManagedAppsJob runs. A claimed slot expires this much early, so an app whose
+  # interval is a multiple of the tick is picked up on the tick it falls due, not one tick later
+  # (cache expiry and the tick land on the same second and would otherwise race).
+  TICK     = 5.seconds
+  SLOT_SLACK = 1.second
 
   VIEWING_TTL = 30.seconds   # the page renews every 10 seconds; 30 seconds without renewal means nobody is viewing
   BURST_TTL   = 90.seconds
@@ -28,6 +35,11 @@ class PollCadence
     # avoid two string copies drifting apart later.
     def last_run_key(managed_app)
       key(managed_app, :last_run)
+    end
+
+    # How long a claimed slot is held: the app's interval, minus SLOT_SLACK.
+    def slot_ttl_for(managed_app)
+      interval_for(managed_app) - SLOT_SLACK
     end
 
     private

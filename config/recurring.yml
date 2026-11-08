@@ -13,9 +13,12 @@ production: &default
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
+  # The status-poll tick; each app still polls on its own cadence (PollCadence). Every 5 s rather
+  # than every second: each tick is a Solid Queue job plus cache reads/writes in SQLite, and the
+  # panel usually shares a small host with production apps. Keep PollCadence::TICK in step.
   poll_all_managed_apps:
     class: PollAllManagedAppsJob
-    schedule: every second
+    schedule: every 5 seconds
   prune_observations:
     class: PruneObservationsJob
     schedule: every day at 4am

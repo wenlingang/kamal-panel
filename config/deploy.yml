@@ -14,9 +14,19 @@ image: your-org/kamal-panel
 # (see the env and volumes below). So there can be only one web server here; adding a second does
 # not give you a more capable panel, only two panels that each hold half the data and don't know the
 # other exists.
+#
+# The panel usually shares its host with production apps; options caps it so a collection round
+# can never starve them. cpu-shares only matters under contention (it gets a quarter of the
+# default weight then, and full speed on an idle host); memory is a hard ceiling, so check the
+# panel's real footprint (docker stats) before lowering it.
 servers:
   web:
-    - your-server.example.com
+    hosts:
+      - your-server.example.com
+    options:
+      cpus: 1
+      cpu-shares: 256
+      memory: 640m
 
 # Let's Encrypt issues certificates automatically. With it you must enable config.assume_ssl and
 # config.force_ssl in config/environments/production.rb (those two lines are commented out right

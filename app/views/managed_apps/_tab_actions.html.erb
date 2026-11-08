@@ -3,7 +3,7 @@
     the panel would raise Kamal::ConfigParser::ParseError (status is nil exactly then; locks/show checks
     last_poll_error the same way). The cost is that in the short window between a parse failure and the next
     poll the action buttons go away along with the data — the width of this window depends on the fastest
-    polling interval in PollCadence (currently BURST = 2 seconds), and is not a constant that always holds:
+    polling interval in PollCadence (currently BURST = 5 seconds), and is not a constant that always holds:
     if the polling interval is widened later, this window will quietly widen with it, and at that point it
     must be re-evaluated whether this is still enough (a minor from the task-5 review). %>
 <%# Reading the lock really has to SSH in, and one unreachable host makes it wait out the full connection

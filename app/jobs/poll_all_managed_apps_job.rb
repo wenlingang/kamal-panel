@@ -17,7 +17,7 @@ class PollAllManagedAppsJob < ApplicationJob
       Rails.cache.write(
         PollCadence.last_run_key(managed_app),
         Time.current,
-        expires_in: PollCadence.interval_for(managed_app),
+        expires_in: PollCadence.slot_ttl_for(managed_app),
         unless_exist: true
       )
     end
