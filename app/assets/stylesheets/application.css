@@ -1770,6 +1770,49 @@ td > .badge {
   font-size: var(--text-xs);
 }
 
+/* When some rounds were not OK the caption becomes a link to the list of those rounds. */
+.heartbeat-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 0.2em;
+}
+
+.heartbeat-link:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+/* ── Problem rounds (app overview tab) ─────────────────────────────── */
+.problem-rounds {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.problem-round > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+}
+
+.problem-round[open] > summary {
+  border-bottom: var(--hairline) solid var(--rule);
+}
+
+.problem-round > summary .hint {
+  margin: 0;
+}
+
+.problem-round:target {
+  outline: var(--hairline) solid var(--ink);
+}
+
 /* ── Banners: flash, callouts, errors ──────────────────────────────── */
 .flash,
 .callout,

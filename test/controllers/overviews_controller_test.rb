@@ -52,6 +52,29 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # "M of the last N rounds not OK" must open the list of those rounds, not just sit there as text.
+  test "links a card's heartbeat caption to the app's problem rounds only when some round was not OK" do
+    drifting = app_with(name: "shop", versions: %w[bbbbbbb ccccccc])
+    app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
+
+    get overview_path
+
+    assert_select "a.heartbeat-link", count: 1
+    assert_select "a.heartbeat-link[href=?]", managed_app_path(drifting, anchor: "problem-rounds")
+  end
+
+  test "the app overview tab lists each problem round with what every host reported" do
+    app = app_with(name: "shop", versions: %w[bbbbbbb ccccccc])
+
+    get managed_app_path(app)
+
+    assert_select "#problem-rounds details.problem-round", count: 1 do
+      assert_select "summary .status-badge.status-drift"
+      assert_select "tbody tr", count: 2
+      assert_select "td", text: "shop-web-production-ccccccc"
+    end
+  end
+
   test "lists all apps when there are no filter params" do
     app_with(name: "blog", versions: %w[aaaaaaa aaaaaaa])
     app_with(name: "shop", versions: %w[bbbbbbb ccccccc])

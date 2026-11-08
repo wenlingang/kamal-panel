@@ -92,8 +92,11 @@ class PollManagedAppJob < ApplicationJob
       replacements = {
         "host-status" => ApplicationController.render(partial: "managed_apps/host_status", locals:),
         "app-status" => ApplicationController.render(partial: "managed_apps/status_badge", locals:),
-        "app-heartbeat" => ApplicationController.render(partial: "shared/heartbeat",
-                                                        locals: { history:, id: "app-heartbeat" })
+        "app-heartbeat" => ApplicationController.render(
+          partial: "shared/heartbeat",
+          locals: { history:, id: "app-heartbeat",
+                    problems_url: Rails.application.routes.url_helpers.managed_app_path(managed_app, anchor: "problem-rounds") }
+        )
       }
 
       deliver_host_status_refresh(managed_app, replacements)

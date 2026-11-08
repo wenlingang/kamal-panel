@@ -68,7 +68,8 @@
   </div>
   <div class="head-pulse">
     <%# Replaced by PollManagedAppJob after each round (target id: app-heartbeat). %>
-    <%= render "shared/heartbeat", history: StatusHistory.new(@managed_app), id: "app-heartbeat" %>
+    <%= render "shared/heartbeat", history: StatusHistory.new(@managed_app), id: "app-heartbeat",
+                                     problems_url: managed_app_path(@managed_app, anchor: "problem-rounds") %>
   </div>
 </div>
 

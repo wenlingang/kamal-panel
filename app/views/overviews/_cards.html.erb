@@ -77,7 +77,8 @@
         </p>
       <% end %>
 
-      <%= render "shared/heartbeat", history: StatusHistory.new(app) %>
+      <%= render "shared/heartbeat", history: StatusHistory.new(app),
+                                     problems_url: managed_app_path(app, anchor: "problem-rounds") %>
 
       <%# Quick links and actions (deploy, restart, logs, actions), each behind the same ManagedAppPolicy check
           its own page uses. Rendering a card must not SSH: see the quick_actions partial. A broken app

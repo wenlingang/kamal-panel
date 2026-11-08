@@ -438,6 +438,17 @@ zh-CN:
       stale_suffix: 已过期
       never_collected: 尚未采集
       partially_collected: 部分主机尚未采集
+    problem_rounds:
+      title: 最近异常
+      none: 最近 %{count} 轮采集全部正常。
+      hint: 最近 %{count} 轮中有 %{problems} 轮异常，最新的在上面。每一轮列出当时各主机、各容器上报的状态。
+      ago: "%{time}前"
+      host: 主机
+      container: 容器
+      version: 版本
+      docker_status: 容器状态
+      error: 错误
+      unreachable: 失联
     host_table:
       host: 机器
       role: 角色

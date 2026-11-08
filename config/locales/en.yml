@@ -422,6 +422,17 @@ en:
       stale_suffix: stale
       never_collected: Not collected yet
       partially_collected: Some hosts have not been collected yet
+    problem_rounds:
+      title: Recent problems
+      none: All of the last %{count} rounds OK.
+      hint: "%{problems} of the last %{count} rounds not OK, newest first. Each round lists what every host and container reported then."
+      ago: "%{time} ago"
+      host: Host
+      container: Container
+      version: Version
+      docker_status: Container status
+      error: Error
+      unreachable: Unreachable
     host_table:
       host: Host
       role: Role

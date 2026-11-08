@@ -1,0 +1,64 @@
+<%# The rounds behind the heartbeat's "M of the last N rounds not OK": each one with what every host and
+    container reported in it, newest first. The strip's caption (overview card and app header) links here.
+
+    Reads only observation rows (StatusHistory), never parsed_config, so it is safe for an app whose
+    deploy.yml does not parse. Not live-replaced by the poll broadcast: a list that re-rendered every few
+    seconds would snap open rounds shut while someone reads them.
+    locals: managed_app %>
+<% history = StatusHistory.new(managed_app) %>
+<% rounds = history.problem_rounds %>
+<section class="section" id="problem-rounds">
+  <div class="section-head">
+    <h2><%= t(".title") %></h2>
+  </div>
+  <% if rounds.empty? %>
+    <p class="hint"><%= t(".none", count: history.recorded_cells.size) %></p>
+  <% else %>
+    <p class="hint"><%= t(".hint", count: history.recorded_cells.size, problems: rounds.size) %></p>
+    <div class="problem-rounds">
+      <% rounds.each_with_index do |round, index| %>
+        <details class="problem-round panel panel-flush" id="<%= StatusHistory.round_anchor(round.observed_at) %>"
+                 <%= "open" if index.zero? %>>
+          <summary>
+            <%= status_badge(round.level, t("statuses.#{round.badge_key}"), icon_key: round.badge_key) %>
+            <time datetime="<%= round.observed_at.iso8601 %>"><%= l(round.observed_at, format: :precise) %></time>
+            <span class="hint"><%= t(".ago", time: time_ago_in_words(round.observed_at)) %></span>
+          </summary>
+          <table class="host-table">
+            <thead>
+              <tr>
+                <th><%= t(".host") %></th>
+                <th><%= t(".container") %></th>
+                <th><%= t(".version") %></th>
+                <th><%= t(".docker_status") %></th>
+                <th><%= t(".error") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% round.rows.each do |row| %>
+                <tr class="<%= class_names("row-unreachable": !row.reachable) %>">
+                  <td><%= row.host %><%= tag.small(row.role, class: "suffix") if row.role.present? %></td>
+                  <td class="mono"><%= row.container_name.presence || "—" %></td>
+                  <td><%= row.version || "—" %></td>
+                  <td>
+                    <% if row.reachable %>
+                      <%= row.docker_status || "—" %>
+                      <% if row.health == "unhealthy" %>
+                        <strong class="suffix"><%= row.health %></strong>
+                      <% elsif row.health.present? %>
+                        <span class="suffix"><%= row.health %></span>
+                      <% end %>
+                    <% else %>
+                      <strong><%= t(".unreachable") %></strong>
+                    <% end %>
+                  </td>
+                  <td><%= row.error.present? ? tag.small(row.error) : "—" %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </details>
+      <% end %>
+    </div>
+  <% end %>
+</section>

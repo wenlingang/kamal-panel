@@ -21,8 +21,12 @@ class StatusHistory
     def placeholder? = observed_at.nil?
   end
 
-  # Only the columns the level and wording read; a round of a busy app can carry many container rows.
-  COLUMNS = %i[observed_at host reachable docker_status health version error].freeze
+  # A round that was not ok, with every row it recorded (newest round first, see #problem_rounds).
+  # All rows, not just the failing ones: drift is only visible next to the hosts that disagree.
+  Round = Data.define(:observed_at, :level, :badge_key, :rows)
+
+  # The columns the level and wording read, plus what the problem-rounds list shows per row.
+  COLUMNS = %i[observed_at host role container_name reachable docker_status health version error].freeze
 
   attr_reader :rounds
 
@@ -34,9 +38,8 @@ class StatusHistory
   # Oldest first, padded on the left with placeholders up to `rounds` cells.
   def cells
     @cells ||= begin
-      recorded = rows.group_by(&:observed_at).sort_by(&:first).map do |observed_at, round_rows|
-        level = ManagedAppStatus.round_level(round_rows)
-        Cell.new(observed_at:, level:, badge_key: badge_key(level, round_rows))
+      recorded = rounds_by_time.map do |round|
+        Cell.new(observed_at: round.observed_at, level: round.level, badge_key: round.badge_key)
       end
 
       Array.new(rounds - recorded.size) { Cell.new(observed_at: nil, level: nil, badge_key: nil) } + recorded
@@ -48,8 +51,23 @@ class StatusHistory
   # How many recorded rounds were not ok: the strip's caption, so the history is not colour-only.
   def problem_count = recorded_cells.count { |cell| cell.level != :ok }
 
+  # The rounds behind problem_count, newest first: what the strip's caption links to.
+  def problem_rounds = rounds_by_time.reject { |round| round.level == :ok }.reverse
+
+  # Anchor of one round in the problem-rounds list, shared by the list and the strip's cells.
+  def self.round_anchor(observed_at) = "round-#{observed_at.to_i}"
+
   private
     attr_reader :managed_app
+
+    # Oldest first.
+    def rounds_by_time
+      @rounds_by_time ||= rows.group_by(&:observed_at).sort_by(&:first).map do |observed_at, round_rows|
+        level = ManagedAppStatus.round_level(round_rows)
+        Round.new(observed_at:, level:, badge_key: badge_key(level, round_rows),
+                  rows: round_rows.sort_by { |row| [ row.host.to_s, row.container_name.to_s ] })
+      end
+    end
 
     def badge_key(level, round_rows)
       return level.to_s unless level == :unreachable

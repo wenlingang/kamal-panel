@@ -4,7 +4,11 @@
     has a tooltip with its time and status. Empty cells on the left mean "no round recorded yet".
 
     It reads no config, so it is safe for an app whose deploy.yml does not parse.
-    locals: history (StatusHistory), id (optional; the detail page's broadcast replace target) %>
+    When some rounds were not OK and a problems_url is given, the caption links to the list of those
+    rounds (the app's overview tab, #problem-rounds), so "M rounds not OK" can be opened, not just read.
+
+    locals: history (StatusHistory), id (optional; the detail page's broadcast replace target),
+            problems_url (optional) %>
 <% recorded = history.recorded_cells %>
 <% caption =
      if recorded.empty? then t("shared.heartbeat.none")
@@ -22,5 +26,13 @@
       <% end %>
     <% end %>
   </ol>
-  <p class="heartbeat-caption" aria-hidden="true"><%= caption %></p>
+  <% if history.problem_count.positive? && local_assigns[:problems_url] %>
+    <p class="heartbeat-caption">
+      <%= link_to local_assigns[:problems_url], class: "heartbeat-link" do %>
+        <%= caption %><%= icon_tag("chevron-right", size: :sm) %>
+      <% end %>
+    </p>
+  <% else %>
+    <p class="heartbeat-caption" aria-hidden="true"><%= caption %></p>
+  <% end %>
 </div>
