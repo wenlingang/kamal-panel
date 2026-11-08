@@ -23,8 +23,13 @@ module Collectors
     private
       attr_reader :managed_app, :observed_at
 
+      # Hosts with status.proxy: false (config/collection.yml) are skipped: no `docker exec`, no row,
+      # and ManagedAppStatus stops trusting what was read there before.
       def results
-        SshSession.new(managed_app).capture_many(managed_app.app_hosts) { COMMAND }
+        hosts = managed_app.app_hosts.select { |host| CollectionSettings.current.for_host(host).proxy }
+        return {} if hosts.empty?
+
+        SshSession.new(managed_app).capture_many(hosts) { COMMAND }
       end
 
       def rows_for(host, result)

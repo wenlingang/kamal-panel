@@ -1,0 +1,58 @@
+# How hard the panel probes the hosts it manages. These are the built-in defaults; whoever deploys
+# the panel overrides them for their own workload, because the panel usually shares hosts with
+# production apps and only the deployer knows how much headroom those have.
+#
+# Overrides, later wins:
+#   1. this file (built into the image)
+#   2. an override file with the same shape, partial is fine: $COLLECTION_CONFIG, or
+#      storage/collection.yml when that exists (it lives in the panel's storage volume, so it can be
+#      edited on the host without rebuilding the image)
+#   3. environment variables for the global values: COLLECTION_<SECTION>_<KEY>, e.g.
+#      COLLECTION_STATUS_IDLE=120, COLLECTION_METRICS_CONTAINERS=false (set them under env.clear in
+#      the panel's deploy.yml)
+#
+# Read once at boot; restart the panel to apply a change. A value that is out of range or a key
+# that doesn't exist stops the boot with a message naming it, rather than being silently ignored.
+
+# Status poll: docker ps (and the kamal-proxy routing table) on every host of an app, which drives
+# the status badges, drift detection and the status alert rules.
+status:
+  tick: 5        # seconds between scheduler rounds; no cadence below can be faster than this
+  idle: 60       # seconds between polls of an app nobody is looking at
+  viewing: 10    # ... while someone has the app's page open
+  burst: 5       # ... for 90 seconds after a deploy or an action, to show the change quickly
+  proxy: true    # read kamal-proxy's routing table (a `docker exec` into kamal-proxy per poll)
+
+# Resource metrics: the charts on the monitor tab and the usage alert rules.
+metrics:
+  enabled: true
+  every: 1           # minutes between samples (1–60)
+  containers: true   # per-container CPU/memory via `docker stats`, the expensive part (dockerd
+                     # samples every running container on the host); false keeps host-level
+                     # CPU/memory/disk, which are a few reads of /proc
+  spread: 45         # seconds over which one round's SSH sessions are spread, instead of all at once
+
+# Log-keyword alert rules: `docker logs --since <window> | grep` on the app's hosts, once per window.
+log_scan:
+  enabled: true
+
+# How often alert rules are evaluated (seconds). State rules only read the database.
+alerts:
+  every: 30
+
+# Per-host overrides, keyed by the host exactly as written in the apps' deploy.yml (servers:). A host
+# can override these keys only; everything else is global.
+#
+# hosts:
+#   "10.0.0.5":            # runs the latency-sensitive production app
+#     metrics:
+#       every: 5
+#       containers: false
+#     status:
+#       proxy: false
+#     log_scan:
+#       enabled: false
+#   "10.0.0.6":
+#     metrics:
+#       enabled: false
+hosts: {}

@@ -34,4 +34,15 @@ class Alerting::LogScanTest < ActiveSupport::TestCase
     scan(result(matches: 1))
     assert_predicate event.reload, :resolved?
   end
+
+  test "does not scan, and leaves the rule alone, when every host has log_scan disabled" do
+    host = @app.parsed_config.all_hosts.first
+
+    changed = with_collection_settings(hosts: { host => { log_scan: { enabled: false } } }) do
+      Alerting::LogScan.call(@rule, @app, now: @now)
+    end
+
+    refute changed
+    assert_empty AlertEvent.all
+  end
 end

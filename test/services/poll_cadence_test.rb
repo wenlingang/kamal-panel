@@ -13,7 +13,7 @@ class PollCadenceTest < ActiveSupport::TestCase
     PollCadence.mark_viewed!(@app)
     PollCadence.mark_burst!(@app)
 
-    assert_equal PollCadence::BURST, PollCadence.interval_for(@app)
+    assert_equal PollCadence.burst, PollCadence.interval_for(@app)
   end
 
   # A slot held for the full interval expires on the very tick the app falls due, and whether that
@@ -27,11 +27,11 @@ class PollCadenceTest < ActiveSupport::TestCase
       ttl = PollCadence.slot_ttl_for(@app)
       interval = PollCadence.interval_for(@app)
       assert_operator ttl, :<, interval
-      assert_operator ttl, :>, interval - PollCadence::TICK, "the slot must still block the tick before"
+      assert_operator ttl, :>, interval - PollCadence.tick, "the slot must still block the tick before"
     end
   end
 
   test "no cadence is faster than the scheduler tick" do
-    assert_operator PollCadence::BURST, :>=, PollCadence::TICK
+    assert_operator PollCadence.burst, :>=, PollCadence.tick
   end
 end

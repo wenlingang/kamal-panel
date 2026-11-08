@@ -103,4 +103,26 @@ class Collectors::MetricsCollectorTest < ActiveSupport::TestCase
     assert_equal @now.change(sec: 0), web.sampled_at
     assert_equal 512 * 1024**2, ContainerMetric.find_by!(source: "worker").mem_limit_bytes
   end
+
+  test "follows the per-host settings: skips hosts not due, leaves out docker stats where asked" do
+    settings = { hosts: { "10.0.0.2" => { metrics: { every: 5 } }, "10.0.0.3" => { metrics: { containers: false } } } }
+
+    ssh = with_collection_settings(settings) do
+      # 10:01 — not a multiple of 5, so 10.0.0.2 is not due.
+      collect(now: Time.zone.parse("2026-11-08 10:01:10"),
+              "10.0.0.1" => { stdout: output([ stats("blog-web-production-abc1234") ]) },
+              "10.0.0.3" => { stdout: output([]) })
+    end
+
+    assert_equal 2, ssh.commands.size, "10.0.0.2 must not be contacted"
+    assert_includes ssh.commands.first, "docker stats"
+    refute_includes ssh.commands.last, "docker stats", "containers: false must not run docker stats"
+    assert_equal %w[10.0.0.1 10.0.0.3], HostMetric.where(managed_app: @app).pluck(:host).sort
+  end
+
+  test "no host due means no SSH at all" do
+    ssh = with_collection_settings(metrics: { enabled: false }) { collect("10.0.0.1" => { stdout: output([]) }) }
+
+    assert_empty ssh.commands
+  end
 end

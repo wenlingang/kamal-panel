@@ -59,6 +59,10 @@ env:
     # The panel's own address, for the links in alert notifications and emails. Keep it in step with
     # proxy.host.
     # PANEL_URL: https://panel.example.com
+    # How hard the panel probes the hosts it manages (config/collection.yml lists every knob;
+    # per-host overrides go in storage/collection.yml in the volume below), e.g.
+    # COLLECTION_STATUS_IDLE: 120
+    # COLLECTION_METRICS_CONTAINERS: false
 
 aliases:
   console: app exec --interactive --reuse "bin/rails console"

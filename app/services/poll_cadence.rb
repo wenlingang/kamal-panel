@@ -1,25 +1,21 @@
-# Adaptive polling cadence (spec 6.3).
+# Adaptive polling cadence (spec 6.3). The intervals are the deployer's call: status.* in
+# config/collection.yml (CollectionSettings), which also checks tick <= burst <= viewing <= idle.
 class PollCadence
-  IDLE     = 60.seconds
-  VIEWING  = 10.seconds
-  # No faster than the scheduler's tick (config/recurring.yml, poll_all_managed_apps).
-  BURST    = 5.seconds
-
-  # How often PollAllManagedAppsJob runs. A claimed slot expires this much early, so an app whose
-  # interval is a multiple of the tick is picked up on the tick it falls due, not one tick later
-  # (cache expiry and the tick land on the same second and would otherwise race).
-  TICK     = 5.seconds
-  SLOT_SLACK = 1.second
-
   VIEWING_TTL = 30.seconds   # the page renews every 10 seconds; 30 seconds without renewal means nobody is viewing
   BURST_TTL   = 90.seconds
 
   class << self
-    def interval_for(managed_app)
-      return BURST   if flag?(managed_app, :burst)
-      return VIEWING if flag?(managed_app, :viewing)
+    def idle = settings.status_idle
+    def viewing = settings.status_viewing
+    def burst = settings.status_burst
+    # How often PollAllManagedAppsJob runs (config/recurring.yml reads the same setting).
+    def tick = settings.status_tick
 
-      IDLE
+    def interval_for(managed_app)
+      return burst   if flag?(managed_app, :burst)
+      return viewing if flag?(managed_app, :viewing)
+
+      idle
     end
 
     def mark_viewed!(managed_app)
@@ -37,12 +33,16 @@ class PollCadence
       key(managed_app, :last_run)
     end
 
-    # How long a claimed slot is held: the app's interval, minus SLOT_SLACK.
+    # How long a claimed slot is held: a little less than the app's interval, so an app whose
+    # interval is a multiple of the tick is picked up on the tick it falls due, not one tick later
+    # (cache expiry and the tick would otherwise land on the same second and race).
     def slot_ttl_for(managed_app)
-      interval_for(managed_app) - SLOT_SLACK
+      interval_for(managed_app) - [ 1.second, tick / 2.0 ].min
     end
 
     private
+      def settings = CollectionSettings.current
+
       def flag?(managed_app, name)
         Rails.cache.read(key(managed_app, name)).present?
       end

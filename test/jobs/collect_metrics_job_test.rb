@@ -23,7 +23,7 @@ class CollectMetricsJobTest < ActiveSupport::TestCase
                              .map { |job| (Time.parse(job["scheduled_at"]) - Time.current).round }
       assert_equal [ 0, 15, 30 ], offsets.sort
       assert_equal 1 + others.size, offsets.size
-      assert offsets.all? { |offset| offset < CollectAllMetricsJob::SPREAD }
+      assert offsets.all? { |offset| offset < CollectionSettings.current.metrics_spread }
     end
   end
 end

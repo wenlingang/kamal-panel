@@ -2,7 +2,8 @@ require "shellwords"
 
 module Collectors
   # One metrics round for one app (CollectMetricsJob, once a minute): a single SSH command per
-  # host (every host of the config, accessory hosts included) that prints, between markers,
+  # host (every host of the config, accessory hosts included, that is due under metrics.* in
+  # config/collection.yml) that prints, between markers,
   #
   #   docker stats   — every running container; this app's are picked out by name below
   #   /proc/loadavg, nproc, /proc/meminfo, the "cpu" line of /proc/stat, df -P -k /
@@ -59,7 +60,9 @@ module Collectors
       { containers: container_rows.size, hosts: host_rows.size }
     end
 
-    def self.command
+    # containers: false (metrics.containers in config/collection.yml) leaves out `docker stats`, the
+    # one part that costs the host something: dockerd samples every running container for it.
+    def self.command(containers: true)
       SECTIONS.zip([
         "docker stats --no-stream --format #{Shellwords.escape('{{json .}}')} 2>&1",
         "cat /proc/loadavg",
@@ -67,7 +70,8 @@ module Collectors
         "grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo",
         "head -n 1 /proc/stat",
         "df -P -k /"
-      ]).map { |name, cmd| "echo '#{MARKER}#{name}'; #{cmd}" }.join("; ")
+      ]).reject { |name, _| name == "stats" && !containers }
+        .map { |name, cmd| "echo '#{MARKER}#{name}'; #{cmd}" }.join("; ")
     end
 
     # { "stats" => "...", "loadavg" => "...", ... }; a section the host never reached is absent.
@@ -90,10 +94,16 @@ module Collectors
 
       def config = managed_app.parsed_config
 
+      # Only the hosts due this minute (metrics.enabled / metrics.every, per host); none due, no SSH.
       def results
+        hosts = config.all_hosts.select { |host| settings_for(host).metrics_due?(sampled_at) }
+        return {} if hosts.empty?
+
         (@ssh || SshSession.new(managed_app, execution_timeout: EXECUTION_TIMEOUT))
-          .capture_many(config.all_hosts) { self.class.command }
+          .capture_many(hosts) { |host| self.class.command(containers: settings_for(host).containers) }
       end
+
+      def settings_for(host) = CollectionSettings.current.for_host(host)
 
       # ── Containers ──────────────────────────────────────────────────────────────────
 
@@ -169,7 +179,9 @@ module Collectors
       end
 
       def previous_jiffies(host)
-        HostMetric.where(managed_app: managed_app, host: host, sampled_at: (sampled_at - CPU_DELTA_MAX_AGE)...sampled_at)
+        # A host sampled every N minutes has its previous reading N minutes back.
+        max_age = [ CPU_DELTA_MAX_AGE, 2 * settings_for(host).metrics_every.minutes ].max
+        HostMetric.where(managed_app: managed_app, host: host, sampled_at: (sampled_at - max_age)...sampled_at)
                   .where.not(cpu_total_jiffies: nil)
                   .order(sampled_at: :desc)
                   .pick(:cpu_total_jiffies, :cpu_idle_jiffies)

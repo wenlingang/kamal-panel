@@ -19,8 +19,12 @@ module Alerting
 
     # Returns true when an event changed (see StateMachine#apply).
     def call
+      # Every host of the app has log_scan disabled (config/collection.yml): nothing to judge, and
+      # no SSH. The rule keeps whatever state it had.
+      return false if query.nil? && scan_hosts.empty?
+
       result = (query || LogQuery.new(app, source: rule.log_source.presence || "app", since: now - rule.window,
-                                           grep: rule.keyword, lines: LINES, now:)).call
+                                           grep: rule.keyword, lines: LINES, now:, only_hosts: scan_hosts)).call
       check = verdict(result)
       record_errors(result)
       StateMachine.apply(rule, app, check, now:)
@@ -45,6 +49,10 @@ module Alerting
 
     private
       attr_reader :rule, :app, :now, :query
+
+      def scan_hosts
+        @scan_hosts ||= app.parsed_config.all_hosts.select { |host| CollectionSettings.current.for_host(host).log_scan }
+      end
 
       def all_hosts_failed?(result)
         result.errors.any? && (result.hosts - result.errors.map(&:host)).empty?

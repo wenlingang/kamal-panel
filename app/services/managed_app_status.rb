@@ -11,7 +11,7 @@ class ManagedAppStatus
   STALE_MULTIPLIER = 3
 
   def self.stale_threshold
-    PollCadence::IDLE * STALE_MULTIPLIER
+    PollCadence.idle * STALE_MULTIPLIER
   end
 
   # The level of one collection round judged on its own rows alone: no config, no clock. The
@@ -228,6 +228,9 @@ class ManagedAppStatus
 
     def routed_status(host, container_name)
       return nil if container_name.nil?
+
+      # Not read on this host (status.proxy: false): whatever was read before may be stale.
+      return nil unless CollectionSettings.current.for_host(host).proxy
 
       targets = proxy_targets_by_host[host]
       return nil if targets.blank?

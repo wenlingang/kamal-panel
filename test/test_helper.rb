@@ -18,7 +18,14 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    # Runs the block with these collection settings (deep-merged over config/collection.yml).
+    def with_collection_settings(overrides)
+      previous = CollectionSettings.current
+      CollectionSettings.current = CollectionSettings.new(CollectionSettings.defaults.deep_merge(overrides.deep_stringify_keys))
+      yield
+    ensure
+      CollectionSettings.current = previous
+    end
   end
 end
 
