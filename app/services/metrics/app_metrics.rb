@@ -50,22 +50,36 @@ module Metrics
       end
     end
 
-    # The newest sample of every container seen in the last LATEST_WITHIN, sorted for the table.
+    # The newest sample of every container seen recently (see #fresh?), sorted for the table.
     def latest_containers
-      ContainerMetric.where(managed_app: managed_app, sampled_at: (range.to - LATEST_WITHIN)..)
+      ContainerMetric.where(managed_app: managed_app, sampled_at: (range.to - widest_freshness)..)
                      .order(:sampled_at).to_a
                      .index_by { |metric| [ metric.host, metric.container_name ] }.values
+                     .select { |metric| fresh?(metric) }
                      .sort_by { |metric| [ KIND_ORDER.index(metric.kind), metric.source, metric.host ] }
     end
 
     # { host => HostMetric or nil }, in config order.
     def latest_hosts
-      latest = HostMetric.where(managed_app: managed_app, host: hosts, sampled_at: (range.to - LATEST_WITHIN)..)
+      latest = HostMetric.where(managed_app: managed_app, host: hosts, sampled_at: (range.to - widest_freshness)..)
                          .order(:sampled_at).to_a.index_by(&:host)
-      hosts.index_with { |host| latest[host] }
+      hosts.index_with { |host| latest[host]&.then { |metric| metric if fresh?(metric) } }
     end
 
+    # What the deployer turned down (metrics.* in config/collection.yml), so an empty chart can say
+    # "not collected here" instead of looking like a failure.
+    def collection_for(host) = CollectionSettings.current.for_host(host)
+    def hosts_not_collected = hosts.reject { |host| collection_for(host).metrics }
+    def hosts_without_containers = hosts.select { |host| collection_for(host).metrics && !collection_for(host).containers }
+    def nothing_collected? = hosts.any? && hosts_not_collected.size == hosts.size
+
+    # A host sampled every N minutes is still current for twice that long.
+    def freshness_for(host) = [ LATEST_WITHIN, 2 * collection_for(host).metrics_every.minutes ].max
+
     private
+      def widest_freshness = hosts.map { |host| freshness_for(host) }.push(LATEST_WITHIN).max
+      def fresh?(metric) = metric.sampled_at >= range.to - freshness_for(metric.host)
+
       def container_series(metric)
         container_buckets.group_by { |row| row[:key] }
                          .sort_by { |key, rows| [ KIND_ORDER.index(rows.first[:kind]), key ] }

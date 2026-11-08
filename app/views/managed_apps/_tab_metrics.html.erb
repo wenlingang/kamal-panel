@@ -23,6 +23,8 @@
         <p class="empty-hint">
           <% if managed_app.ssh_credential_id.nil? %>
             <%= t("metrics.tab.empty_no_key") %>
+          <% elsif metrics.nothing_collected? %>
+            <%= t("metrics.tab.empty_not_collected") %>
           <% else %>
             <%= t("metrics.tab.empty", range: t("metrics.ranges.#{range.key}")) %>
           <% end %>
@@ -31,6 +33,9 @@
     <% else %>
       <% containers = metrics.latest_containers %>
       <h3 class="metrics-subhead"><%= t("metrics.tab.containers") %></h3>
+      <% if (skipped = metrics.hosts_without_containers).any? %>
+        <p class="hint"><%= t("metrics.tab.containers_not_collected", hosts: skipped.join(", ")) %></p>
+      <% end %>
       <div class="panel panel-flush">
         <% if containers.empty? %>
           <p class="empty-hint"><%= t("metrics.tab.no_recent_containers") %></p>
@@ -82,7 +87,10 @@
         <section class="panel metrics-host">
           <div class="metrics-host-head">
             <h4 class="mono"><%= host %></h4>
-            <% if latest %>
+            <% collection = metrics.collection_for(host) %>
+            <% if !collection.metrics %>
+              <p class="empty-hint"><%= t("metrics.tab.host_not_collected") %></p>
+            <% elsif latest %>
               <dl class="metrics-facts">
                 <div>
                   <dt><%= t("metrics.host.load") %></dt>
@@ -108,7 +116,10 @@
                 <% end %>
               </dl>
             <% else %>
-              <p class="empty-hint"><%= t("metrics.tab.no_recent_host") %></p>
+              <p class="empty-hint"><%= t("metrics.tab.no_recent_host", minutes: metrics.freshness_for(host).in_minutes.to_i) %></p>
+            <% end %>
+            <% if collection.metrics && collection.metrics_every > 1 %>
+              <small class="muted"><%= t("metrics.tab.host_sampled_every", count: collection.metrics_every) %></small>
             <% end %>
           </div>
           <% series = host_series.fetch(host) %>

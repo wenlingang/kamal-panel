@@ -10,6 +10,8 @@ class OverviewsController < ApplicationController
     all_apps.each { |app| PollCadence.mark_viewed!(app) }
 
     @any_managed_apps = all_apps.any?
+    # Suggestions for the name filter (suggest_controller): every active app, not only the filtered ones.
+    @app_names = all_apps.map(&:name)
     @deactivated_apps = ManagedApp.where.not(deactivated_at: nil).order(:name)
 
     # One status per app whose config parses, shared by the summary strip, the filter and the grid,
