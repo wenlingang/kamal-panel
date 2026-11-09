@@ -129,6 +129,8 @@ zh-CN:
 
   common:
     save: 保存
+    copy_value: 复制 %{value}
+    copied: 已复制
     replace: 替换
     edit: 编辑
     error_separator: "；"
@@ -336,10 +338,15 @@ zh-CN:
       ssh_credential_none: 未配置
       members: 可操作成员
       members_none: 仅超管
+      domains: 访问域名
+      domains_none: 未配置 proxy.hosts
       registry_mismatch: 选中的 registry 凭据「%{credential}」是给 %{credential_server} 用的，而这个应用的 registry 是 %{app_server}。确认一下是不是选错了——选错的后果是部署时拉不动镜像。
       roles: 解析出的角色
       role: 角色
       role_hosts: 主机
+      role_domains: 域名
+      role_no_proxy: 不经 kamal-proxy
+      role_proxy_any_host: 任意域名（未设 hosts）
       container_prefix: 容器名前缀
       host_status: 各机器状态
       refresh_now: 立即刷新
@@ -583,7 +590,7 @@ zh-CN:
       add: 接入一个应用
       empty: 这里还是空的。接入一个应用只需要一份 deploy.yml 和一把 SSH 私钥——被管的服务器上什么都不用装。
       filter_name: 应用名
-      filter_name_placeholder: 搜索应用名
+      filter_name_placeholder: 搜索应用名或域名
       filter_status: 状态
       filter_all_statuses: 全部状态
       filter_submit: 筛选

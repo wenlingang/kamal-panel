@@ -12,8 +12,9 @@ class OverviewsController < ApplicationController
     # only hold while nobody looked. The page shows what the configured cadence collects, refreshed
     # by OverviewSignal after each round. Opening one app's page still speeds up that app.
     @any_managed_apps = all_apps.any?
-    # Suggestions for the name filter (suggest_controller): every active app, not only the filtered ones.
-    @app_names = all_apps.map(&:name)
+    # Suggestions for the search box (suggest_controller): every active app's name and domains, not
+    # only the filtered ones.
+    @app_names = all_apps.map(&:name) + suggested_domains(all_apps)
     @deactivated_apps = ManagedApp.where.not(deactivated_at: nil).order(:name)
 
     # One status per app whose config parses, shared by the summary strip, the filter and the grid,
@@ -30,6 +31,14 @@ class OverviewsController < ApplicationController
   end
 
   private
+    # Apps with last_poll_error are skipped: their domains would need a parse that raises.
+    def suggested_domains(apps)
+      apps.reject { |app| app.last_poll_error.present? }
+          .flat_map { |app| app.cached_domains.map { |domain| domain[:host] } }
+          .uniq
+    rescue Kamal::ConfigParser::ParseError
+      []
+    end
     # { "drift" => 1, "ok" => 7, ..., "parse_error" => 0 } in OverviewFilter::STATUS_KEYS order.
     def summary_counts(apps, statuses)
       counts = statuses.values.map { |status| status.level.to_s }.tally

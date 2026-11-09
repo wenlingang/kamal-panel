@@ -40,6 +40,29 @@ class Kamal::ParsedConfig
     accessories.detect { |accessory| accessory[:name] == name.to_s }
   end
 
+  # The proxy settings of one role ({ hosts:, ssl:, path_prefixes: }), nil when it runs without
+  # kamal-proxy.
+  def proxy_for(role)
+    proxy = role[:proxy]
+    return nil unless proxy.is_a?(Hash)
+
+    { hosts: Array(proxy["hosts"]), ssl: proxy["ssl"] == true, path_prefixes: Array(proxy["path_prefixes"]) }
+  end
+
+  # The domains kamal-proxy routes to this app, from proxy.hosts / proxy.host of every role:
+  # [{ host: "app.example.com", ssl: true, roles: ["web"] }], in config order.
+  def domains
+    roles.each_with_object({}) do |role, by_host|
+      proxy = proxy_for(role) or next
+
+      proxy[:hosts].each do |host|
+        entry = by_host[host] ||= { host: host, ssl: false, roles: [] }
+        entry[:ssl] ||= proxy[:ssl]
+        entry[:roles] << role[:name]
+      end
+    end.values
+  end
+
   # Every host Kamal's commands without --hosts touch: app roles plus accessories (KAMAL.hosts).
   def all_hosts
     (app_hosts + accessories.flat_map { |accessory| Array(accessory[:hosts]) }).uniq

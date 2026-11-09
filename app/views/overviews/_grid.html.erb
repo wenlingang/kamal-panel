@@ -41,6 +41,9 @@
             <% if (badge_text = DeployAlerts.new(app).badge_text) %>
               <span class="badge badge-unverified"><%= badge_text %></span>
             <% end %>
+            <% if (domains = app.cached_domains).any? %>
+              <div class="grid-domains"><%= domain_links(domains) %></div>
+            <% end %>
           </td>
           <td>
             <%# Status never relies on color alone: text and shape are each a signal independent of color %>

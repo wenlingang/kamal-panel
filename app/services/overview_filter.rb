@@ -37,7 +37,7 @@ class OverviewFilter
   # computed (and the observations read) a second time.
   def apply(managed_apps, statuses: {})
     apps = managed_apps
-    apps = apps.select { |app| app.name.downcase.include?(q.downcase) } if q.present?
+    apps = apps.select { |app| matches_query?(app) } if q.present?
     apps = apps.select { |app| matches_status?(app, statuses[app]) } if status
 
     apps
@@ -49,6 +49,18 @@ class OverviewFilter
   end
 
   private
+    # By app name, or by one of its domains ("which app serves this domain?"). A broken app has no
+    # domains to match: reading them would re-parse its config.
+    def matches_query?(app)
+      needle = q.downcase
+      return true if app.name.downcase.include?(needle)
+      return false if app.last_poll_error.present?
+
+      app.cached_domains.any? { |domain| domain[:host].downcase.include?(needle) }
+    rescue Kamal::ConfigParser::ParseError
+      false
+    end
+
     def matches_status?(app, known_status)
       # that row to compute level — computing it would raise ParseError right away.
       return app.last_poll_error.present? if status == PARSE_ERROR

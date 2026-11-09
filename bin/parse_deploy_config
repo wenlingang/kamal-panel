@@ -77,7 +77,14 @@ begin
     service: config.service,
     destination: config.destination,
     roles: config.roles.map { |role|
-      { name: role.name, hosts: role.hosts, container_prefix: role.container_prefix }
+      # proxy: the domains kamal-proxy routes to this role (top-level proxy: merged with the role's
+      # own), nil when the role does not run behind the proxy. Only plain strings/booleans cross
+      # the JSON boundary; host values are validated by the parent.
+      proxy = if role.running_proxy?
+        { hosts: Array(role.proxy.hosts).map(&:to_s), ssl: role.proxy.ssl? ? true : false,
+          path_prefixes: Array(role.proxy.path_prefixes).map(&:to_s) }
+      end
+      { name: role.name, hosts: role.hosts, container_prefix: role.container_prefix, proxy: proxy }
     },
     app_hosts: config.app_hosts,
     primary_host: config.primary_host,

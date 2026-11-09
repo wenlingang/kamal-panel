@@ -135,6 +135,17 @@ class ManagedApp < ApplicationRecord
     Rails.cache.fetch(app_hosts_cache_key) { app_hosts }
   end
 
+  def domains
+    parsed_config.domains
+  end
+
+  # For pages that list many apps (overview cards, search). Same key scheme as cached_app_hosts, but
+  # with an expiry: a parse result cached before the parser emitted proxy settings would otherwise
+  # pin an empty list.
+  def cached_domains
+    Rails.cache.fetch(app_hosts_cache_key.sub("/app_hosts/", "/domains/"), expires_in: 10.minutes) { domains }
+  end
+
   # invalidate, otherwise the old parse result would be used to connect to the new machine.
   def config_yaml=(value)
     @parsed_config = nil

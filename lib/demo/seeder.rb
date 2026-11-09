@@ -510,7 +510,20 @@ module Demo
           ssh:
             user: deploy
         YAML
+        yaml << proxy_yaml(service, hosts)
         accessories ? yaml + accessories_yaml(hosts) : yaml
+      end
+
+      # Public domains for the app page and overview. Kamal refuses automatic SSL on a role with more
+      # than one host, so only single-host apps get ssl: true.
+      def proxy_yaml(service, hosts)
+        <<~YAML
+          proxy:
+            ssl: #{hosts.size == 1}
+            hosts:
+              - #{service}.acme.dev
+              - www.#{service}.acme.dev
+        YAML
       end
 
       # A database on its own host and a cache next to the app, so the actions tab has

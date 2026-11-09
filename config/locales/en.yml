@@ -119,6 +119,8 @@ en:
 
   common:
     save: Save
+    copy_value: Copy %{value}
+    copied: Copied
     replace: Replace
     edit: Edit
     error_separator: "; "
@@ -320,10 +322,15 @@ en:
       ssh_credential_none: not configured
       members: Members
       members_none: admins only
+      domains: Domains
+      domains_none: no proxy.hosts configured
       registry_mismatch: The selected registry credential "%{credential}" is for %{credential_server}, but this app's registry is %{app_server}. Double-check you picked the right one — the cost of picking wrong is images failing to pull at deploy time.
       roles: Parsed roles
       role: Role
       role_hosts: Hosts
+      role_domains: Domains
+      role_no_proxy: not behind kamal-proxy
+      role_proxy_any_host: any host (no hosts set)
       container_prefix: Container name prefix
       host_status: Host status
       refresh_now: Refresh now
@@ -564,7 +571,7 @@ en:
       add: Onboard an app
       empty: Nothing here yet. Onboarding an app takes a deploy.yml and an SSH key — nothing has to be installed on the managed servers.
       filter_name: App name
-      filter_name_placeholder: Search app names
+      filter_name_placeholder: Search apps or domains
       filter_status: Status
       filter_all_statuses: All statuses
       filter_submit: Filter

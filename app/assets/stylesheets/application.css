@@ -3610,3 +3610,76 @@ label.check-row {
   height: var(--heartbeat-height);
   flex: none;
 }
+
+/* Proxy domains from deploy.yml (proxy.hosts): app facts, roles table, overview cards and grid. */
+.domain-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.domain-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.domain-link .icon {
+  flex: none;
+  color: var(--ink-muted);
+}
+
+.app-card-domains {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+}
+
+.grid-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.domain-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* Icon-only copy button next to a value; swaps to a check for a moment after copying. */
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.copy-button:hover,
+.copy-button:focus-visible {
+  color: var(--signal);
+  background: var(--btn-hover);
+}
+
+.copy-button .copied-icon,
+.copy-button.is-copied .copy-icon {
+  display: none;
+}
+
+.copy-button.is-copied .copied-icon {
+  display: inline-block;
+  color: var(--ok-ink);
+}

@@ -38,6 +38,9 @@ class Kamal::ConfigParser
 
   PORT_FORMAT = /\A[1-9][0-9]{0,4}\z/
 
+  # A proxy.hosts entry: a domain name, optionally "*."-prefixed (kamal-proxy wildcard routing).
+  DOMAIN_FORMAT = /\A(?:\*\.)?(?!-)[A-Za-z0-9-]{1,63}(?:\.(?!-)[A-Za-z0-9-]{1,63})*\z/
+
   def self.call(yaml:, destination: nil, destination_yaml: nil, timeout: DEFAULT_TIMEOUT)
     new(yaml:, destination:, destination_yaml:, timeout:).call
   end
@@ -58,6 +61,7 @@ class Kamal::ConfigParser
 
     validate_service!(result["service"])
     validate_hosts!(result)
+    validate_proxy_hosts!(result)
     result["ssh_options"] = build_ssh_options(result["ssh_options"])
 
     Kamal::ParsedConfig.new(result)
@@ -165,6 +169,19 @@ class Kamal::ConfigParser
         raise ParseError, "servers 里的主机名/IP 不合法（#{host.inspect}）：只能是 IPv4/主机名" \
                            "（字母、数字、点、下划线、连字符，不能以连字符开头），或裸 IPv6 地址" \
                            "（不带方括号、不带端口，如 \"::1\"）"
+      end
+    end
+
+    # proxy.hosts / proxy.host end up in <a href="https://..."> on the app page, so they must be plain
+    # domain names (optionally a leading "*." wildcard) — never a scheme, path or anything else.
+    def validate_proxy_hosts!(result)
+      Array(result["roles"]).each do |role|
+        Array(role.dig("proxy", "hosts")).each do |domain|
+          next if domain.is_a?(String) && domain.match?(DOMAIN_FORMAT)
+
+          raise ParseError, "proxy.hosts 里的域名不合法（#{domain.inspect}）：只能是域名" \
+                             "（字母、数字、点、连字符，可选 *. 通配前缀），不能带协议、端口或路径"
+        end
       end
     end
 

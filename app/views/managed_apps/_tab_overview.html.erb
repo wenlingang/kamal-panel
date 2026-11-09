@@ -65,6 +65,11 @@
         <dl class="facts">
           <dt><%= t("managed_apps.show.service") %></dt>     <dd class="mono"><%= managed_app.service %></dd>
           <dt><%= t("managed_apps.show.destination") %></dt> <dd><%= managed_app.destination.presence || placeholder(t("managed_apps.show.destination_none")) %></dd>
+          <dt><%= t("managed_apps.show.domains") %></dt>
+          <dd class="domain-list">
+            <% domains = managed_app.parsed_config.domains %>
+            <%= domains.any? ? domain_links(domains, copy: true) : placeholder(t("managed_apps.show.domains_none")) %>
+          </dd>
           <dt><%= t("managed_apps.show.registry") %></dt>    <dd class="mono"><%= managed_app.parsed_config.registry_server %></dd>
           <dt><%= t("managed_apps.show.ssh_credential") %></dt>
           <dd class="mono"><%= managed_app.ssh_credential&.fingerprint || placeholder(t("managed_apps.show.ssh_credential_none")) %></dd>
@@ -95,14 +100,28 @@
             <tr>
               <th><%= t("managed_apps.show.role") %></th>
               <th><%= t("managed_apps.show.role_hosts") %></th>
+              <th><%= t("managed_apps.show.role_domains") %></th>
               <th><%= t("managed_apps.show.container_prefix") %></th>
             </tr>
           </thead>
           <tbody>
             <% managed_app.parsed_config.roles.each do |role| %>
+              <% proxy = managed_app.parsed_config.proxy_for(role) %>
               <tr>
                 <td><%= role[:name] %></td>
                 <td class="mono"><%= role[:hosts].join(", ") %></td>
+                <td class="domain-list">
+                  <% if proxy.nil? %>
+                    <%= placeholder(t("managed_apps.show.role_no_proxy")) %>
+                  <% elsif proxy[:hosts].empty? %>
+                    <%= placeholder(t("managed_apps.show.role_proxy_any_host")) %>
+                  <% else %>
+                    <%= domain_links(proxy[:hosts].map { |host| { host:, ssl: proxy[:ssl] } }, copy: true) %>
+                  <% end %>
+                  <% if proxy && proxy[:path_prefixes].any? %>
+                    <span class="hint mono"><%= proxy[:path_prefixes].join(", ") %></span>
+                  <% end %>
+                </td>
                 <td><code><%= role[:container_prefix] %></code></td>
               </tr>
             <% end %>

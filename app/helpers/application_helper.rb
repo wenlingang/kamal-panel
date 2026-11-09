@@ -68,6 +68,39 @@ module ApplicationHelper
 
   def app_name_list(apps, empty:) = joined_list(apps.map(&:name), empty:)
 
+  # One proxy domain from Kamal::ParsedConfig#domains. The host was checked against
+  # Kamal::ConfigParser::DOMAIN_FORMAT, so it is safe in an href; a wildcard ("*.example.com") is not
+  # a reachable address and stays plain text.
+  # copy: true appends a copy-to-clipboard button (clipboard_controller) for the bare domain.
+  def domain_link(domain, copy: false)
+    scheme = domain[:ssl] ? "https" : "http"
+    lock = domain[:ssl] ? icon_tag("lock", size: :sm, label: "HTTPS") : "".html_safe
+    content = lock + tag.span(domain[:host])
+
+    link = if domain[:host].start_with?("*.")
+      tag.span(content, class: "domain-link mono")
+    else
+      link_to(content, "#{scheme}://#{domain[:host]}", class: "domain-link mono",
+                                                        target: "_blank", rel: "noopener noreferrer")
+    end
+    return link unless copy
+
+    tag.span(link + copy_button(domain[:host]), class: "domain-item")
+  end
+
+  def domain_links(domains, copy: false)
+    safe_join(domains.map { |domain| domain_link(domain, copy:) }, " ")
+  end
+
+  def copy_button(text)
+    label = t("common.copy_value", value: text)
+    tag.button(type: "button", class: "copy-button", title: label, "aria-label": label,
+               data: { controller: "clipboard", action: "clipboard#copy",
+                       clipboard_text_value: text, clipboard_copied_label_value: t("common.copied") }) do
+      icon_tag("copy", size: :sm, css: "copy-icon") + icon_tag("check", size: :sm, css: "copied-icon")
+    end
+  end
+
   # Each language in its own words, so someone who can't read the current UI language still finds theirs.
   LOCALE_NAMES = { "zh-CN" => "简体中文", "en" => "English" }.freeze
 

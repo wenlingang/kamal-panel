@@ -19,6 +19,12 @@
         <% end %>
       </div>
 
+      <%# The app's main public domain (first of proxy.hosts in deploy.yml); the app page lists all.
+          Not for a broken app: domains come from the parse. %>
+      <% if !broken && (domain = app.cached_domains.first) %>
+        <p class="app-card-domains"><%= domain_link(domain, copy: true) %></p>
+      <% end %>
+
       <% if (badge_text = DeployAlerts.new(app).badge_text) %>
         <p class="app-card-alert"><span class="badge badge-unverified"><%= badge_text %></span></p>
       <% end %>
