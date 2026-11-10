@@ -285,7 +285,7 @@ zh-CN:
       git_connection_hint: 面板用这条连接的 token 只读地查询提交与 CI 状态。
       go_to_git_connections: 去设置里添加
       repository: 仓库路径
-      repository_hint: GitHub 填 owner/repo，GitLab 填完整的项目路径（可以带子组）。
+      repository_hint: GitHub 和 Gitee 填 owner/repo，GitLab 填完整的项目路径（可以带子组）。
       git_branch: 分支（可留空）
       git_branch_placeholder: 留空用仓库默认分支
       version_format: 镜像版本号
@@ -1012,6 +1012,7 @@ zh-CN:
     providers:
       github: GitHub
       gitlab: GitLab
+      gitee: Gitee
     index:
       title: Git 连接
       subtitle: 面板只读地查询提交、tag 与 CI 状态所用的 token。在应用的编辑页里选用。
@@ -1033,11 +1034,11 @@ zh-CN:
       provider: 平台
       provider_locked: 平台创建后不能改：各应用的仓库路径是按这个平台填的。
       api_url: API 地址（可留空）
-      api_url_hint: 留空用官方地址（GitHub：https://api.github.com，GitLab：https://gitlab.com/api/v4）。自建 GitLab 填 https://你的域名/api/v4。
+      api_url_hint: 留空用官方地址（GitHub：https://api.github.com，GitLab：https://gitlab.com/api/v4，Gitee：https://gitee.com/api/v5）。自建 GitLab 填 https://你的域名/api/v4。
       web_url: 网页地址（可留空）
-      web_url_hint: 用来拼提交、tag 和对比页的链接。留空用 https://github.com 或 https://gitlab.com。
+      web_url_hint: 用来拼提交、tag 和对比页的链接。留空用 https://github.com、https://gitlab.com 或 https://gitee.com。
       token: Token
-      token_hint: 只需要只读权限：GitHub 用 fine-grained token 勾选 Contents、Commit statuses 与 Checks 的只读；GitLab 用 read_api。保存后不再显示。
+      token_hint: 只需要只读权限：GitHub 用 fine-grained token 勾选 Contents、Commit statuses 与 Checks 的只读；GitLab 用 read_api；Gitee 用勾选 user_info 与 projects 权限的私人令牌（Gitee 没有 CI 状态接口，不会显示 CI 状态）。保存后不再显示。
       token_keep: 留空则保留当前 token（%{hint}）。
       cancel: 取消
     new:

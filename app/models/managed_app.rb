@@ -32,7 +32,7 @@ class ManagedApp < ApplicationRecord
   SHORT_SHA_LENGTH = 7
 
   validates :version_format, inclusion: { in: VERSION_FORMATS }
-  # "owner/repo" on GitHub, "group/subgroup/project" on GitLab. Path segments only, and none made of
+  # "owner/repo" on GitHub and Gitee, "group/subgroup/project" on GitLab. Path segments only, and none made of
   # dots alone: the value is interpolated into API and web URLs, where ".." would climb out.
   validates :repository, format: { with: %r{\A(?:(?!\.+/)[\w.-]+/)+(?!\.+\z)[\w.-]+\z}, message: :invalid_format },
                          allow_blank: true

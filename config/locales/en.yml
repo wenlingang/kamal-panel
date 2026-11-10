@@ -269,7 +269,7 @@ en:
       git_connection_hint: The panel reads commits and CI status, read-only, with this connection's token.
       go_to_git_connections: Add one in settings
       repository: Repository path
-      repository_hint: On GitHub owner/repo; on GitLab the full project path (subgroups included).
+      repository_hint: On GitHub and Gitee owner/repo; on GitLab the full project path (subgroups included).
       git_branch: Branch (optional)
       git_branch_placeholder: Blank uses the repository's default branch
       version_format: Image version
@@ -995,6 +995,7 @@ en:
     providers:
       github: GitHub
       gitlab: GitLab
+      gitee: Gitee
     index:
       title: Git connections
       subtitle: Tokens the panel uses to read commits, tags and CI status, read-only. Apps pick one on their edit page.
@@ -1016,11 +1017,11 @@ en:
       provider: Platform
       provider_locked: The platform can't change after creation; apps' repository paths are written for it.
       api_url: API URL (optional)
-      api_url_hint: Blank uses the public one (GitHub https://api.github.com, GitLab https://gitlab.com/api/v4). Self-hosted GitLab is https://your-host/api/v4.
+      api_url_hint: Blank uses the public one (GitHub https://api.github.com, GitLab https://gitlab.com/api/v4, Gitee https://gitee.com/api/v5). Self-hosted GitLab is https://your-host/api/v4.
       web_url: Web URL (optional)
-      web_url_hint: Used to build commit, tag and compare links. Blank uses https://github.com or https://gitlab.com.
+      web_url_hint: Used to build commit, tag and compare links. Blank uses https://github.com, https://gitlab.com or https://gitee.com.
       token: Token
-      token_hint: "Read-only is enough: on GitHub a fine-grained token with read access to Contents, Commit statuses and Checks; on GitLab read_api. It isn't shown again after saving."
+      token_hint: "Read-only is enough: on GitHub a fine-grained token with read access to Contents, Commit statuses and Checks; on GitLab read_api; on Gitee a personal access token with the user_info and projects scopes (Gitee has no CI status API, so none is shown). It isn't shown again after saving."
       token_keep: Leave blank to keep the current token (%{hint}).
       cancel: Cancel
     new:

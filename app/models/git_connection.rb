@@ -1,11 +1,12 @@
-# A read-only API token for one GitHub / GitLab instance (spec 6). Admin-managed like credentials:
+# A read-only API token for one GitHub / GitLab / Gitee instance (spec 6). Admin-managed like credentials:
 # the token is encrypted, never rendered back, and only replaced as a whole.
 class GitConnection < ApplicationRecord
-  PROVIDERS = %w[github gitlab].freeze
+  PROVIDERS = %w[github gitlab gitee].freeze
 
   DEFAULTS = {
     "github" => { api_url: "https://api.github.com", web_url: "https://github.com" },
-    "gitlab" => { api_url: "https://gitlab.com/api/v4", web_url: "https://gitlab.com" }
+    "gitlab" => { api_url: "https://gitlab.com/api/v4", web_url: "https://gitlab.com" },
+    "gitee" => { api_url: "https://gitee.com/api/v5", web_url: "https://gitee.com" }
   }.freeze
 
   encrypts :token
@@ -40,6 +41,9 @@ class GitConnection < ApplicationRecord
 
   def github? = provider == "github"
   def gitlab? = provider == "gitlab"
+  def gitee? = provider == "gitee"
+
+  CLIENTS = { "github" => "GitProviders::Github", "gitlab" => "GitProviders::Gitlab", "gitee" => "GitProviders::Gitee" }.freeze
 
   # Enough to tell two tokens apart in the list without showing one.
   def token_hint
@@ -47,10 +51,10 @@ class GitConnection < ApplicationRecord
   end
 
   def client_for(repository)
-    (github? ? GitProviders::Github : GitProviders::Gitlab).new(self, repository)
+    CLIENTS.fetch(provider).constantize.new(self, repository)
   end
 
-  # Without a repository, only checks that the token works (GET /user on both providers).
+  # Without a repository, only checks that the token works (GET /user on every provider).
   def check!
     client_for(nil).current_user
   end
