@@ -73,8 +73,8 @@ class GitConnectionsController < ApplicationController
   private
     def set_connection = @connection = GitConnection.find(params[:id])
 
-    def create_params = params.expect(git_connection: [ :name, :provider, :api_url, :web_url, :token ])
+    def create_params = params.expect(git_connection: [ :name, :provider, :api_url, :web_url, :ca_certificate, :token ])
 
     # The provider stays put: switching it would make every app's repository path mean something else.
-    def update_params = params.expect(git_connection: [ :name, :api_url, :web_url, :token ])
+    def update_params = params.expect(git_connection: [ :name, :api_url, :web_url, :ca_certificate, :token ])
 end

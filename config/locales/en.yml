@@ -79,6 +79,9 @@ en:
           attributes:
             token:
               required_with_new_api_url: must be entered again when the API URL changes — the stored token is never sent to a new address
+              required_with_new_ca_certificate: must be entered again when the CA certificate changes — the stored token is never sent under new trust settings
+            ca_certificate:
+              invalid_pem: isn't a valid PEM certificate (it should start with -----BEGIN CERTIFICATE-----)
             api_url:
               not_http: must start with http:// or https://
             web_url:
@@ -106,6 +109,7 @@ en:
         provider: Platform
         api_url: API URL
         web_url: Web URL
+        ca_certificate: CA certificate
         token: Token
   roles:
     admin: Admin
@@ -1017,9 +1021,11 @@ en:
       provider: Platform
       provider_locked: The platform can't change after creation; apps' repository paths are written for it.
       api_url: API URL (optional)
-      api_url_hint: Blank uses the public one (GitHub https://api.github.com, GitLab https://gitlab.com/api/v4, Gitee https://gitee.com/api/v5). Self-hosted GitLab is https://your-host/api/v4.
+      api_url_hint: Leave both URLs blank for the public service (GitHub https://api.github.com, GitLab https://gitlab.com/api/v4, Gitee https://gitee.com/api/v5). For a self-hosted instance the web URL is enough; the API URL gets /api/v3 (GitHub Enterprise), /api/v4 (GitLab) or /api/v5 (Gitee) added.
       web_url: Web URL (optional)
-      web_url_hint: Used to build commit, tag and compare links. Blank uses https://github.com, https://gitlab.com or https://gitee.com.
+      web_url_hint: Used to build commit, tag and compare links. For a self-hosted instance, its home page, e.g. https://git.example.com. Derived from the API URL when only that is filled in.
+      ca_certificate: CA certificate (optional)
+      ca_certificate_hint: If the self-hosted instance uses a self-signed or company CA certificate, paste the CA (PEM, several allowed) here. It's trusted for this connection only. Not needed for public certificates.
       token: Token
       token_hint: "Read-only is enough: on GitHub a fine-grained token with read access to Contents, Commit statuses and Checks; on GitLab read_api; on Gitee a personal access token with the user_info and projects scopes (Gitee has no CI status API, so none is shown). It isn't shown again after saving."
       token_keep: Leave blank to keep the current token (%{hint}).
@@ -1041,3 +1047,4 @@ en:
       not_found: repository %{repository} not found (or the token can't access it)
       http_status: the platform answered HTTP %{status}
       bad_response: the platform's answer couldn't be parsed
+      tls: certificate check failed (%{detail}). If the self-hosted instance uses a self-signed or company CA certificate, add the CA to the connection

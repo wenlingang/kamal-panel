@@ -42,8 +42,11 @@ module GitProviders
         url = "#{connection.api_url}#{path}"
         url += "?#{params.compact.to_query}" if params.compact.any?
 
-        response = OutboundHttp.request(:get, url, headers: auth_headers.merge("Accept" => accept_header))
+        response = OutboundHttp.request(:get, url, headers: auth_headers.merge("Accept" => accept_header),
+                                                   ca_certificate: connection.ca_certificate)
         handle(response)
+      rescue OutboundHttp::TlsError => e
+        raise Error.new(:tls, detail: e.message)
       rescue OutboundHttp::Error => e
         raise Error.new(:unreachable, detail: e.message)
       end

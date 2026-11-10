@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_080000) do
   create_table "alert_events", force: :cascade do |t|
     t.integer "alert_rule_id", null: false
     t.datetime "created_at", null: false
@@ -143,6 +143,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_120000) do
 
   create_table "git_connections", force: :cascade do |t|
     t.string "api_url", null: false
+    t.text "ca_certificate"
     t.datetime "created_at", null: false
     t.string "name", null: false
     t.string "provider", null: false

@@ -74,6 +74,9 @@ zh-CN:
           attributes:
             token:
               required_with_new_api_url: 改了 API 地址就要重新填写 token——原 token 不会被发往新地址
+              required_with_new_ca_certificate: 改了 CA 证书就要重新填写 token——原 token 不会在新的信任设置下发出
+            ca_certificate:
+              invalid_pem: 不是有效的 PEM 证书（应以 -----BEGIN CERTIFICATE----- 开头）
             api_url:
               not_http: 必须是 http:// 或 https:// 开头的地址
             web_url:
@@ -113,6 +116,7 @@ zh-CN:
         provider: 平台
         api_url: API 地址
         web_url: 网页地址
+        ca_certificate: CA 证书
         token: Token
   roles:
     admin: 超管
@@ -1034,9 +1038,11 @@ zh-CN:
       provider: 平台
       provider_locked: 平台创建后不能改：各应用的仓库路径是按这个平台填的。
       api_url: API 地址（可留空）
-      api_url_hint: 留空用官方地址（GitHub：https://api.github.com，GitLab：https://gitlab.com/api/v4，Gitee：https://gitee.com/api/v5）。自建 GitLab 填 https://你的域名/api/v4。
+      api_url_hint: 两个地址都留空用官方服务（GitHub：https://api.github.com，GitLab：https://gitlab.com/api/v4，Gitee：https://gitee.com/api/v5）。私有部署只填网页地址即可，API 地址会按平台补上 /api/v3（GitHub Enterprise）、/api/v4（GitLab）或 /api/v5（Gitee）。
       web_url: 网页地址（可留空）
-      web_url_hint: 用来拼提交、tag 和对比页的链接。留空用 https://github.com、https://gitlab.com 或 https://gitee.com。
+      web_url_hint: 用来拼提交、tag 和对比页的链接，私有部署填实例首页地址，比如 https://git.example.com。只填了 API 地址时从它推出来。
+      ca_certificate: CA 证书（可选）
+      ca_certificate_hint: 私有部署用了自签证书或公司内部 CA 时，把 CA 证书（PEM，可以多张）贴在这里，只对这个连接生效。公网证书不用填。
       token: Token
       token_hint: 只需要只读权限：GitHub 用 fine-grained token 勾选 Contents、Commit statuses 与 Checks 的只读；GitLab 用 read_api；Gitee 用勾选 user_info 与 projects 权限的私人令牌（Gitee 没有 CI 状态接口，不会显示 CI 状态）。保存后不再显示。
       token_keep: 留空则保留当前 token（%{hint}）。
@@ -1058,3 +1064,4 @@ zh-CN:
       not_found: 找不到仓库 %{repository}（或 token 无权访问它）
       http_status: 平台返回了 HTTP %{status}
       bad_response: 平台返回的内容无法解析
+      tls: 证书校验失败（%{detail}）。私有部署用了自签证书或内部 CA 的话，在连接设置里填上 CA 证书

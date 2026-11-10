@@ -4,6 +4,7 @@ require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
 require "support/fake_host_helper"
 require "support/http_stub"
+require "support/tls_test_server"
 
 module ActiveSupport
   class TestCase

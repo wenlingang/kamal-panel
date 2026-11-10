@@ -37,6 +37,13 @@
   </div>
 
   <div>
+    <%= form.label :ca_certificate, t("git_connections.form.ca_certificate") %>
+    <%= form.text_area :ca_certificate, rows: 4, spellcheck: false, autocomplete: "off",
+                                        placeholder: "-----BEGIN CERTIFICATE-----" %>
+    <p class="hint"><%= t("git_connections.form.ca_certificate_hint") %></p>
+  </div>
+
+  <div>
     <%= form.label :token, t("git_connections.form.token") %>
     <%= form.password_field :token, value: "", autocomplete: "off" %>
     <p class="hint">
