@@ -70,6 +70,8 @@ Rails.application.routes.draw do
   # its row.
   resources :alerts, only: [ :index ]
   get "alerts/channels" => "alerts#channels", as: :alert_channels
+  # Silences hold notifications for an app or every app; destroy ends one early (the row stays).
+  resources :alert_silences, only: [ :index, :new, :create, :destroy ], path: "alerts/silences"
   resources :alert_rules, only: [ :index, :new, :create, :edit, :update, :destroy ], path: "alerts/rules"
   # Settings → notifications: admin only, the target and secret are write-only like a Git token.
   # test_delivery sends a test message right away and reports the outcome.

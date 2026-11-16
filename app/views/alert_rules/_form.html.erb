@@ -74,6 +74,16 @@
     </div>
   </fieldset>
 
+  <fieldset class="rule-fieldset" data-alert-rule-form-target="section" data-conditions="<%= AlertRule::CERT_CONDITIONS.join(" ") %>">
+    <legend><%= t("alert_rules.form.cert_settings") %></legend>
+    <div>
+      <%= form.label :days, t("alert_rules.form.cert_days") %>
+      <%= form.number_field :days, min: AlertRule::CERT_DAYS.min, max: AlertRule::CERT_DAYS.max, step: 1,
+                                   placeholder: AlertRule::DEFAULT_CERT_DAYS %>
+      <p class="hint"><%= t("alert_rules.form.cert_days_hint") %></p>
+    </div>
+  </fieldset>
+
   <div>
     <p class="field-label"><%= t("alert_rules.form.channels") %></p>
     <% if @channels.empty? %>

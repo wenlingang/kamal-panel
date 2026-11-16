@@ -40,6 +40,7 @@ class RunActionJob < ApplicationJob
                 # the digest drops.
                 diagnosis: (FailureDiagnosis.call(result[:output]) unless status.zero?))
     finish_deploy_event(event, success: status.zero?)
+    follow_maintenance_mode(app, log) if status.zero?
     broadcast_result(log)
 
     # Do not take the command's exit code as the conclusion (spec 8.4): trigger burst polling and
@@ -61,6 +62,15 @@ class RunActionJob < ApplicationJob
   end
 
   private
+    # Kamal's maintenance mode means "this app is down on purpose": its alerts stay quiet until the
+    # panel takes it live again.
+    def follow_maintenance_mode(app, log)
+      case log.action_name
+      when "maintenance" then AlertSilence.start_maintenance!(app, log.user)
+      when "live" then AlertSilence.end_maintenance!(app)
+      end
+    end
+
     def start_deploy_event(app, log, action, started)
       return nil unless action.class.records_deploy_event?
 

@@ -1,0 +1,15 @@
+# Promoting a version between Kamal destinations of the same app (PromotionSources).
+en:
+  app_deploys:
+    promotion:
+      title: Promote from another environment
+      hint: The same image in this app's other Kamal destinations. Promoting deploys the version it runs now, as built and pushed, without rebuilding anything.
+      no_destination: no destination
+      deployed_ago: deployed %{time} ago
+      promote: Promote to %{name}
+      already_running: Already running here
+      confirm_note: "Promoting the version %{source} (%{destination}) runs now. The same image is deployed here; nothing is rebuilt."
+      blocked:
+        no_version: Nothing observed running yet
+        drift: Its hosts run different versions
+        unhealthy: Unhealthy right now

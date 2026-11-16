@@ -1,0 +1,15 @@
+# Promoting a version between Kamal destinations of the same app (PromotionSources).
+zh-CN:
+  app_deploys:
+    promotion:
+      title: 从其他环境晋升
+      hint: 这个应用在其他 Kamal destination 里的同一个镜像。晋升会直接发布它当前运行的版本，用已经构建、推送好的镜像，不重新构建。
+      no_destination: 无 destination
+      deployed_ago: "%{time}前发布"
+      promote: 晋升到 %{name}
+      already_running: 这里已经是这个版本
+      confirm_note: 正在晋升 %{source}（%{destination}）当前运行的版本。这里发布的是同一个镜像，不会重新构建。
+      blocked:
+        no_version: 还没观察到运行中的版本
+        drift: 各主机版本不一致
+        unhealthy: 当前不健康

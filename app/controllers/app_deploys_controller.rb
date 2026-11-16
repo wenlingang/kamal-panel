@@ -23,6 +23,8 @@ class AppDeploysController < ApplicationController
     @managed_app.parsed_config
 
     @preview = DeployPreview.new(@managed_app, @version)
+    # Promoting from another environment: named on the page so it's clear the image isn't rebuilt.
+    @promoted_from = PromotionSources.new(@managed_app).sources.find { |source| source.app.id.to_s == params[:from].to_s && source.version == @version }
   rescue Actions::Base::InvalidVersion
     redirect_to deploy_tab, alert: t("flash.invalid_version")
   rescue Kamal::ConfigParser::ParseError

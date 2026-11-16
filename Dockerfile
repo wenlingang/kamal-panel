@@ -64,6 +64,11 @@ FROM base
 # (config/puma.rb). Without it a plain `docker run` would serve pages that never update.
 ENV SOLID_QUEUE_IN_PUMA="1"
 
+# The release this image was built from (the release workflow passes the tag, 1.2.3); "dev" for a
+# local build. PanelUpdates compares it with the newest release to say when an update is out.
+ARG PANEL_VERSION=dev
+ENV PANEL_VERSION=$PANEL_VERSION
+
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash

@@ -8,6 +8,8 @@ module Alerting
 
     def enqueue(event, kind)
       raise ArgumentError, "unknown notification kind: #{kind}" unless KINDS.include?(kind)
+      # A silence holds the message, not the evaluation: the event still fires and shows on the page.
+      return if AlertSilence.silenced?(event.managed_app_id)
 
       event.alert_rule.notification_channels.enabled.find_each do |channel|
         DeliverAlertNotificationJob.perform_later(event, channel, kind)

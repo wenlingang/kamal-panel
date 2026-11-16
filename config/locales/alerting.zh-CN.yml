@@ -71,6 +71,7 @@ zh-CN:
       label: 告警分区
       events: 告警
       rules: 规则
+      silences: 静默
       channels: 通知渠道
     links:
       app: 打开应用
@@ -123,6 +124,7 @@ zh-CN:
       memory_high: 容器 %{container}（%{host}）内存占比 %{percent}%（阈值 %{threshold}%）。
       host_memory_high: 主机 %{host} 内存已用 %{percent}%（阈值 %{threshold}%）。
       host_disk_high: 主机 %{host} 根分区已用 %{percent}%（阈值 %{threshold}%）。
+      cert_expiring: "%{host} 的证书 %{days} 天后到期（%{date}）。"
 
   alert_rules:
     all_apps: 所有启用的应用
@@ -138,11 +140,14 @@ zh-CN:
       memory_high: 容器内存过高
       host_memory_high: 主机内存过高
       host_disk_high: 主机磁盘将满
+      cert_expiring: 证书即将到期
     summary:
       log_keyword: "%{window} 分钟内「%{keyword}」≥ %{threshold} 次（来源 %{source}）"
       per_event: 连续失败只通知第一次，之后成功时再通知恢复
       metric: ≥ %{threshold}%，持续 %{count} 分钟后触发
       metric_immediately: ≥ %{threshold}% 即触发
+      cert_expiring:
+        other: 证书到期前 %{count} 天
       immediately: 成立即触发
       for_minutes: 持续 %{count} 分钟后触发
     index:
@@ -183,6 +188,9 @@ zh-CN:
       metric_settings_hint: 仅资源类条件（CPU、内存、磁盘）使用。数据来自每分钟一次的监控采集（需要应用配置了 SSH 私钥）；5 分钟内没有数据时不做判断，已触发的告警保持原样。kamal-proxy 不计入。
       metric_threshold: 阈值（%）
       metric_threshold_hint: 1–100，默认 90。CPU 看应用容器最近 3 分钟的平均值（100% 等于一个核）；内存看任一容器的内存占比；主机内存、磁盘看应用任一主机的已用比例。
+      cert_settings: 证书
+      cert_days: 到期前天数
+      cert_days_hint: 1–90，默认 14。面板每小时读取一次应用所有 HTTPS 域名（proxy.ssl）的证书。Let's Encrypt 在剩 30 天时续期，剩 14 天还在告警说明续期卡住了。
       log_source: 日志来源
       log_source_hint: 默认 app（应用的全部角色）。选定单个应用时也可以填 app:<角色>、accessory:<名字> 或 proxy。
       channels: 通知渠道
@@ -251,6 +259,11 @@ zh-CN:
     firing_alerts:
       since: "%{time}前开始"
       all: 查看这个应用的全部告警
+      silence: 静默这个应用
+      silenced: 这个应用的告警处于静默中，不会发送通知。
+      silenced_all: 所有应用的告警处于静默中，不会发送通知。
+      silenced_until: 到 %{time} 结束。
+      silences: 静默列表
 
   overviews:
     summary:

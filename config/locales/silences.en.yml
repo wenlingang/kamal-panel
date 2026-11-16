@@ -1,0 +1,44 @@
+# Alert silences: holding notifications for an app or every app.
+en:
+  flash:
+    alert_silence:
+      added: Silence set. Alerts are still evaluated and shown; only notifications are held.
+      ended: Silence ended.
+
+  audit:
+    actions:
+      alert_silence:
+        create: Silence alerts
+        end: End a silence
+
+  alert_silences:
+    maintenance_reason: The app is in Kamal maintenance mode.
+    index:
+      title: Silences
+      add: Silence alerts
+      hint: During a silence, alerts are still evaluated and shown here and on the app page, but no notification is sent. Putting an app into maintenance mode from the panel silences it until it goes live again. An alert still firing when a silence ends is notified at its next reminder.
+      empty: Nothing is silenced.
+      past: Ended recently
+    new:
+      title: Silence alerts
+      subtitle: For planned maintenance, a migration you know is noisy, or anything else you're already handling.
+      app: App
+      starts_at: Starts
+      starts_at_hint: A time in the past means now.
+      duration: For
+      until_lifted: Until I end it
+      reason: Reason
+      reason_placeholder: e.g. database upgrade
+      submit: Silence
+      cancel: Cancel
+    table:
+      scope: App
+      window: When
+      reason: Reason
+      by: Set by
+      all_apps: Every app
+      active: On now
+      until_lifted: until ended
+      until_live: until the app goes live
+      end: End now
+      cancel: Cancel

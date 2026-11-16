@@ -1,0 +1,42 @@
+<%# locals: managed_app. The same app in its other Kamal destinations, with the version each runs now:
+    promoting deploys that already-built image here (PromotionSources). Renders nothing for an app
+    with no other environment. %>
+<% sources = PromotionSources.new(managed_app).sources %>
+<% if sources.any? %>
+  <% running = ManagedAppStatus.new(managed_app).versions %>
+  <div class="panel promotion">
+    <h3><%= icon_tag("rocket", size: :sm) %><%= t("app_deploys.promotion.title") %></h3>
+    <p class="hint"><%= t("app_deploys.promotion.hint") %></p>
+    <ul class="promotion-list">
+      <% sources.each do |source| %>
+        <li>
+          <div class="promotion-source">
+            <%= link_to source.app.name, source.app %>
+            <span class="hint"><%= source.app.destination.presence || t("app_deploys.promotion.no_destination") %></span>
+          </div>
+          <div class="promotion-version">
+            <% if source.version %>
+              <span class="mono"><%= source.version %></span>
+              <% if source.deployed_at %>
+                <span class="hint"><%= t("app_deploys.promotion.deployed_ago", time: time_ago_in_words(source.deployed_at)) %></span>
+              <% end %>
+            <% else %>
+              <%= placeholder("—") %>
+            <% end %>
+          </div>
+          <div class="row-actions">
+            <% if !source.ready? %>
+              <span class="hint"><%= t("app_deploys.promotion.blocked.#{source.blocker}") %></span>
+            <% elsif running == [ source.version ] %>
+              <span class="hint"><%= t("app_deploys.promotion.already_running") %></span>
+            <% else %>
+              <%= link_to new_managed_app_deploy_path(managed_app, version: source.version, from: source.app.id), class: "btn" do %>
+                <%= icon_tag("chevron-right", size: :sm) %><span><%= t("app_deploys.promotion.promote", name: managed_app.name) %></span>
+              <% end %>
+            <% end %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

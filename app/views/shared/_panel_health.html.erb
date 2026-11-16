@@ -10,3 +10,11 @@
                 minutes: (stalled.map(&:age).max / 60).floor) %></span>
   </p>
 <% end %>
+<%# A newer release is out (PanelUpdates): admins upgrade the panel, so only they are told. %>
+<% if Current.user&.admin? && (newer = PanelUpdates.available) %>
+  <p class="flash flash-notice panel-update">
+    <%= icon_tag("info", size: :sm) %>
+    <span><%= t("shared.panel_update.available", version: newer, current: PanelUpdates.current) %></span>
+    <%= link_to t("shared.panel_update.notes"), PanelUpdates.release_url(newer), target: "_blank", rel: "noopener noreferrer" %>
+  </p>
+<% end %>

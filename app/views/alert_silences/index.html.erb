@@ -1,0 +1,29 @@
+<%= render "alerts/head" %>
+
+<%= render "alerts/tabs", current: :silences %>
+
+<section class="section">
+  <div class="section-head">
+    <h2><%= t(".title") %></h2>
+    <%= link_to new_alert_silence_path, class: "btn" do %>
+      <%= icon_tag("bell", size: :sm) %><span><%= t(".add") %></span>
+    <% end %>
+  </div>
+  <p class="hint"><%= t(".hint") %></p>
+  <div class="panel panel-flush">
+    <% if @silences.empty? %>
+      <p class="empty-hint"><%= t(".empty") %></p>
+    <% else %>
+      <%= render "alert_silences/table", silences: @silences, actions: true %>
+    <% end %>
+  </div>
+</section>
+
+<% if @past.any? %>
+  <section class="section">
+    <h2><%= t(".past") %></h2>
+    <div class="panel panel-flush">
+      <%= render "alert_silences/table", silences: @past, actions: false %>
+    </div>
+  </section>
+<% end %>

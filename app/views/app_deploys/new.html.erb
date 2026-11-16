@@ -9,6 +9,13 @@
 </div>
 
 <section class="section">
+  <% if @promoted_from %>
+    <p class="callout promotion-note">
+      <%= icon_tag("info", size: :sm) %>
+      <%= t("app_deploys.promotion.confirm_note", source: @promoted_from.app.name,
+                                                  destination: @promoted_from.app.destination.presence || "—") %>
+    </p>
+  <% end %>
   <div class="panel">
     <div class="deploy-route">
       <div>

@@ -71,6 +71,7 @@ en:
       label: Alert sections
       events: Alerts
       rules: Rules
+      silences: Silences
       channels: Channels
     links:
       app: Open app
@@ -123,6 +124,7 @@ en:
       memory_high: Container %{container} (%{host}) is at %{percent}% of its memory (threshold %{threshold}%).
       host_memory_high: Host %{host} has %{percent}% of its memory in use (threshold %{threshold}%).
       host_disk_high: Host %{host} has %{percent}% of its root disk in use (threshold %{threshold}%).
+      cert_expiring: "The certificate of %{host} expires in %{days} days (%{date})."
 
   alert_rules:
     all_apps: All active apps
@@ -138,11 +140,15 @@ en:
       memory_high: Container memory high
       host_memory_high: Host memory high
       host_disk_high: Host disk filling up
+      cert_expiring: Certificate expiring
     summary:
       log_keyword: "“%{keyword}” ≥ %{threshold} times in %{window} min (source %{source})"
       per_event: Notifies on the first failure in a row, and again when it next succeeds
       metric: "≥ %{threshold}%, fires after %{count} min"
       metric_immediately: "≥ %{threshold}%, fires at once"
+      cert_expiring:
+        one: Within 1 day of a certificate expiring
+        other: Within %{count} days of a certificate expiring
       immediately: Fires at once
       for_minutes: Fires after %{count} min
     index:
@@ -183,6 +189,9 @@ en:
       metric_settings_hint: Only for the resource conditions (CPU, memory, disk). The data comes from the once-a-minute metrics collection (the app needs an SSH key); with no data in the last 5 minutes nothing is judged and an open alert stays as it is. kamal-proxy is left out.
       metric_threshold: Threshold (%)
       metric_threshold_hint: 1–100, default 90. CPU is the mean of the app's containers over the last 3 minutes (100% is one core); memory is any container's memory share; host memory and disk are the used share on any of the app's hosts.
+      cert_settings: Certificate
+      cert_days: Days before expiry
+      cert_days_hint: "1–90, default 14. The panel reads the certificate of every HTTPS domain (proxy.ssl) of the app once an hour. Let's Encrypt renews at 30 days left, so an alert at 14 means renewal is stuck."
       log_source: Log source
       log_source_hint: Defaults to app (all of the app's roles). For a single app it can also be app:<role>, accessory:<name> or proxy.
       channels: Channels
@@ -251,6 +260,11 @@ en:
     firing_alerts:
       since: started %{time} ago
       all: All alerts for this app
+      silence: Silence this app
+      silenced: Alerts for this app are silenced; nobody is notified.
+      silenced_all: Alerts for every app are silenced; nobody is notified.
+      silenced_until: Until %{time}.
+      silences: Silences
 
   overviews:
     summary:

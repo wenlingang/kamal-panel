@@ -61,7 +61,7 @@ class AlertRulesController < ApplicationController
     # id raises RecordNotFound (404) rather than being dropped silently.
     def rule_params
       permitted = params.expect(alert_rule: [ :name, :managed_app_id, :condition, :for_minutes, :enabled,
-                                              :keyword, :window_minutes, :threshold, :log_source, :metric_threshold,
+                                              :keyword, :window_minutes, :threshold, :log_source, :metric_threshold, :days,
                                               { notification_channel_ids: [] } ])
       permitted[:notification_channel_ids] = Array(permitted[:notification_channel_ids]).compact_blank
       permitted[:managed_app_id] = permitted[:managed_app_id].presence

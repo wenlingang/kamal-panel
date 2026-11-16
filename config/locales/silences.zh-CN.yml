@@ -1,0 +1,44 @@
+# Alert silences: holding notifications for an app or every app.
+zh-CN:
+  flash:
+    alert_silence:
+      added: 已设置静默。告警照常判断和显示，只是不发通知。
+      ended: 已结束静默。
+
+  audit:
+    actions:
+      alert_silence:
+        create: 静默告警
+        end: 结束静默
+
+  alert_silences:
+    maintenance_reason: 应用处于 Kamal 维护模式。
+    index:
+      title: 静默
+      add: 静默告警
+      hint: 静默期间告警仍会判断，并显示在这里和应用页上，但不发送通知。在面板里把应用切到维护模式会自动静默，直到它恢复上线。静默结束时仍在告警的，会在下一次提醒时照常通知。
+      empty: 当前没有静默。
+      past: 最近结束的
+    new:
+      title: 静默告警
+      subtitle: 用于计划内维护、明知会报警的迁移，或者已经在处理的问题。
+      app: 应用
+      starts_at: 开始时间
+      starts_at_hint: 早于现在则立即开始。
+      duration: 持续
+      until_lifted: 直到我手动结束
+      reason: 原因
+      reason_placeholder: 例如：数据库升级
+      submit: 静默
+      cancel: 取消
+    table:
+      scope: 应用
+      window: 时间
+      reason: 原因
+      by: 设置人
+      all_apps: 所有应用
+      active: 生效中
+      until_lifted: 直到手动结束
+      until_live: 直到应用恢复上线
+      end: 立即结束
+      cancel: 取消

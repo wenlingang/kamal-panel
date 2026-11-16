@@ -28,6 +28,8 @@ module AlertsHelper
                                            threshold: rule.threshold, source: rule.log_source)
     elsif rule.event_condition?
       t("alert_rules.summary.per_event")
+    elsif rule.cert_condition?
+      t("alert_rules.summary.cert_expiring", count: rule.days.to_i)
     elsif rule.metric_condition?
       t("alert_rules.summary.#{rule.for_minutes.zero? ? 'metric_immediately' : 'metric'}",
         threshold: rule.metric_threshold, count: rule.for_minutes)

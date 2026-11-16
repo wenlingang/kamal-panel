@@ -3845,3 +3845,60 @@ label.check-row {
 .result-success {
   color: var(--ok-ink);
 }
+
+/* The app page's note that its alerts are silenced right now. */
+.silence-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ── Deploy tab: promote a version from another destination of the same app ── */
+.promotion {
+  margin-bottom: var(--space-md);
+}
+
+.promotion h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-xs);
+  font-size: var(--text-base);
+}
+
+.promotion-list {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promotion-list li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: var(--hairline) solid var(--rule);
+}
+
+.promotion-source,
+.promotion-version {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.promotion-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+@media (max-width: 40rem) {
+  .promotion-list li {
+    grid-template-columns: 1fr;
+  }
+}

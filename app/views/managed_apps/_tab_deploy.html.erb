@@ -17,6 +17,8 @@
       <p class="callout callout-warn"><%= t(".no_key") %></p>
     <% end %>
 
+    <%= render "app_deploys/promotion", managed_app: managed_app %>
+
     <% if managed_app.git_configured? %>
       <%= turbo_frame_tag :deploy_versions, src: versions_managed_app_deploy_path(managed_app), target: "_top" do %>
         <div class="panel">

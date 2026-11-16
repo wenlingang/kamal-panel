@@ -36,6 +36,14 @@ production: &default
   schedule_backups:
     class: ScheduleBackupsJob
     schedule: every 5 minutes
+  # The certificates of the apps' HTTPS domains, for cert_expiring rules.
+  check_certificates:
+    class: CheckCertificatesJob
+    schedule: every hour at minute 7
+  # Is a newer panel release out (PanelUpdates)? Off for local builds and with PANEL_UPDATE_CHECK=false.
+  check_panel_updates:
+    class: CheckPanelUpdatesJob
+    schedule: every day at 3:17am
 
 development:
   <<: *default

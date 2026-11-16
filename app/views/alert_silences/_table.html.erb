@@ -1,0 +1,42 @@
+<%# locals: silences, actions (true: show the end/cancel button where allowed). %>
+<table>
+  <thead>
+    <tr>
+      <th><%= t("alert_silences.table.scope") %></th>
+      <th><%= t("alert_silences.table.window") %></th>
+      <th><%= t("alert_silences.table.reason") %></th>
+      <th><%= t("alert_silences.table.by") %></th>
+      <% if actions %><th></th><% end %>
+    </tr>
+  </thead>
+  <tbody>
+    <% silences.each do |silence| %>
+      <tr>
+        <td>
+          <% if silence.global? %>
+            <strong><%= t("alert_silences.table.all_apps") %></strong>
+          <% else %>
+            <%= link_to silence.managed_app.name, silence.managed_app %>
+          <% end %>
+          <% if silence.active? %><span class="badge"><%= t("alert_silences.table.active") %></span><% end %>
+        </td>
+        <td>
+          <%= timestamp(silence.starts_at) %> →
+          <%= silence.ends_at ? timestamp(silence.ends_at) : (silence.maintenance_mode? ? t("alert_silences.table.until_live") : t("alert_silences.table.until_lifted")) %>
+        </td>
+        <td><%= silence.reason.presence || placeholder("—") %></td>
+        <td><%= silence.user&.display_name || placeholder("—") %></td>
+        <% if actions %>
+          <td>
+            <div class="row-actions">
+              <% if may_manage?(silence) %>
+                <%= button_to (silence.active? ? t("alert_silences.table.end") : t("alert_silences.table.cancel")),
+                              alert_silence_path(silence), method: :delete, class: "btn-quiet" %>
+              <% end %>
+            </div>
+          </td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

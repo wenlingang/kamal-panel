@@ -7,7 +7,9 @@ class AlertRule < ApplicationRecord
   # Resource metrics (CollectMetricsJob): usage at or over a percentage threshold. State
   # conditions too; no recent sample means no verdict.
   METRIC_CONDITIONS = %w[cpu_high memory_high host_memory_high host_disk_high].freeze
-  STATE_CONDITIONS = (%w[unhealthy unreachable drift] + METRIC_CONDITIONS).freeze
+  # A domain's certificate expires within `days` (CheckCertificatesJob reads them hourly).
+  CERT_CONDITIONS = %w[cert_expiring].freeze
+  STATE_CONDITIONS = (%w[unhealthy unreachable drift] + METRIC_CONDITIONS + CERT_CONDITIONS).freeze
   # Conditions that are a single past event (one failed deploy / action); each fires once,
   # immediately, and for_minutes doesn't apply.
   EVENT_CONDITIONS = %w[deploy_failed action_failed backup_failed].freeze
@@ -21,6 +23,8 @@ class AlertRule < ApplicationRecord
   MAX_THRESHOLD = 1000
   METRIC_THRESHOLDS = 1..100
   DEFAULT_METRIC_THRESHOLD = 90
+  CERT_DAYS = 1..90
+  DEFAULT_CERT_DAYS = 14
 
   belongs_to :managed_app, optional: true
   has_many :alert_rule_channels, dependent: :destroy
@@ -28,7 +32,7 @@ class AlertRule < ApplicationRecord
   has_many :alert_events, dependent: :destroy
 
   # The log-rule settings live in the params JSON; these make them ordinary form fields.
-  store_accessor :params, :keyword, :window_minutes, :threshold, :log_source
+  store_accessor :params, :keyword, :window_minutes, :threshold, :log_source, :days
 
   scope :enabled, -> { where(enabled: true) }
 
@@ -43,6 +47,7 @@ class AlertRule < ApplicationRecord
     validates :threshold, numericality: { only_integer: true, in: 1..MAX_THRESHOLD }
   end
   validates :metric_threshold, numericality: { only_integer: true, in: METRIC_THRESHOLDS }, if: :metric_condition?
+  validates :days, numericality: { only_integer: true, in: CERT_DAYS }, if: :cert_condition?
   validate :keyword_must_be_printable, if: :log_keyword?
   validate :log_source_requires_one_app, if: :log_keyword?
 
@@ -54,6 +59,7 @@ class AlertRule < ApplicationRecord
   def event_condition? = EVENT_CONDITIONS.include?(condition)
   def log_keyword? = condition == "log_keyword"
   def metric_condition? = METRIC_CONDITIONS.include?(condition)
+  def cert_condition? = CERT_CONDITIONS.include?(condition)
 
   # The metric rules' percentage. Stored in params["threshold"] like the log rules' count, but a
   # form field of its own: both fields are on the form at once (the hidden one still submits), and
@@ -109,6 +115,8 @@ class AlertRule < ApplicationRecord
         value = integer_or_raw(metric_threshold, DEFAULT_METRIC_THRESHOLD)
         self.params = { "threshold" => value }
         @metric_threshold = value
+      elsif cert_condition?
+        self.params = { "days" => integer_or_raw(days, DEFAULT_CERT_DAYS) }
       else
         # Leftover log settings on a rule that is no longer a log rule would only confuse a reader.
         self.params = {}

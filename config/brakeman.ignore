@@ -5,6 +5,12 @@
       "fingerprint": "f44de337ee04d4056008ea761fb5d251cfd6894f533fb4ad8d85abc95807af9a",
       "file": "app/controllers/backup_runs_controller.rb",
       "note": "The target is the admin-configured backup storage endpoint plus a server-signed object key, not request input: the download link must leave the panel for the bucket."
+    },
+    {
+      "warning_type": "SSL Verification Bypass",
+      "fingerprint": "76ac525fd734ff5f6af51a0e45fca07350be5d70377fdcc783b725cc06bea398",
+      "file": "app/services/certificate_probe.rb",
+      "note": "Deliberate: the probe only reads the expiry of the certificate a domain serves, and must read expired or misissued certificates rather than refuse them. Nothing is sent over the connection."
     }
   ],
   "brakeman_version": "7"

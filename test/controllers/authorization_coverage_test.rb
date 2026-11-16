@@ -55,6 +55,10 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     "app/controllers/backup_plans_controller.rb" => [
       "require_permission!(:act, @managed_app)"
     ],
+    # A silence on one app needs act? on it; on every app, admin.
+    "app/controllers/alert_silences_controller.rb" => [
+      "silence.global? ? Current.user.admin? : policy_for(silence.managed_app).act?"
+    ],
     "app/controllers/backup_runs_controller.rb" => [
       "policy_for(managed_app).act?"
     ],

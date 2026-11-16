@@ -14,7 +14,9 @@ class JobQueuesTest < ActiveSupport::TestCase
     EvaluateLogRuleJob => "collect",
     PruneObservationsJob => "default",
     RunBackupJob => "backups",
-    ScheduleBackupsJob => "default"
+    ScheduleBackupsJob => "default",
+    CheckCertificatesJob => "collect",
+    CheckPanelUpdatesJob => "default"
   }.freeze
 
   test "every job runs on its own kind of queue" do

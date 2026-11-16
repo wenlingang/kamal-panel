@@ -2,7 +2,16 @@
     replaces #app-alerts in place when an alert of this app fires or resolves.
     locals: managed_app %>
 <% events = managed_app.alert_events.firing.includes(:alert_rule).order(fired_at: :desc).to_a %>
+<% silence = AlertSilence.active.where(managed_app_id: [ nil, managed_app.id ]).order(:starts_at).first %>
 <div id="app-alerts">
+  <% if silence %>
+    <p class="callout silence-note">
+      <%= icon_tag("bell", size: :sm) %>
+      <%= silence.global? ? t("managed_apps.firing_alerts.silenced_all") : t("managed_apps.firing_alerts.silenced") %>
+      <%= silence.ends_at ? t("managed_apps.firing_alerts.silenced_until", time: timestamp(silence.ends_at)) : "" %>
+      <%= link_to t("managed_apps.firing_alerts.silences"), alert_silences_path %>
+    </p>
+  <% end %>
   <% if events.any? %>
     <div class="firing-alerts" role="alert">
       <% events.each do |event| %>
@@ -13,7 +22,12 @@
           <span class="hint"><%= t("managed_apps.firing_alerts.since", time: time_ago_in_words(event.fired_at || event.started_at)) %></span>
         </p>
       <% end %>
-      <p class="firing-alerts-link"><%= link_to t("managed_apps.firing_alerts.all"), alerts_path(app_id: managed_app.id) %></p>
+      <p class="firing-alerts-link">
+        <%= link_to t("managed_apps.firing_alerts.all"), alerts_path(app_id: managed_app.id) %>
+        <% if silence.nil? && Current.user && ManagedAppPolicy.new(Current.user, managed_app).act? %>
+          · <%= link_to t("managed_apps.firing_alerts.silence"), new_alert_silence_path(managed_app_id: managed_app.id) %>
+        <% end %>
+      </p>
     </div>
   <% end %>
 </div>

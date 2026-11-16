@@ -75,4 +75,21 @@ class AppDeploysControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "127.0.0.1" ], log.hosts
     assert_redirected_to managed_app_action_path(@managed_app, log)
   end
+
+  test "the confirm page names the environment a promoted version comes from" do
+    staging = ManagedApp.create!(name: "blog-staging", config_yaml: @managed_app.config_yaml, destination: "staging",
+                                 ssh_credential: @managed_app.ssh_credential)
+    %w[web worker].each do |role|
+      Observation.create!(managed_app: staging, host: "127.0.0.1", role:, reachable: true, version: "abc1234",
+                          docker_status: "running", container_name: "blog-#{role}-staging-abc1234",
+                          health: (role == "web" ? "healthy" : nil), observed_at: Time.current)
+    end
+    sign_in_as users(:two)
+
+    get managed_app_path(@managed_app, tab: "deploy")
+    assert_select ".promotion a[href=?]", new_managed_app_deploy_path(@managed_app, version: "abc1234", from: staging.id)
+
+    get new_managed_app_deploy_path(@managed_app, version: "abc1234", from: staging.id)
+    assert_select ".promotion-note", text: /blog-staging/
+  end
 end

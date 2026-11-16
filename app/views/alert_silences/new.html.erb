@@ -1,0 +1,51 @@
+<%= breadcrumb(t("alert_silences.index.title"), alert_silences_path) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= form_with model: @silence, url: alert_silences_path do |form| %>
+      <% if @silence.errors.any? %>
+        <ul class="errors">
+          <% @silence.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+        </ul>
+      <% end %>
+
+      <div>
+        <%= form.label :managed_app_id, t(".app") %>
+        <%= form.select :managed_app_id, @apps.map { |app| [ app.name, app.id ] },
+                        (Current.user.admin? ? { include_blank: t("alert_silences.table.all_apps") } : {}) %>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <%= form.label :starts_at, t(".starts_at") %>
+          <%= form.datetime_local_field :starts_at, value: (@silence.starts_at || Time.current).strftime("%Y-%m-%dT%H:%M") %>
+          <p class="hint"><%= t(".starts_at_hint") %></p>
+        </div>
+        <div>
+          <%= label_tag "alert_silence_duration", t(".duration") %>
+          <%= select_tag "alert_silence[duration]",
+                         options_for_select(AlertSilence::DURATIONS.map { |minutes| [ distance_of_time_in_words(minutes.minutes), minutes ] } +
+                                            [ [ t(".until_lifted"), "" ] ], @duration),
+                         id: "alert_silence_duration" %>
+        </div>
+      </div>
+
+      <div>
+        <%= form.label :reason, t(".reason") %>
+        <%= form.text_field :reason, maxlength: 200, placeholder: t(".reason_placeholder") %>
+      </div>
+
+      <div class="form-actions">
+        <%= form.submit t(".submit"), class: "btn-primary" %>
+        <%= link_to t(".cancel"), alert_silences_path, class: "btn" %>
+      </div>
+    <% end %>
+  </div>
+</section>

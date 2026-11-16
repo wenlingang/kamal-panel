@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_16_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
   create_table "alert_events", force: :cascade do |t|
     t.integer "alert_rule_id", null: false
     t.datetime "created_at", null: false
@@ -53,6 +53,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_110000) do
     t.json "params", default: {}, null: false
     t.datetime "updated_at", null: false
     t.index ["managed_app_id"], name: "index_alert_rules_on_managed_app_id"
+  end
+
+  create_table "alert_silences", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "ends_at"
+    t.integer "managed_app_id"
+    t.string "reason"
+    t.string "source", default: "manual", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id"
+    t.index ["managed_app_id"], name: "index_alert_silences_on_managed_app_id"
+    t.index ["starts_at", "ends_at"], name: "index_alert_silences_on_starts_at_and_ends_at"
+    t.index ["user_id"], name: "index_alert_silences_on_user_id"
   end
 
   create_table "app_memberships", force: :cascade do |t|
@@ -141,6 +155,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_110000) do
     t.index ["managed_app_id", "finished_at"], name: "index_backup_runs_on_managed_app_id_and_finished_at"
     t.index ["managed_app_id"], name: "index_backup_runs_on_managed_app_id"
     t.index ["user_id"], name: "index_backup_runs_on_user_id"
+  end
+
+  create_table "certificate_checks", force: :cascade do |t|
+    t.datetime "checked_at", null: false
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.string "host", null: false
+    t.string "issuer"
+    t.datetime "not_after"
+    t.datetime "updated_at", null: false
+    t.index ["host"], name: "index_certificate_checks_on_host", unique: true
   end
 
   create_table "container_metrics", force: :cascade do |t|
@@ -350,6 +375,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_110000) do
   add_foreign_key "alert_rule_channels", "alert_rules"
   add_foreign_key "alert_rule_channels", "notification_channels"
   add_foreign_key "alert_rules", "managed_apps"
+  add_foreign_key "alert_silences", "managed_apps"
+  add_foreign_key "alert_silences", "users"
   add_foreign_key "app_memberships", "managed_apps"
   add_foreign_key "app_memberships", "users"
   add_foreign_key "audit_logs", "managed_apps"

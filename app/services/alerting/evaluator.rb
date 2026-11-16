@@ -47,6 +47,7 @@ module Alerting
 
       # Usage rules read the metrics rows, not the status poll; they judge their own staleness.
       return MetricCheck.call(rule, app, now:) if rule.metric_condition?
+      return certificate_check(rule, app) if rule.cert_condition?
 
       status = (@statuses[app.id] ||= ManagedAppStatus.new(app))
       # Never collected yet (just onboarded): no data, no verdict.
@@ -67,6 +68,20 @@ module Alerting
 
     private
       attr_reader :now, :changed_app_ids
+
+      # Holds while any HTTPS domain of the app serves a certificate expiring within the rule's
+      # days; names the soonest. Domains not checked yet, or unreadable, give no verdict on their own.
+      def certificate_check(rule, app)
+        hosts = app.parsed_config.domains.select { |domain| domain[:ssl] }.map { |domain| domain[:host] }
+        checks = CertificateCheck.where(host: hosts).where.not(not_after: nil).to_a
+        return nil if checks.empty?
+
+        soonest = checks.min_by(&:not_after)
+        return Check.clear if soonest.not_after > now + rule.days.to_i.days
+
+        Check.holds("cert_expiring", host: soonest.host, days: [ soonest.days_left(now), 0 ].max,
+                                     date: soonest.not_after.to_date.iso8601)
+      end
 
       def changed!(app_or_id) = changed_app_ids << (app_or_id.is_a?(ManagedApp) ? app_or_id.id : app_or_id)
 
