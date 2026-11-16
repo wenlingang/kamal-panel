@@ -32,6 +32,10 @@ production: &default
   evaluate_alert_rules:
     class: EvaluateAlertRulesJob
     schedule: every <%= CollectionSettings.current.alerts_every.to_i %> seconds
+  # Accessory backups (BackupPlan): starts the ones that are due; each plan keeps its own period.
+  schedule_backups:
+    class: ScheduleBackupsJob
+    schedule: every 5 minutes
 
 development:
   <<: *default

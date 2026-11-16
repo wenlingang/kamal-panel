@@ -23,6 +23,8 @@ class AuditLog < ApplicationRecord
     notification_channel.create notification_channel.update notification_channel.rotate
     notification_channel.delete
     alert_rule.create alert_rule.update alert_rule.delete
+    backup_destination.create backup_destination.update backup_destination.rotate backup_destination.delete
+    backup_plan.create backup_plan.update backup_plan.delete backup.run backup.download
   ].freeze
 
   # Deploy action names are defined by the closed action set itself and are not re-copied here.

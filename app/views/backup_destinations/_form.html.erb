@@ -1,0 +1,67 @@
+<%# locals: destination. The secret key field is always empty: it's write-only, and leaving it empty on
+    edit keeps the current one. %>
+<%= form_with model: destination do |form| %>
+  <% if destination.errors.any? %>
+    <ul class="errors">
+      <% destination.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <div>
+    <%= form.label :name, t("backup_destinations.form.name") %>
+    <%= form.text_field :name, autocomplete: "off" %>
+  </div>
+
+  <div>
+    <%= form.label :endpoint, t("backup_destinations.form.endpoint") %>
+    <%= form.url_field :endpoint, autocomplete: "off", placeholder: "https://s3.us-east-1.amazonaws.com" %>
+    <p class="hint"><%= t("backup_destinations.form.endpoint_hint") %></p>
+  </div>
+
+  <div class="form-row">
+    <div>
+      <%= form.label :bucket, t("backup_destinations.form.bucket") %>
+      <%= form.text_field :bucket, autocomplete: "off" %>
+    </div>
+    <div>
+      <%= form.label :region, t("backup_destinations.form.region") %>
+      <%= form.text_field :region, autocomplete: "off", placeholder: "us-east-1" %>
+      <p class="hint"><%= t("backup_destinations.form.region_hint") %></p>
+    </div>
+  </div>
+
+  <div>
+    <%= form.label :prefix, t("backup_destinations.form.prefix") %>
+    <%= form.text_field :prefix, autocomplete: "off", placeholder: "kamal-panel" %>
+    <p class="hint"><%= t("backup_destinations.form.prefix_hint") %></p>
+  </div>
+
+  <div>
+    <label class="check-row">
+      <%= form.check_box :path_style %>
+      <span><%= t("backup_destinations.form.path_style") %></span>
+    </label>
+    <p class="hint"><%= t("backup_destinations.form.path_style_hint") %></p>
+  </div>
+
+  <div>
+    <%= form.label :access_key_id, t("backup_destinations.form.access_key_id") %>
+    <%= form.text_field :access_key_id, autocomplete: "off" %>
+  </div>
+
+  <div>
+    <%= form.label :secret_access_key, t("backup_destinations.form.secret_access_key") %>
+    <%= form.password_field :secret_access_key, value: "", autocomplete: "off" %>
+    <p class="hint">
+      <%= t("backup_destinations.form.secret_hint") %>
+      <% if destination.persisted? %><%= t("backup_destinations.form.secret_keep") %><% end %>
+    </p>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit t("backup_destinations.form.save_and_check"), class: "btn-primary" %>
+    <%= link_to t("backup_destinations.form.cancel"), backup_destinations_path, class: "btn" %>
+  </div>
+<% end %>

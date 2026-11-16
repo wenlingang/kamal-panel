@@ -61,6 +61,34 @@ module Collectors
       end
     end
 
+    # Runs a long command and hands its stdout to the block chunk by chunk as it arrives (a database
+    # dump, too big to hold in memory). Returns { status:, stderr: }; raises Timeout::Error past
+    # `timeout` seconds.
+    def stream(host, command, timeout:)
+      session = connect(host)
+      status = nil
+      stderr = +""
+
+      begin
+        Timeout.timeout(timeout) do
+          channel = session.open_channel do |opened|
+            opened.exec(command) do |ch, success|
+              raise Net::SSH::Exception, "could not run the command" unless success
+
+              ch.on_data { |_, data| yield data }
+              ch.on_extended_data { |_, _, data| stderr << data if stderr.bytesize < 64.kilobytes }
+              ch.on_request("exit-status") { |_, data| status = data.read_long }
+            end
+          end
+          channel.wait
+        end
+      ensure
+        close_session(session)
+      end
+
+      { status:, stderr: }
+    end
+
     private
       attr_reader :managed_app, :execution_timeout, :connect_timeout, :close_timeout
 

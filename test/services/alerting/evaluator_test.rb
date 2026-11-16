@@ -132,5 +132,29 @@ class Alerting::EvaluatorTest < ActiveSupport::TestCase
     assert_equal 2, AlertEvent.where(alert_rule: rule).count, "a failure after a success is news again"
   end
 
+  test "a failed backup alerts once per run of failures and says when backups work again" do
+    rule = AlertRule.create!(name: "备份失败", condition: "backup_failed", for_minutes: 0, notification_channels: [ @channel ],
+                            created_at: @start - 1.hour)
+    @app.update!(config_yaml: file_fixture("accessory_deploy.yml").read)
+    destination = BackupDestination.create!(name: "s3", endpoint: "https://s3.example.com", bucket: "bucket",
+                                            access_key_id: "k", secret_access_key: "s")
+    plan = @app.backup_plans.create!(accessory: "db", engine: "postgres", backup_destination: destination)
+    2.times do |i|
+      plan.backup_runs.create!(managed_app: @app, state: "failed", error: "boom #{i}",
+                               started_at: @start - (10 - i).minutes, finished_at: @start - (9 - i).minutes)
+    end
+
+    travel_to(@start) { Alerting::Evaluator.call(now: @start) }
+    event = AlertEvent.where(alert_rule: rule).sole
+    assert_includes event.message, "db"
+    assert_equal 1, deliveries("firing")
+
+    plan.backup_runs.create!(managed_app: @app, state: "succeeded", object_key: "k", started_at: @start + 1.minute,
+                             finished_at: @start + 2.minutes)
+    travel_to(@start + 3.minutes) { Alerting::Evaluator.call(now: @start + 3.minutes) }
+    assert_predicate event.reload, :resolved?
+    assert_equal 1, deliveries("resolved")
+  end
+
   # ── Log rules: scheduled here, scanned elsewhere ───────────────────────────────────────────────
 end

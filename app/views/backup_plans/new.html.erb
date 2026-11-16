@@ -1,0 +1,14 @@
+<%= breadcrumb(t("backup_plans.new.back", name: @managed_app.name), managed_app_path(@managed_app, tab: "backups")) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t("backup_plans.new.title", name: @managed_app.name) %></h1>
+    <p class="page-sub"><%= t("backup_plans.new.subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= render "form", plan: @plan, managed_app: @managed_app, candidates: BackupPlan.candidates(@managed_app) %>
+  </div>
+</section>

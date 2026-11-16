@@ -107,6 +107,7 @@ zh-CN:
     recovered:
       deploy_failed: 之后的一次发布已成功，发布恢复正常。
       action_failed: "之后的一次「%{action}」已成功。"
+      backup_failed: 之后的一次 %{accessory} 备份已成功。
     messages:
       unhealthy: 有容器健康检查失败，或有主机上没有运行中的容器。
       drift: 各主机运行的版本不一致：%{versions}
@@ -116,6 +117,7 @@ zh-CN:
       deploy_failed: 版本 %{version} 发布失败。
       deploy_unfinished: 版本 %{version} 的发布开始 %{minutes} 分钟后仍未上报完成。
       action_failed: "「%{action}」执行失败（%{user}）。"
+      backup_failed: "%{accessory} 备份失败：%{error}"
       log_keyword: 最近 %{window} 分钟日志里「%{keyword}」出现 %{count} 次（阈值 %{threshold}）。
       cpu_high: 应用容器最近 3 分钟平均 CPU %{percent}%（阈值 %{threshold}%）。
       memory_high: 容器 %{container}（%{host}）内存占比 %{percent}%（阈值 %{threshold}%）。
@@ -130,6 +132,7 @@ zh-CN:
       drift: 版本漂移
       deploy_failed: 发布失败
       action_failed: 操作失败
+      backup_failed: 备份失败
       log_keyword: 日志关键字
       cpu_high: 容器 CPU 过高
       memory_high: 容器内存过高

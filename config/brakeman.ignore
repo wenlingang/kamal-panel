@@ -1,0 +1,11 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Redirect",
+      "fingerprint": "f44de337ee04d4056008ea761fb5d251cfd6894f533fb4ad8d85abc95807af9a",
+      "file": "app/controllers/backup_runs_controller.rb",
+      "note": "The target is the admin-configured backup storage endpoint plus a server-signed object key, not request input: the download link must leave the panel for the bucket."
+    }
+  ],
+  "brakeman_version": "7"
+}

@@ -8,10 +8,10 @@ default: &default
   adapter: sqlite3
   # Solid Queue runs inside Puma in async mode (config/puma.rb), so one process holds Puma's request
   # threads (RAILS_MAX_THREADS, default 3 as in puma.rb), the job worker threads (ALERT_THREADS,
-  # JOB_THREADS and ACTION_THREADS, as in config/queue.yml) and Solid Queue's own supervisor,
+  # JOB_THREADS, ACTION_THREADS and BACKUP_THREADS, as in config/queue.yml) and Solid Queue's own supervisor,
   # dispatcher, scheduler and per-worker heartbeat threads (+8). Sized for all of them; SQLite
   # connections are cheap. DB_POOL overrides.
-  max_connections: <%= ENV.fetch("DB_POOL") { %w[RAILS_MAX_THREADS JOB_THREADS].sum { |name| ENV.fetch(name, 3).to_i } + ENV.fetch("ALERT_THREADS", 1).to_i + ENV.fetch("ACTION_THREADS", 2).to_i + 8 } %>
+  max_connections: <%= ENV.fetch("DB_POOL") { %w[RAILS_MAX_THREADS JOB_THREADS].sum { |name| ENV.fetch(name, 3).to_i } + ENV.fetch("ALERT_THREADS", 1).to_i + ENV.fetch("ACTION_THREADS", 2).to_i + ENV.fetch("BACKUP_THREADS", 1).to_i + 9 } %>
   timeout: 5000
 
 development:

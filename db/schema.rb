@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_16_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_110000) do
   create_table "alert_events", force: :cascade do |t|
     t.integer "alert_rule_id", null: false
     t.datetime "created_at", null: false
@@ -87,6 +87,60 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_100000) do
     t.index ["managed_app_id"], name: "index_audit_logs_on_managed_app_id"
     t.index ["target_user_id"], name: "index_audit_logs_on_target_user_id"
     t.index ["user_id"], name: "index_audit_logs_on_user_id"
+  end
+
+  create_table "backup_destinations", force: :cascade do |t|
+    t.string "access_key_id", null: false
+    t.string "bucket", null: false
+    t.datetime "created_at", null: false
+    t.string "endpoint", null: false
+    t.text "last_check_error"
+    t.datetime "last_checked_at"
+    t.string "name", null: false
+    t.boolean "path_style", default: true, null: false
+    t.string "prefix"
+    t.string "region", default: "us-east-1", null: false
+    t.text "secret_access_key", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_backup_destinations_on_name", unique: true
+  end
+
+  create_table "backup_plans", force: :cascade do |t|
+    t.string "accessory", null: false
+    t.integer "backup_destination_id", null: false
+    t.datetime "created_at", null: false
+    t.string "database"
+    t.boolean "enabled", default: true, null: false
+    t.string "engine", null: false
+    t.integer "every_hours", default: 24, null: false
+    t.integer "keep", default: 7, null: false
+    t.integer "managed_app_id", null: false
+    t.datetime "next_run_at"
+    t.datetime "updated_at", null: false
+    t.index ["backup_destination_id"], name: "index_backup_plans_on_backup_destination_id"
+    t.index ["managed_app_id", "accessory"], name: "index_backup_plans_on_managed_app_id_and_accessory", unique: true
+    t.index ["managed_app_id"], name: "index_backup_plans_on_managed_app_id"
+  end
+
+  create_table "backup_runs", force: :cascade do |t|
+    t.integer "backup_plan_id", null: false
+    t.datetime "created_at", null: false
+    t.text "diagnosis"
+    t.text "error"
+    t.datetime "finished_at"
+    t.integer "managed_app_id", null: false
+    t.string "object_key"
+    t.datetime "pruned_at"
+    t.bigint "size_bytes"
+    t.datetime "started_at", null: false
+    t.string "state", default: "running", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id"
+    t.index ["backup_plan_id", "started_at"], name: "index_backup_runs_on_backup_plan_id_and_started_at"
+    t.index ["backup_plan_id"], name: "index_backup_runs_on_backup_plan_id"
+    t.index ["managed_app_id", "finished_at"], name: "index_backup_runs_on_managed_app_id_and_finished_at"
+    t.index ["managed_app_id"], name: "index_backup_runs_on_managed_app_id"
+    t.index ["user_id"], name: "index_backup_runs_on_user_id"
   end
 
   create_table "container_metrics", force: :cascade do |t|
@@ -301,6 +355,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_100000) do
   add_foreign_key "audit_logs", "managed_apps"
   add_foreign_key "audit_logs", "users"
   add_foreign_key "audit_logs", "users", column: "target_user_id"
+  add_foreign_key "backup_plans", "backup_destinations"
+  add_foreign_key "backup_plans", "managed_apps"
+  add_foreign_key "backup_runs", "backup_plans"
+  add_foreign_key "backup_runs", "managed_apps"
+  add_foreign_key "backup_runs", "users"
   add_foreign_key "container_metrics", "managed_apps"
   add_foreign_key "deploy_events", "audit_logs"
   add_foreign_key "deploy_events", "managed_apps"

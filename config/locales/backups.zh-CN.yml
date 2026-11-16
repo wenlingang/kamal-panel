@@ -1,0 +1,166 @@
+# Accessory database backups: storage settings, per-app plans, runs, and their audit / flash lines.
+zh-CN:
+  layouts:
+    application:
+      backup_storage: 备份存储
+
+  managed_apps:
+    show:
+      tabs:
+        backups: 备份
+
+  activerecord:
+    attributes:
+      backup_destination:
+        name: 名字
+        endpoint: 访问地址
+        region: 区域
+        bucket: 存储桶
+        prefix: 前缀
+        access_key_id: Access Key ID
+        secret_access_key: Secret Access Key
+        backup_plans: 备份计划
+      backup_plan:
+        accessory: Accessory
+        engine: 数据库
+        database: 数据库名
+        backup_destination: 存储
+        every_hours: 频率
+        keep: 保留份数
+    errors:
+      models:
+        backup_destination:
+          attributes:
+            backup_plans:
+              restrict_dependent_destroy:
+                has_many: 仍在使用它
+
+  flash:
+    backup_destination:
+      added: 已添加 %{name}。
+      updated: 已更新 %{name}。
+      deleted: 已删除 %{name}。
+      in_use: "%{name} 还在被备份计划使用，先把它们改到别处或删除。"
+      check_ok: "%{name} 可用：面板成功写入并删除了一个测试文件。"
+      check_failed: "%{name} 暂不可用：%{reason}"
+    backup_plan:
+      added: 已为 %{accessory} 设置备份，几分钟内会开始第一次。
+      updated: 已更新 %{accessory} 的备份设置。
+      deleted: 已移除 %{accessory} 的备份计划，存储里已有的备份文件会保留。
+      started: 正在备份 %{accessory}，完成后这里会显示结果。
+    backup_run:
+      gone: 这个备份文件已经不在存储里了。
+
+  audit:
+    actions:
+      backup_destination:
+        create: 添加备份存储
+        update: 修改备份存储
+        rotate: 替换备份存储密钥
+        delete: 删除备份存储
+      backup_plan:
+        create: 设置备份
+        update: 修改备份设置
+        delete: 移除备份
+      backup:
+        run: 立即备份
+        download: 下载备份
+
+  backups:
+    runner:
+      empty_dump: 导出结果为空。检查数据库名是否正确、accessory 是否在运行。
+      interrupted: 备份进行中面板重启了，这次没有完成。
+
+  backup_destinations:
+    index:
+      title: 备份存储
+      subtitle: 存放 accessory 数据库备份的 S3 兼容存储桶（AWS S3、Cloudflare R2、MinIO、阿里云 OSS、Backblaze B2 等）。
+      add: 添加存储
+      empty: 还没有备份存储。先添加一个存储桶，再到应用的「备份」页设置备份。
+      name: 名字
+      location: 位置
+      used_by: 使用者
+      unused: 暂未使用
+      last_check: 最近检查
+      check_ok_at: "%{time} 检查通过"
+      check_failed_at: "%{time} 检查失败"
+      never: 还没检查过
+      check: 检查
+      delete: 删除
+      delete_confirm: 删除备份存储 %{name}？存储桶里已有的备份文件会保留。
+    new:
+      title: 添加备份存储
+      subtitle: 面板会把备份上传到这里，并删除超出保留份数的旧备份，所以密钥需要有前缀下对象的写入、读取和删除权限。
+    form:
+      name: 名字
+      endpoint: 访问地址
+      endpoint_hint: "存储的 S3 API 地址，例如 https://s3.ap-northeast-1.amazonaws.com、https://<account>.r2.cloudflarestorage.com 或 https://oss-cn-hangzhou.aliyuncs.com。"
+      bucket: 存储桶
+      region: 区域
+      region_hint: 不区分区域的存储填 us-east-1；Cloudflare R2 填 auto。
+      prefix: 前缀
+      prefix_hint: 可选，存储桶里的目录。备份会放在 前缀/应用/accessory/ 下。
+      path_style: 路径风格地址（endpoint/bucket/key）
+      path_style_hint: MinIO、R2 和大多数自建存储保持勾选。AWS 推荐、阿里云 OSS 要求的是虚拟主机风格（bucket.endpoint/key），这时取消勾选。
+      access_key_id: Access Key ID
+      secret_access_key: Secret Access Key
+      secret_hint: 加密保存，之后不再显示。
+      secret_keep: 留空则保持不变。
+      save_and_check: 保存并检查
+      cancel: 取消
+
+  backup_plans:
+    engines:
+      postgres: PostgreSQL
+      mysql: MySQL / MariaDB
+    every:
+      other: 每 %{count} 小时
+    states:
+      running: 进行中
+      succeeded: 完成
+      failed: 失败
+    new:
+      title: 备份 %{name} 的数据库
+      back: "%{name} · 备份"
+      subtitle: 面板通过 SSH 在 accessory 容器里导出数据库，使用容器环境变量里已有的账号密码，压缩后上传到存储。
+    edit:
+      title: "%{name} 的备份设置"
+      back: "%{name} · 备份"
+    form:
+      accessory: Accessory
+      accessory_hint: deploy.yml 里镜像为 PostgreSQL、MySQL 或 MariaDB 的 accessory。
+      engine: 数据库
+      database: 数据库名
+      database_hint: 留空使用容器的默认库（POSTGRES_DB；MySQL 则导出全部库）。
+      destination: 存储
+      every_hours: 频率
+      keep: 保留份数
+      keep_hint: 每次备份成功后，会从存储里删除更早的备份。
+      enabled: 按计划自动备份
+      cancel: 取消
+    tab:
+      title: 数据库备份
+      add: 设置备份
+      add_destination: 添加备份存储
+      no_candidates: 这个应用的 accessory 里没有面板能备份的数据库（PostgreSQL、MySQL 或 MariaDB）。
+      no_destination: 还没有备份存储，需要管理员在「设置」里添加。
+      none: 尚未备份：%{accessories}。
+      default_database: 默认库
+      keep:
+        other: 保留 %{count} 份
+      paused: 已暂停
+      run_now: 立即备份
+      delete: 移除
+      delete_confirm: 不再备份 %{accessory}？存储里已有的备份文件会保留。
+      last_failed: 最近一次备份失败（%{time}）。
+      first_run: 第一次备份大约在 %{time} 开始。
+      never_run: 还没有备份记录。
+      started: 开始时间
+      result: 结果
+      size: 大小
+      by: 发起
+      scheduled: 定时
+      download: 下载
+      pruned: 已删除（超出保留份数）
+      restore: 如何恢复
+      restore_hint: 恢复会覆盖 accessory 里的数据，所以面板不会替你执行。下载备份文件，拷到 accessory 所在主机，然后在那里执行：

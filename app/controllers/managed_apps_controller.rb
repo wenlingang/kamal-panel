@@ -1,7 +1,7 @@
 class ManagedAppsController < ApplicationController
   # The detail page's tabs, server-rendered from ?tab=. The logs tab only for people who may read
   # this app's logs (view_logs?); for anyone else ?tab=logs falls back to the overview.
-  TABS = %w[overview deploy logs metrics actions history].freeze
+  TABS = %w[overview deploy logs metrics actions backups history].freeze
 
   # Where the source lives and how CI tags images: anyone who may edit the app may set these. Which
   # Git connection (token) it reads through is an admin choice, like credentials.

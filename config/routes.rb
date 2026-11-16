@@ -43,6 +43,14 @@ Rails.application.routes.draw do
     # are undeletable by design. Same shape as "users are only deactivated, never deleted".
     post :deactivate, on: :member
     post :reactivate, on: :member
+    # Accessory database backups: a plan per accessory (the app's backups tab is the list), "back up
+    # now", and a short-lived download link for one dump.
+    resources :backup_plans, only: [ :new, :create, :edit, :update, :destroy ] do
+      post :run, on: :member
+    end
+    resources :backup_runs, only: [] do
+      get :download, on: :member
+    end
   end
   # Entry point for hook reports. The client is curl, not a browser, so the controller inherits
   # ActionController::API (no CSRF, no cookies, no allow_browser).
@@ -72,6 +80,13 @@ Rails.application.routes.draw do
 
   # User management. No destroy: users can only be deactivated, not deleted (audit_logs.user_id has
   # a foreign key, and audits are undeletable).
+  # Settings → backup storage: admin only, the secret key is write-only. check writes and removes a
+  # marker object to prove the bucket and keys work.
+  resources :backup_destinations, only: [ :index, :new, :create, :edit, :update, :destroy ],
+            path: "settings/backups" do
+    post :check, on: :member
+  end
+
   resources :users, only: [ :index, :new, :create, :edit, :update ] do
     post :deactivate, on: :member
     post :reactivate, on: :member

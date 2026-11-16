@@ -1,0 +1,61 @@
+<%# locals: plan, managed_app, candidates (the accessories that run a database we can dump). %>
+<%= form_with model: [ managed_app, plan ] do |form| %>
+  <% if plan.errors.any? %>
+    <ul class="errors">
+      <% plan.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <div>
+    <%= form.label :accessory, t("backup_plans.form.accessory") %>
+    <% if plan.new_record? %>
+      <%= form.select :accessory, candidates.map { |c| [ "#{c[:name]} (#{c[:image]})", c[:name] ] } %>
+      <p class="hint"><%= t("backup_plans.form.accessory_hint") %></p>
+    <% else %>
+      <p class="mono"><%= plan.accessory %></p>
+    <% end %>
+  </div>
+
+  <div class="form-row">
+    <div>
+      <%= form.label :engine, t("backup_plans.form.engine") %>
+      <%= form.select :engine, BackupPlan::ENGINES.map { |engine| [ t("backup_plans.engines.#{engine}"), engine ] } %>
+    </div>
+    <div>
+      <%= form.label :database, t("backup_plans.form.database") %>
+      <%= form.text_field :database, autocomplete: "off" %>
+      <p class="hint"><%= t("backup_plans.form.database_hint") %></p>
+    </div>
+  </div>
+
+  <div>
+    <%= form.label :backup_destination_id, t("backup_plans.form.destination") %>
+    <%= form.select :backup_destination_id, BackupDestination.order(:name).map { |d| [ "#{d.name} · #{d.location}", d.id ] } %>
+  </div>
+
+  <div class="form-row">
+    <div>
+      <%= form.label :every_hours, t("backup_plans.form.every_hours") %>
+      <%= form.select :every_hours, BackupPlan::EVERY_HOURS.map { |hours| [ t("backup_plans.every", count: hours), hours ] } %>
+    </div>
+    <div>
+      <%= form.label :keep, t("backup_plans.form.keep") %>
+      <%= form.number_field :keep, min: BackupPlan::KEEP.min, max: BackupPlan::KEEP.max, step: 1 %>
+      <p class="hint"><%= t("backup_plans.form.keep_hint") %></p>
+    </div>
+  </div>
+
+  <div>
+    <label class="check-row">
+      <%= form.check_box :enabled %>
+      <span><%= t("backup_plans.form.enabled") %></span>
+    </label>
+  </div>
+
+  <div class="form-actions">
+    <%= form.submit t("common.save"), class: "btn-primary" %>
+    <%= link_to t("backup_plans.form.cancel"), managed_app_path(managed_app, tab: "backups"), class: "btn" %>
+  </div>
+<% end %>

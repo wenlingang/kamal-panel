@@ -10,7 +10,7 @@ class AlertRule < ApplicationRecord
   STATE_CONDITIONS = (%w[unhealthy unreachable drift] + METRIC_CONDITIONS).freeze
   # Conditions that are a single past event (one failed deploy / action); each fires once,
   # immediately, and for_minutes doesn't apply.
-  EVENT_CONDITIONS = %w[deploy_failed action_failed].freeze
+  EVENT_CONDITIONS = %w[deploy_failed action_failed backup_failed].freeze
   # Counted over a window of log lines, then treated like a state condition.
   LOG_CONDITIONS = %w[log_keyword].freeze
   CONDITIONS = (STATE_CONDITIONS + EVENT_CONDITIONS + LOG_CONDITIONS).freeze

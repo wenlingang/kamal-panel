@@ -16,7 +16,8 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     "GitConnectionsController" => %w[index new create edit update destroy check],
     "NotificationChannelsController" => %w[index new create edit update destroy test_delivery],
     # index is not here on purpose: everyone signed in reads the rules (AlertsController too).
-    "AlertRulesController" => %w[new create edit update destroy]
+    "AlertRulesController" => %w[new create edit update destroy],
+    "BackupDestinationsController" => %w[index new create edit update destroy check]
   }.freeze
 
   # Actions whose permission depends on the app in the URL can't be declared with a class macro
@@ -50,6 +51,13 @@ class AuthorizationCoverageTest < ActiveSupport::TestCase
     ],
     # index (with an app chosen) and results: reading logs is view_logs? (spec 9). index without an
     # app only lists apps already filtered by the same policy.
+    # Managing an app's backups and downloading a dump (the whole database) are act?.
+    "app/controllers/backup_plans_controller.rb" => [
+      "require_permission!(:act, @managed_app)"
+    ],
+    "app/controllers/backup_runs_controller.rb" => [
+      "policy_for(managed_app).act?"
+    ],
     "app/controllers/logs_controller.rb" => [
       "require_permission!(:view_logs, @managed_app)",
       "policy_for(app).view_logs?"

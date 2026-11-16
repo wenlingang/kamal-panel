@@ -23,6 +23,11 @@ default: &default
       threads: <%= ENV.fetch("ACTION_THREADS", 2) %>
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 1
+    # Accessory database backups: a long SSH stream and an upload each, one at a time by default.
+    - queues: [ backups ]
+      threads: <%= ENV.fetch("BACKUP_THREADS", 1) %>
+      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      polling_interval: 1
 
 development:
   <<: *default

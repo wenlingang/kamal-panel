@@ -1,0 +1,168 @@
+# Accessory database backups: storage settings, per-app plans, runs, and their audit / flash lines.
+en:
+  layouts:
+    application:
+      backup_storage: Backup storage
+
+  managed_apps:
+    show:
+      tabs:
+        backups: Backups
+
+  activerecord:
+    attributes:
+      backup_destination:
+        name: Name
+        endpoint: Endpoint
+        region: Region
+        bucket: Bucket
+        prefix: Prefix
+        access_key_id: Access key ID
+        secret_access_key: Secret access key
+        backup_plans: Backup plans
+      backup_plan:
+        accessory: Accessory
+        engine: Database
+        database: Database name
+        backup_destination: Storage
+        every_hours: Frequency
+        keep: Copies to keep
+    errors:
+      models:
+        backup_destination:
+          attributes:
+            backup_plans:
+              restrict_dependent_destroy:
+                has_many: are still using it
+
+  flash:
+    backup_destination:
+      added: Added %{name}.
+      updated: Updated %{name}.
+      deleted: Deleted %{name}.
+      in_use: "%{name} is still used by backup plans. Move or remove them first."
+      check_ok: "%{name} works: the panel wrote and removed a test file."
+      check_failed: "%{name} doesn't work yet: %{reason}"
+    backup_plan:
+      added: Backups of %{accessory} are set up. The first one starts within a few minutes.
+      updated: Updated the backups of %{accessory}.
+      deleted: Removed the backup plan of %{accessory}. Dumps already in storage stay there.
+      started: Backing up %{accessory} now. This page shows the result when it finishes.
+    backup_run:
+      gone: That dump is no longer in storage.
+
+  audit:
+    actions:
+      backup_destination:
+        create: Add backup storage
+        update: Edit backup storage
+        rotate: Replace backup storage keys
+        delete: Delete backup storage
+      backup_plan:
+        create: Set up backups
+        update: Edit backups
+        delete: Remove backups
+      backup:
+        run: Back up now
+        download: Download a backup
+
+  backups:
+    runner:
+      empty_dump: The dump came back empty. Check the database name and that the accessory is running.
+      interrupted: The panel restarted while this backup was running, so it didn't finish.
+
+  backup_destinations:
+    index:
+      title: Backup storage
+      subtitle: S3-compatible buckets for accessory database backups (AWS S3, Cloudflare R2, MinIO, Aliyun OSS, Backblaze B2...).
+      add: Add storage
+      empty: No backup storage yet. Add a bucket, then set up backups on an app's Backups tab.
+      name: Name
+      location: Where
+      used_by: Used by
+      unused: Not used yet
+      last_check: Last check
+      check_ok_at: Worked at %{time}
+      check_failed_at: Failed at %{time}
+      never: Not checked yet
+      check: Check
+      delete: Delete
+      delete_confirm: Delete the backup storage %{name}? Dumps already in the bucket stay there.
+    new:
+      title: Add backup storage
+      subtitle: The panel uploads dumps here and removes the ones past each plan's limit, so the key needs to put, get and delete objects under the prefix.
+    form:
+      name: Name
+      endpoint: Endpoint
+      endpoint_hint: "The storage's S3 API address, for example https://s3.eu-west-1.amazonaws.com, https://<account>.r2.cloudflarestorage.com or https://oss-cn-hangzhou.aliyuncs.com."
+      bucket: Bucket
+      region: Region
+      region_hint: "us-east-1 when the storage doesn't use regions; auto for Cloudflare R2."
+      prefix: Prefix
+      prefix_hint: Optional folder inside the bucket. Dumps go to prefix/app/accessory/.
+      path_style: Path-style addresses (endpoint/bucket/key)
+      path_style_hint: Leave on for MinIO, R2 and most self-hosted storage. Turn off for virtual-hosted style (bucket.endpoint/key), which AWS prefers and Aliyun OSS requires.
+      access_key_id: Access key ID
+      secret_access_key: Secret access key
+      secret_hint: Stored encrypted and never shown again.
+      secret_keep: Leave empty to keep the current one.
+      save_and_check: Save and check
+      cancel: Cancel
+
+  backup_plans:
+    engines:
+      postgres: PostgreSQL
+      mysql: MySQL / MariaDB
+    every:
+      one: Every hour
+      other: Every %{count} hours
+    states:
+      running: Running
+      succeeded: Done
+      failed: Failed
+    new:
+      title: Back up a database of %{name}
+      back: "%{name} · Backups"
+      subtitle: The panel dumps the database inside the accessory's container over SSH, using the credentials already in its environment, then compresses it and uploads it to the storage.
+    edit:
+      title: Backups of %{name}
+      back: "%{name} · Backups"
+    form:
+      accessory: Accessory
+      accessory_hint: Accessories from deploy.yml whose image runs PostgreSQL, MySQL or MariaDB.
+      engine: Database
+      database: Database name
+      database_hint: Empty to use the container's default (POSTGRES_DB, or every database on MySQL).
+      destination: Storage
+      every_hours: Frequency
+      keep: Copies to keep
+      keep_hint: Older dumps are removed from storage after each successful backup.
+      enabled: Back up on schedule
+      cancel: Cancel
+    tab:
+      title: Database backups
+      add: Set up backups
+      add_destination: Add backup storage
+      no_candidates: None of this app's accessories runs a database the panel can back up (PostgreSQL, MySQL or MariaDB).
+      no_destination: There is no backup storage yet. An admin adds it in Settings.
+      none: "Not backed up yet: %{accessories}."
+      default_database: default database
+      keep:
+        one: keeps 1 copy
+        other: keeps %{count} copies
+      paused: Paused
+      run_now: Back up now
+      delete: Remove
+      delete_confirm: Stop backing up %{accessory}? Dumps already in storage stay there.
+      last_failed: The last backup failed (%{time}).
+      first_run: The first backup runs around %{time}.
+      never_run: No backups yet.
+      started: Started
+      result: Result
+      size: Size
+      by: Started by
+      scheduled: Schedule
+      download: Download
+      pruned: Removed (past the limit)
+      restore: How to restore
+      restore_hint: Restoring replaces the data in the accessory, so the panel doesn't do it for you. Download a dump, copy it to the accessory's host, and run this there.

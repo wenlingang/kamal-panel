@@ -26,12 +26,15 @@ module OutboundHttp
   # Net::HTTPResponse whatever its status; deciding what a 404 means is the caller's business.
   # ca_certificate: PEM (one or more certificates) trusted for this request on top of the system
   # store, for self-hosted servers behind a private CA.
-  def request(verb, url, headers: {}, body: nil, timeout: TIMEOUT, ca_certificate: nil)
+  # body_stream: an IO sent as the body without reading it into memory (a backup file); the caller
+  # sets Content-Length.
+  def request(verb, url, headers: {}, body: nil, body_stream: nil, timeout: TIMEOUT, ca_certificate: nil)
     uri = URI.parse(url)
     raise Error, "unsupported URL scheme: #{uri.scheme.inspect}" unless %w[http https].include?(uri.scheme)
 
     request = Net::HTTP.const_get(verb.to_s.capitalize).new(uri, headers.merge("User-Agent" => "kamal-panel"))
     request.body = body unless body.nil?
+    request.body_stream = body_stream unless body_stream.nil?
     if adapter
       adapter.call(uri, request, timeout)
     else

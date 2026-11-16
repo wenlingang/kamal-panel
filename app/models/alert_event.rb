@@ -46,11 +46,11 @@ class AlertEvent < ApplicationRecord
   # A failure event that ended because the same thing then worked says so, rather than repeating
   # the failure under a "resolved" heading.
   def recovery_message(locale: I18n.locale)
-    return nil unless resolved? && dedupe_key.present? && %w[deploy_failed action_failed].include?(alert_rule.condition)
+    return nil unless resolved? && dedupe_key.present? && alert_rule.event_condition?
 
     args = message_args.to_h.symbolize_keys
     action = I18n.t("audit.actions.#{args[:action_name]}", locale:, default: args[:action_name].to_s)
-    I18n.t("alert_events.recovered.#{alert_rule.condition}", action:, locale:)
+    I18n.t("alert_events.recovered.#{alert_rule.condition}", action:, accessory: args[:accessory].to_s, locale:)
   end
 
   # Each returns true only for the caller that actually made the transition.

@@ -1,0 +1,56 @@
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= t(".title") %></h1>
+    <p class="page-sub"><%= t(".subtitle") %></p>
+  </div>
+  <div class="head-actions">
+    <%= link_to t(".add"), new_backup_destination_path, class: "btn" %>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel panel-flush">
+    <% if @destinations.empty? %>
+      <p class="empty-hint"><%= t(".empty") %></p>
+    <% else %>
+      <table>
+        <thead>
+          <tr>
+            <th><%= t(".name") %></th>
+            <th><%= t(".location") %></th>
+            <th><%= t(".used_by") %></th>
+            <th><%= t(".last_check") %></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @destinations.each do |destination| %>
+            <tr>
+              <td><%= destination.name %></td>
+              <td class="mono"><%= destination.location %></td>
+              <td><%= joined_list(destination.backup_plans.map { |plan| "#{plan.managed_app.name} · #{plan.accessory}" }, empty: placeholder(t(".unused"))) %></td>
+              <td>
+                <% if destination.last_check_error %>
+                  <strong class="result-failure"><%= t(".check_failed_at", time: timestamp(destination.last_checked_at)) %></strong>
+                  <p class="hint mono"><%= destination.last_check_error %></p>
+                <% elsif destination.last_checked_at %>
+                  <%= t(".check_ok_at", time: timestamp(destination.last_checked_at)) %>
+                <% else %>
+                  <%= placeholder(t(".never")) %>
+                <% end %>
+              </td>
+              <td>
+                <div class="row-actions">
+                  <%= button_to t(".check"), check_backup_destination_path(destination), method: :post, class: "btn-quiet" %>
+                  <%= link_to t("common.edit"), edit_backup_destination_path(destination), class: "btn-quiet" %>
+                  <%= button_to t(".delete"), backup_destination_path(destination), method: :delete, class: "btn-quiet btn-danger",
+                                form: { data: { turbo_confirm: t(".delete_confirm", name: destination.name), confirm_danger: true } } %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </div>
+</section>

@@ -13,7 +13,8 @@ class ApplicationController < ActionController::Base
     RegistryCredential => RegistryCredentialPolicy,
     GitConnection => GitConnectionPolicy,
     AlertRule => AlertRulePolicy,
-    NotificationChannel => NotificationChannelPolicy
+    NotificationChannel => NotificationChannelPolicy,
+    BackupDestination => BackupDestinationPolicy
   }.freeze
 
   class_attribute :authorization_rules, default: [], instance_writer: false

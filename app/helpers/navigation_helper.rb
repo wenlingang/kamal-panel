@@ -32,7 +32,9 @@ module NavigationHelper
       nav_item(:git, git_connections_path, controllers: "git_connections", icon: "git-branch",
                visible: policy_for(GitConnection).manage?),
       nav_item(:notifications, notification_channels_path, controllers: "notification_channels", icon: "send",
-               visible: policy_for(NotificationChannel).manage?)
+               visible: policy_for(NotificationChannel).manage?),
+      nav_item(:backup_storage, backup_destinations_path, controllers: "backup_destinations", icon: "archive",
+               visible: policy_for(BackupDestination).manage?)
     ].compact
   end
 

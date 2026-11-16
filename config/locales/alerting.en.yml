@@ -107,6 +107,7 @@ en:
     recovered:
       deploy_failed: A later deploy succeeded, so deploys work again.
       action_failed: "A later “%{action}” succeeded."
+      backup_failed: A later backup of %{accessory} succeeded.
     messages:
       unhealthy: A container fails its health check, or a host runs none of this app's containers.
       drift: "Hosts run different versions: %{versions}"
@@ -116,6 +117,7 @@ en:
       deploy_failed: Deploying %{version} failed.
       deploy_unfinished: The deploy of %{version} hasn't reported back %{minutes} minutes after it started.
       action_failed: "“%{action}” failed (%{user})."
+      backup_failed: "Backing up %{accessory} failed: %{error}"
       log_keyword: "“%{keyword}” appeared %{count} times in the last %{window} minutes of logs (threshold %{threshold})."
       cpu_high: The app's containers averaged %{percent}% CPU over the last 3 minutes (threshold %{threshold}%).
       memory_high: Container %{container} (%{host}) is at %{percent}% of its memory (threshold %{threshold}%).
@@ -130,6 +132,7 @@ en:
       drift: Version drift
       deploy_failed: Deploy failed
       action_failed: Action failed
+      backup_failed: Backup failed
       log_keyword: Log keyword
       cpu_high: Container CPU high
       memory_high: Container memory high

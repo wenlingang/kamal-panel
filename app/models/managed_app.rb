@@ -11,6 +11,8 @@ class ManagedApp < ApplicationRecord
   has_many :alert_events, dependent: :destroy
   has_many :container_metrics, dependent: :delete_all
   has_many :host_metrics, dependent: :delete_all
+  has_many :backup_plans, dependent: :destroy
+  has_many :backup_runs, dependent: :destroy
 
   scope :active, -> { where(deactivated_at: nil) }
 

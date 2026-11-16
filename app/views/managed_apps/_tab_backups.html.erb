@@ -1,0 +1,131 @@
+<%# locals: managed_app, status. Accessory database backups: one plan per accessory, its recent runs,
+    and how to restore. Managing and downloading need act?; everyone else sees when backups last ran. %>
+<% can_act = policy_for(managed_app).act? %>
+<% plans = managed_app.backup_plans.includes(:backup_destination).order(:accessory).to_a %>
+<% candidates = BackupPlan.candidates(managed_app) %>
+<% unplanned = candidates.reject { |c| plans.any? { |plan| plan.accessory == c[:name] } } %>
+
+<section class="section">
+  <div class="section-head">
+    <h2><%= t("backup_plans.tab.title") %></h2>
+    <% if can_act && unplanned.any? && BackupDestination.exists? %>
+      <%= link_to new_managed_app_backup_plan_path(managed_app), class: "btn" do %>
+        <%= icon_tag("archive", size: :sm) %><span><%= t("backup_plans.tab.add") %></span>
+      <% end %>
+    <% end %>
+  </div>
+
+  <% if plans.empty? %>
+    <div class="panel">
+      <p class="empty-hint">
+        <% if candidates.empty? %>
+          <%= t("backup_plans.tab.no_candidates") %>
+        <% elsif !BackupDestination.exists? %>
+          <%= t("backup_plans.tab.no_destination") %>
+          <% if policy_for(BackupDestination).manage? %>
+            <%= link_to t("backup_plans.tab.add_destination"), new_backup_destination_path %>
+          <% end %>
+        <% else %>
+          <%= t("backup_plans.tab.none", accessories: candidates.map { |c| c[:name] }.join(", ")) %>
+        <% end %>
+      </p>
+    </div>
+  <% end %>
+
+  <% plans.each do |plan| %>
+    <% runs = plan.backup_runs.recent_first.limit(10).to_a %>
+    <% last = runs.first %>
+    <article class="panel backup-plan">
+      <header class="backup-plan-head">
+        <div>
+          <h3 class="mono"><%= plan.accessory %></h3>
+          <p class="hint">
+            <%= t("backup_plans.engines.#{plan.engine}") %>
+            · <%= plan.database.presence || t("backup_plans.tab.default_database") %>
+            · <%= t("backup_plans.every", count: plan.every_hours) %>
+            · <%= t("backup_plans.tab.keep", count: plan.keep) %>
+            · <%= plan.backup_destination.name %>
+          </p>
+        </div>
+        <div class="row-actions">
+          <% unless plan.enabled? %><span class="badge"><%= t("backup_plans.tab.paused") %></span><% end %>
+          <% if can_act %>
+            <%= button_to run_managed_app_backup_plan_path(managed_app, plan), method: :post, class: "btn" do %>
+              <%= icon_tag("archive", size: :sm) %><span><%= t("backup_plans.tab.run_now") %></span>
+            <% end %>
+            <%= link_to t("common.edit"), edit_managed_app_backup_plan_path(managed_app, plan), class: "btn-quiet" %>
+            <%= button_to t("backup_plans.tab.delete"), managed_app_backup_plan_path(managed_app, plan), method: :delete,
+                          class: "btn-quiet btn-danger",
+                          form: { data: { turbo_confirm: t("backup_plans.tab.delete_confirm", accessory: plan.accessory), confirm_danger: true } } %>
+          <% end %>
+        </div>
+      </header>
+
+      <% if last&.failed? %>
+        <div class="callout callout-warn backup-failure">
+          <p><strong><%= t("backup_plans.tab.last_failed", time: timestamp(last.finished_at)) %></strong></p>
+          <% if (explained = last.explained_failure) %>
+            <p><%= explained[:cause] %> <%= explained[:fix] %></p>
+            <% if explained[:command] %><p><code><%= explained[:command] %></code><%= copy_button(explained[:command]) %></p><% end %>
+          <% end %>
+          <pre class="backup-error"><%= last.error %></pre>
+        </div>
+      <% end %>
+
+      <% if runs.empty? %>
+        <p class="empty-hint"><%= plan.enabled? ? t("backup_plans.tab.first_run", time: timestamp(plan.next_run_at)) : t("backup_plans.tab.never_run") %></p>
+      <% else %>
+        <table>
+          <thead>
+            <tr>
+              <th><%= t("backup_plans.tab.started") %></th>
+              <th><%= t("backup_plans.tab.result") %></th>
+              <th><%= t("backup_plans.tab.size") %></th>
+              <th><%= t("backup_plans.tab.by") %></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% runs.each do |run| %>
+              <tr>
+                <td><%= timestamp(run.started_at) %></td>
+                <td>
+                  <% if run.succeeded? %>
+                    <span class="result-success"><%= t("backup_plans.states.succeeded") %></span>
+                  <% elsif run.failed? %>
+                    <strong class="result-failure"><%= t("backup_plans.states.failed") %></strong>
+                  <% else %>
+                    <span><%= icon_tag("loader-circle", size: :sm, css: "spin") %> <%= t("backup_plans.states.running") %></span>
+                  <% end %>
+                  <% if run.duration %><span class="hint"><%= duration_text((run.duration * 1000).round) %></span><% end %>
+                </td>
+                <td><%= run.size_bytes ? number_to_human_size(run.size_bytes) : placeholder("—") %></td>
+                <td><%= run.user&.display_name || t("backup_plans.tab.scheduled") %></td>
+                <td>
+                  <div class="row-actions">
+                    <% if run.downloadable? && can_act %>
+                      <%= link_to download_managed_app_backup_run_path(managed_app, run), class: "btn-quiet", data: { turbo: false } do %>
+                        <%= icon_tag("download", size: :sm) %><span><%= t("backup_plans.tab.download") %></span>
+                      <% end %>
+                    <% elsif run.pruned_at %>
+                      <span class="hint"><%= t("backup_plans.tab.pruned") %></span>
+                    <% end %>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+
+      <% if can_act %>
+        <details class="backup-restore">
+          <summary><%= icon_tag("rotate-ccw", size: :sm) %><%= t("backup_plans.tab.restore") %></summary>
+          <p class="hint"><%= t("backup_plans.tab.restore_hint") %></p>
+          <% restore = BackupRunner.restore_command(plan) %>
+          <p class="backup-command"><code><%= restore %></code><%= copy_button(restore) %></p>
+        </details>
+      <% end %>
+    </article>
+  <% end %>
+</section>

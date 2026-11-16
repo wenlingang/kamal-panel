@@ -1,0 +1,14 @@
+<%= breadcrumb(t("backup_destinations.index.title"), backup_destinations_path) %>
+
+<div class="page-head">
+  <div class="page-title">
+    <h1><%= @destination.name %></h1>
+    <p class="page-sub"><%= t("backup_destinations.new.subtitle") %></p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="panel">
+    <%= render "form", destination: @destination %>
+  </div>
+</section>

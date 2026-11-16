@@ -102,7 +102,21 @@ module Alerting
       end
 
       def failures(rule, apps, since)
-        rule.condition == "deploy_failed" ? deploy_failures(apps, since) : action_failures(apps, since)
+        case rule.condition
+        when "deploy_failed" then deploy_failures(apps, since)
+        when "backup_failed" then backup_failures(apps, since)
+        else action_failures(apps, since)
+        end
+      end
+
+      # Scheduled and manual backups alike; the accessory says which database.
+      def backup_failures(apps, since)
+        BackupRun.failed.where(managed_app: apps).where(finished_at: since..).includes(:backup_plan).map do |run|
+          { key: "backup_run:#{run.id}", app_id: run.managed_app_id, at: run.finished_at,
+            message_key: "backup_failed",
+            args: { accessory: run.backup_plan.accessory, error: run.error.to_s.lines.last.to_s.strip.truncate(200),
+                    diagnosis: run.diagnosis }.compact }
+        end.reject { |failure| backup_succeeded_since?(failure[:app_id], failure[:args][:accessory], failure[:at]) }
       end
 
       # Panel deploys that failed, and (hook-reported) deploys that started and never reported back:
@@ -156,7 +170,7 @@ module Alerting
       # worth sending ("deploys work again"). One that just got old (EVENT_LOOKBACK) closes quietly.
       def resolve_recovered(rule)
         AlertEvent.firing.where(alert_rule: rule).where.not(dedupe_key: nil).find_each do |event|
-          if succeeded_since?(rule, event.managed_app_id, event.message_args["action_name"], event.started_at)
+          if succeeded_since?(rule, event)
             next unless event.resolve!(now)
 
             Notification.enqueue(event, "resolved")
@@ -173,15 +187,22 @@ module Alerting
         open = AlertEvent.firing.where(alert_rule: rule, managed_app_id: failure[:app_id]).where.not(dedupe_key: nil)
         return open.exists? if rule.condition == "deploy_failed"
 
-        open.any? { |event| event.message_args["action_name"] == failure[:args][:action_name] }
+        detail = rule.condition == "backup_failed" ? "accessory" : "action_name"
+        open.any? { |event| event.message_args[detail] == failure[:args][detail.to_sym] }
       end
 
-      def succeeded_since?(rule, app_id, action_name, time)
-        if rule.condition == "deploy_failed"
-          deploy_succeeded_since?(app_id, time)
-        else
-          action_succeeded_since?(app_id, action_name, time)
+      def succeeded_since?(rule, event)
+        args = event.message_args
+        case rule.condition
+        when "deploy_failed" then deploy_succeeded_since?(event.managed_app_id, event.started_at)
+        when "backup_failed" then backup_succeeded_since?(event.managed_app_id, args["accessory"], event.started_at)
+        else action_succeeded_since?(event.managed_app_id, args["action_name"], event.started_at)
         end
+      end
+
+      def backup_succeeded_since?(app_id, accessory, time)
+        BackupRun.succeeded.joins(:backup_plan).where(managed_app_id: app_id, backup_plans: { accessory: })
+                 .where("backup_runs.finished_at > ?", time).exists?
       end
 
       def deploy_succeeded_since?(app_id, time)

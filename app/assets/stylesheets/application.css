@@ -3757,3 +3757,91 @@ label.check-row {
   background: var(--panel-sunken);
   border-radius: var(--radius-control);
 }
+
+/* Two short fields side by side (bucket + region); one column on a phone. */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-md);
+}
+
+/* ── App backups tab: one panel per accessory plan ──────────────────── */
+.backup-plan {
+  margin-bottom: var(--space-md);
+  padding: 0;
+  overflow: hidden;
+}
+
+.backup-plan-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+
+.backup-plan-head h3 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.backup-plan-head .hint {
+  margin: var(--space-xs) 0 0;
+}
+
+.backup-plan .empty-hint {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.backup-failure {
+  margin: var(--space-md) var(--space-lg);
+}
+
+.backup-failure p {
+  margin: 0 0 var(--space-xs);
+}
+
+.backup-error {
+  max-height: 8rem;
+  margin: var(--space-xs) 0 0;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+}
+
+.backup-restore {
+  padding: var(--space-sm) var(--space-lg) var(--space-md);
+  border-top: var(--hairline) solid var(--rule);
+}
+
+.backup-restore summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+.backup-command {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.backup-command code {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre;
+  background: var(--panel-sunken);
+  border-radius: var(--radius-control);
+}
+
+.result-success {
+  color: var(--ok-ink);
+}
