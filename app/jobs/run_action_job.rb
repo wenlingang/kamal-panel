@@ -35,7 +35,10 @@ class RunActionJob < ApplicationJob
     log.finish!(result: status.zero? ? "success" : "failure",
                 command: "kamal #{action.cli_args.join(' ')}",
                 output_digest: result[:output],
-                duration_ms: ((Time.current - started) * 1000).round)
+                duration_ms: ((Time.current - started) * 1000).round,
+                # Read from the whole output, not the stored digest: the error may be in the part
+                # the digest drops.
+                diagnosis: (FailureDiagnosis.call(result[:output]) unless status.zero?))
     finish_deploy_event(event, success: status.zero?)
     broadcast_result(log)
 

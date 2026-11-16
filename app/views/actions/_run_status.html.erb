@@ -8,7 +8,8 @@
            end %>
 <% icon = { "running" => "loader-circle", "success" => "circle-check",
             "failure" => "circle-x", "interrupted" => "circle-alert" }.fetch(state) %>
-<div id="action-result" class="run-status run-<%= state %>">
+<div id="action-result">
+<div class="run-status run-<%= state %>">
   <span class="run-state"><%= icon_tag(icon, css: ("spin" if state == "running")) %><strong><%= t("actions.run_status.#{state}") %></strong></span>
   <% if (detail = t("actions.run_status.#{state}_detail", default: "")).present? %>
     <span class="run-detail"><%= detail %></span>
@@ -16,4 +17,15 @@
   <% if log.duration_ms %>
     <span class="run-duration"><%= t("actions.run_status.duration", duration: duration_text(log.duration_ms)) %></span>
   <% end %>
+</div>
+</div>
+<% if state == "failure" && (explained = log.explained_failure) %>
+  <div class="run-diagnosis">
+    <p class="run-diagnosis-cause"><strong><%= t("failure_diagnosis.title") %></strong> <%= explained[:cause] %></p>
+    <p class="run-diagnosis-fix"><strong><%= t("failure_diagnosis.fix") %></strong> <%= explained[:fix] %></p>
+    <% if explained[:command] %>
+      <p class="run-diagnosis-command"><code><%= explained[:command] %></code><%= copy_button(explained[:command]) %></p>
+    <% end %>
+  </div>
+<% end %>
 </div>

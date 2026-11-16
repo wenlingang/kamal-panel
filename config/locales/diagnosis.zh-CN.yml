@@ -1,0 +1,79 @@
+# Failure diagnosis (FailureDiagnosis): what a failed kamal run most likely ran into, and what to do.
+zh-CN:
+  failure_diagnosis:
+    title: "可能的原因"
+    fix: "怎么处理"
+    copy: "复制"
+    unknown: "（输出里没有写明）"
+    timed_out:
+      cause: "命令超过了面板的执行时限，已被终止。"
+      fix: "如果发布本来就慢（镜像很大、健康检查很长），需要调大时限；否则看上面的输出卡在哪一步，常见是某台主机没有响应。"
+    deploy_lock:
+      cause: "这个应用的 Kamal 发布锁被另一个发布占着。"
+      fix: "等它结束。如果其实没有发布在进行（之前的执行中途断了），在「操作」页用「强制解锁」释放。"
+    host_key_mismatch:
+      cause: "主机的 SSH 指纹和面板之前记录的不一致，连接被拒绝。"
+      fix: "如果服务器重装或换过，删掉旧指纹后重连；如果没有，可能有人在中间劫持，先核实再信任新指纹。"
+    ssh_auth:
+      cause: "主机拒绝了以 %{user} 身份的 SSH 登录。"
+      fix: "确认应用绑定的 SSH 凭据，其公钥在每台主机该用户的 ~/.ssh/authorized_keys 里，并且 deploy.yml 里的用户名正确。"
+    ssh_unreachable:
+      cause: "面板通过 SSH 连不上某台主机。"
+      fix: "确认主机在线、deploy.yml 里的地址正确、22 端口（或配置的端口）对面板开放。"
+    docker_missing:
+      cause: "主机上没有安装 Docker，而 Kamal 发布离不开它。"
+      fix: "用 root 在主机上安装 Docker，或执行 \"kamal server bootstrap\"，然后重新发布。"
+    docker_permission:
+      cause: "SSH 用户没有权限使用主机上的 Docker。"
+      fix: "把该用户加入主机的 docker 组并重新登录（或改用 root 发布）。"
+    docker_daemon_down:
+      cause: "主机装了 Docker，但没有在运行。"
+      fix: "在主机上启动 Docker 并设为开机自启，然后重新发布。"
+    disk_full:
+      cause: "主机磁盘满了。"
+      fix: "腾出空间后重新发布。旧镜像和构建缓存通常占得最多；「操作」页的「清理旧镜像」可以删掉本应用的旧镜像。"
+    registry_rate_limit:
+      cause: "镜像仓库因为这台主机下载次数超限，拒绝发送镜像。"
+      fix: "稍后重试，或在主机上登录镜像仓库以获得更高额度。"
+    registry_auth:
+      cause: "镜像仓库拒绝了登录，镜像拉不下来。"
+      fix: "检查应用绑定的镜像仓库凭据（用户名、令牌，以及令牌是否有这个仓库的读权限），然后重新发布。"
+    image_missing:
+      cause: "镜像仓库里没有这个版本的镜像。"
+      fix: "面板发布的是 CI 已经推送的版本。确认 CI 确实构建并推送了这个 tag，且 deploy.yml 里的镜像名和 CI 推送的一致。"
+    secret_missing:
+      cause: "发布需要密钥 %{name}，但它没有设置。"
+      fix: "在面板上的项目副本里，把它加到 .kamal/secrets（或对应 destination 的 secrets 文件），然后重新发布。"
+    port_in_use:
+      cause: "应用或 accessory 需要的端口在主机上已经被占用。"
+      fix: "停掉占用端口的进程，或在 deploy.yml 里换个端口。在主机上执行下面的命令查看谁在监听："
+    out_of_memory:
+      cause: "进程内存不足，被 Linux 终止。"
+      fix: "给主机加内存或 swap，或降低应用的内存占用（进程数、堆上限）。如果是构建阶段，改到 CI 里构建。"
+    health_check_failed:
+      cause: "新版本启动了，但一直没通过健康检查，流量仍留在旧版本上。"
+      fix: "确认应用监听的端口与 kamal-proxy 期望的一致（proxy.app_port），且健康检查路径返回 200。应用日志能看出它是否启动就崩了。"
+    container_exited:
+      cause: "新容器启动后立刻退出了。"
+      fix: "看应用日志找原因，常见是缺环境变量、连不上数据库或迁移失败。"
+    buildx_missing:
+      cause: "构建机器上的 Docker 没有 buildx 插件，Kamal 构建需要它。"
+      fix: "在构建机器上安装 docker-buildx 插件，或改为在 CI 构建、由面板发布已推送的版本。"
+    build_copy_missing:
+      cause: "Dockerfile 复制了一个不在构建上下文里的文件。"
+      fix: "常见是被 .gitignore 或 .dockerignore 排除了，或者只存在于某台电脑上。提交该文件，或修改 COPY 行。"
+    build_npm_lock:
+      cause: "package-lock.json 缺失或与 package.json 不一致，\"npm ci\" 无法安装。"
+      fix: "在本地执行 \"npm install\"，提交更新后的 package-lock.json，再重新构建。"
+    build_npm_script:
+      cause: "构建执行了 \"npm run build\"，但 package.json 里没有 build 脚本。"
+      fix: "在 package.json 里加上 \"build\" 脚本，或从 Dockerfile 里去掉这一步。"
+    build_runtime_version:
+      cause: "项目需要的语言运行时版本和构建镜像里的不一致。"
+      fix: "把 Dockerfile FROM 行里的版本改成项目支持的版本。"
+    build_dependencies:
+      cause: "构建时项目依赖装不上。"
+      fix: "上面的输出写了是哪个包、为什么。常见是版本不存在、lock 文件需要更新，或镜像里缺系统库。"
+    network:
+      cause: "主机或构建机器访问不了网络，拿不到需要的东西。"
+      fix: "检查主机的 DNS 和出站网络（在主机上试试 \"curl -I https://github.com\"），然后重试。"

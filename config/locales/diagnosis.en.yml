@@ -1,0 +1,79 @@
+# Failure diagnosis (FailureDiagnosis): what a failed kamal run most likely ran into, and what to do.
+en:
+  failure_diagnosis:
+    title: "Likely cause"
+    fix: "What to do"
+    copy: "Copy"
+    unknown: "(not named in the output)"
+    timed_out:
+      cause: "The command ran past the panel's time limit and was stopped."
+      fix: "A deploy that is slow on purpose (a large image, a long health check) needs a longer limit. Otherwise the output above shows where it stalled, often a host that stopped answering."
+    deploy_lock:
+      cause: "Another deploy holds Kamal's deploy lock on this app."
+      fix: "Wait for it to finish. If nothing is deploying (a run that died halfway), release the lock with \"Force unlock\" on the Actions tab."
+    host_key_mismatch:
+      cause: "A host's SSH key is not the one the panel saw before, so the connection was refused."
+      fix: "If the server was rebuilt or replaced, remove the old key and connect again. If it wasn't, someone may be in between: check before trusting the new key."
+    ssh_auth:
+      cause: "The host refused the SSH login as %{user}."
+      fix: "Check that the app's SSH credential is the key whose public half is in that user's ~/.ssh/authorized_keys on every host, and that the user in deploy.yml is right."
+    ssh_unreachable:
+      cause: "The panel couldn't reach a host over SSH."
+      fix: "Check the host is up, its address in deploy.yml is right, and port 22 (or the configured port) is open to the panel."
+    docker_missing:
+      cause: "Docker isn't installed on a host, and every Kamal deploy needs it."
+      fix: "Install Docker on the host as root, or run \"kamal server bootstrap\", then deploy again."
+    docker_permission:
+      cause: "The SSH user isn't allowed to use Docker on the host."
+      fix: "Add the user to the docker group on the host, then log out and back in (or deploy as root)."
+    docker_daemon_down:
+      cause: "Docker is installed on a host but isn't running."
+      fix: "Start Docker on the host and enable it at boot, then deploy again."
+    disk_full:
+      cause: "A host ran out of disk space."
+      fix: "Free some space, then deploy again. Old images and build cache are usually the biggest; \"Prune old images\" on the Actions tab removes old images of this app."
+    registry_rate_limit:
+      cause: "The registry refused to send the image because this host hit its download limit."
+      fix: "Wait and try again, or log in to the registry on the hosts for a higher limit."
+    registry_auth:
+      cause: "The registry rejected the login, so the image couldn't be pulled."
+      fix: "Check the registry credential set on this app (user and token, and that the token can read this repository), then deploy again."
+    image_missing:
+      cause: "The image for this version isn't in the registry."
+      fix: "The panel deploys versions CI has already pushed. Check that CI built and pushed this tag, and that the image name in deploy.yml matches the one CI pushes to."
+    secret_missing:
+      cause: "The deploy needs the secret %{name}, and it isn't set."
+      fix: "Add it to .kamal/secrets (or the destination's secrets file) on the panel's copy of the project, then deploy again."
+    port_in_use:
+      cause: "A port the app or an accessory needs is already taken on the host."
+      fix: "Stop whatever is using it, or change the port in deploy.yml. Run this on the host to see what is listening:"
+    out_of_memory:
+      cause: "The process ran out of memory and Linux stopped it."
+      fix: "Add memory or swap to the host, or lower the app's memory use (worker counts, heap limits). For a build, build in CI instead of on the host."
+    health_check_failed:
+      cause: "The new version started but never passed its health check, so traffic stayed on the old one."
+      fix: "Check that the app listens on the port kamal-proxy expects (proxy.app_port) and that the health check path answers 200. The app's logs show whether it crashed on start."
+    container_exited:
+      cause: "The new container stopped right after it started."
+      fix: "The app's logs show why. Usually a missing environment variable, a database it can't reach, or a migration that failed."
+    buildx_missing:
+      cause: "Docker on the build machine has no buildx plugin, which Kamal builds need."
+      fix: "Install the docker-buildx plugin on the machine that builds, or build in CI and deploy pushed versions from the panel."
+    build_copy_missing:
+      cause: "The Dockerfile copies a file that isn't in the build context."
+      fix: "It's often excluded by .gitignore or .dockerignore, or only exists on one computer. Commit it or change the COPY line."
+    build_npm_lock:
+      cause: "package-lock.json is missing or doesn't match package.json, so \"npm ci\" won't install."
+      fix: "Run \"npm install\" locally, commit the updated package-lock.json, and build again."
+    build_npm_script:
+      cause: "The build runs \"npm run build\", but package.json has no build script."
+      fix: "Add a \"build\" script to package.json, or remove that step from the Dockerfile."
+    build_runtime_version:
+      cause: "The project needs a different version of its language runtime than the build image has."
+      fix: "Change the version in the Dockerfile's FROM line to one the project supports."
+    build_dependencies:
+      cause: "The build couldn't install the project's dependencies."
+      fix: "The lines above say which package and why. Usually a version that doesn't exist, a lock file to update, or a system library missing from the image."
+    network:
+      cause: "A host or the builder couldn't reach the network to fetch what it needed."
+      fix: "Check DNS and outbound access on the host (try \"curl -I https://github.com\" there), then try again."

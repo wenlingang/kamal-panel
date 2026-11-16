@@ -35,6 +35,13 @@ class AuditLog < ApplicationRecord
   # Interpolation arguments for translatable objects. Defaults to {} rather than nil, saving every
   # reader from writing its own nil check.
   serialize :detail_args, coder: JSON, type: Hash
+  # FailureDiagnosis's verdict on a failed run, nil when it had none (or the run didn't fail).
+  serialize :diagnosis, coder: JSON
+
+  # What is kept of a run's output. A failure's error is at the end, so a long output keeps its
+  # head and its tail and drops the middle (usually build or pull progress).
+  OUTPUT_LIMIT = 4000
+  OUTPUT_HEAD = 800
 
   # Audit logs cannot be deleted, and the UI offers no delete entry point.
   def destroy = raise(ActiveRecord::ReadOnlyRecord, "审计日志不可删除")
@@ -74,14 +81,24 @@ class AuditLog < ApplicationRecord
     result == "pending" && created_at < INTERRUPTED_AFTER.ago
   end
 
-  def finish!(result:, command:, output_digest:, duration_ms:)
+  def self.digest(output)
+    output = output.to_s
+    return output if output.length <= OUTPUT_LIMIT
+
+    marker = "\n…\n"
+    output[0, OUTPUT_HEAD] + marker + output[-(OUTPUT_LIMIT - OUTPUT_HEAD - marker.length)..]
+  end
+
+  def explained_failure = diagnosis && FailureDiagnosis.explain(diagnosis)
+
+  def finish!(result:, command:, output_digest:, duration_ms:, diagnosis: nil)
     unless RESULTS.include?(result)
       raise ArgumentError, "无效的 result：#{result.inspect}（必须是 #{RESULTS.join('/')}之一）"
     end
 
     # Finish validation before writing to the DB — there is no intermediate state of "half written,
     # and validation only then finds it wrong".
-    update_columns(result:, command:, output_digest: output_digest.to_s.truncate(4000),
-                   duration_ms:, finished_at: Time.current)
+    update_columns(result:, command:, output_digest: self.class.digest(output_digest),
+                   diagnosis:, duration_ms:, finished_at: Time.current)
   end
 end

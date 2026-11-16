@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_100000) do
   create_table "alert_events", force: :cascade do |t|
     t.integer "alert_rule_id", null: false
     t.datetime "created_at", null: false
@@ -71,6 +71,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_080000) do
     t.string "detail"
     t.text "detail_args"
     t.string "detail_key"
+    t.text "diagnosis"
     t.integer "duration_ms"
     t.datetime "finished_at"
     t.text "hosts"

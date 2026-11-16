@@ -104,6 +104,9 @@ zh-CN:
       hint: 通知渠道由超管在「设置 → 通知」里管理；这里只显示脱敏后的地址。
 
   alert_events:
+    recovered:
+      deploy_failed: 之后的一次发布已成功，发布恢复正常。
+      action_failed: "之后的一次「%{action}」已成功。"
     messages:
       unhealthy: 有容器健康检查失败，或有主机上没有运行中的容器。
       drift: 各主机运行的版本不一致：%{versions}
@@ -134,7 +137,7 @@ zh-CN:
       host_disk_high: 主机磁盘将满
     summary:
       log_keyword: "%{window} 分钟内「%{keyword}」≥ %{threshold} 次（来源 %{source}）"
-      per_event: 每次发生即通知一次
+      per_event: 连续失败只通知第一次，之后成功时再通知恢复
       metric: ≥ %{threshold}%，持续 %{count} 分钟后触发
       metric_immediately: ≥ %{threshold}% 即触发
       immediately: 成立即触发

@@ -104,6 +104,9 @@ en:
       hint: Admins manage channels under Settings → Notifications; addresses are masked here.
 
   alert_events:
+    recovered:
+      deploy_failed: A later deploy succeeded, so deploys work again.
+      action_failed: "A later “%{action}” succeeded."
     messages:
       unhealthy: A container fails its health check, or a host runs none of this app's containers.
       drift: "Hosts run different versions: %{versions}"
@@ -134,7 +137,7 @@ en:
       host_disk_high: Host disk filling up
     summary:
       log_keyword: "“%{keyword}” ≥ %{threshold} times in %{window} min (source %{source})"
-      per_event: Notifies once per occurrence
+      per_event: Notifies on the first failure in a row, and again when it next succeeds
       metric: "≥ %{threshold}%, fires after %{count} min"
       metric_immediately: "≥ %{threshold}%, fires at once"
       immediately: Fires at once

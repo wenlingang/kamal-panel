@@ -42,4 +42,14 @@ class AuditLogTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::ReadOnlyRecord) { AuditLog.delete_all }
     assert AuditLog.exists?(log.id)
   end
+
+  test "a long output keeps its head and its tail, where the error is" do
+    output = "start\n" + ("progress line\n" * 1000) + "ERROR: the actual problem\n"
+    digest = AuditLog.digest(output)
+
+    assert_operator digest.length, :<=, AuditLog::OUTPUT_LIMIT
+    assert digest.start_with?("start")
+    assert_includes digest, "ERROR: the actual problem"
+    assert_equal "short", AuditLog.digest("short")
+  end
 end

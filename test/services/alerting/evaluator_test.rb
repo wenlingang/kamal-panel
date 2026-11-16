@@ -89,7 +89,47 @@ class Alerting::EvaluatorTest < ActiveSupport::TestCase
       Alerting::Evaluator.call(now: @start + 5.minutes)
     end
     assert_predicate event.reload, :resolved?
-    assert_equal 0, deliveries("resolved")
+    assert_equal 1, deliveries("resolved"), "deploys working again is news"
+  end
+
+  test "a run of failed deploys notifies once, with the diagnosis, and the next success ends it" do
+    rule = AlertRule.create!(name: "发布失败", condition: "deploy_failed", for_minutes: 0, notification_channels: [ @channel ],
+                            created_at: @start - 1.hour)
+    user = User.create!(email_address: "op@example.com", password: "secret123456", role: "admin")
+    log = AuditLog.start!(user:, managed_app: @app, action_name: "deploy", target_version: "bad0001", hosts: [])
+    log.finish!(result: "failure", command: "kamal deploy", output_digest: "x", duration_ms: 1,
+                diagnosis: { "key" => "image_missing", "args" => {} })
+
+    travel_to(@start) do
+      DeployEvent.create!(managed_app: @app, version: "bad0001", source: "panel", audit_log: log,
+                          started_at: @start - 5.minutes, failed_at: @start - 4.minutes)
+      DeployEvent.create!(managed_app: @app, version: "bad0002", source: "panel",
+                          started_at: @start - 3.minutes, failed_at: @start - 2.minutes)
+      Alerting::Evaluator.call(now: @start)
+    end
+
+    first = AlertEvent.find_by!(alert_rule: rule)
+    assert_equal 1, AlertEvent.where(alert_rule: rule).count, "the second failure in a row is the same news"
+    assert_includes first.message, "bad0001"
+    assert_includes Notifiers::Message.for_event(first, "firing").body, I18n.t("failure_diagnosis.image_missing.cause", locale: I18n.default_locale)
+
+    travel_to(@start + 5.minutes) do
+      DeployEvent.create!(managed_app: @app, version: "good003", source: "panel", started_at: @start + 3.minutes,
+                          succeeded_at: @start + 4.minutes)
+      Alerting::Evaluator.call(now: @start + 5.minutes)
+    end
+
+    assert_predicate first.reload, :resolved?
+    assert_equal 1, AlertEvent.where(alert_rule: rule).count, "failures before the success stay quiet"
+    assert_equal I18n.t("alert_events.recovered.deploy_failed", locale: I18n.default_locale),
+                 Notifiers::Message.for_event(first, "resolved").text
+
+    travel_to(@start + 10.minutes) do
+      DeployEvent.create!(managed_app: @app, version: "bad0004", source: "panel", started_at: @start + 8.minutes,
+                          failed_at: @start + 9.minutes)
+      Alerting::Evaluator.call(now: @start + 10.minutes)
+    end
+    assert_equal 2, AlertEvent.where(alert_rule: rule).count, "a failure after a success is news again"
   end
 
   # ── Log rules: scheduled here, scanned elsewhere ───────────────────────────────────────────────

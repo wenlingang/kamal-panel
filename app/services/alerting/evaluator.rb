@@ -84,8 +84,12 @@ module Alerting
         apps = rule.apps.to_a
         since = [ rule.created_at, now - EVENT_LOOKBACK ].max
 
-        failures(rule, apps, since).each do |failure|
+        failures(rule, apps, since).sort_by { |failure| failure[:at] }.each do |failure|
           next if AlertEvent.exists?(alert_rule: rule, dedupe_key: failure[:key])
+          # One message per run of failures: while an earlier failure of the same thing is still
+          # firing, a repeat is the same news. It isn't recorded either, so if that earlier one
+          # closes without a success (it aged out), the repeat fires then, as a reminder.
+          next if failure_streak_open?(rule, failure)
 
           event = open_firing(rule, failure)
           next if event.nil?
@@ -105,9 +109,10 @@ module Alerting
       # Kamal has no failure hook, so silence past DeployEvent::UNFINISHED_AFTER is how a failed CI
       # deploy shows up (the same reading as DeployAlerts' "unfinished").
       def deploy_failures(apps, since)
-        failed = DeployEvent.where(managed_app: apps).where(failed_at: since..).map do |event|
+        failed = DeployEvent.where(managed_app: apps).where(failed_at: since..).includes(:audit_log).map do |event|
           { key: "deploy_event:#{event.id}", app_id: event.managed_app_id, at: event.failed_at,
-            message_key: "deploy_failed", args: { version: event.version } }
+            message_key: "deploy_failed",
+            args: { version: event.version, diagnosis: event.audit_log&.diagnosis }.compact }
         end
 
         unfinished = DeployEvent.where(managed_app: apps).not_failed
@@ -129,7 +134,7 @@ module Alerting
                 .where(finished_at: since..).map do |log|
           { key: "audit_log:#{log.id}", app_id: log.managed_app_id, at: log.finished_at,
             message_key: "action_failed",
-            args: { action_name: log.action_name, user: log.user&.display_name.to_s } }
+            args: { action_name: log.action_name, user: log.user&.display_name.to_s, diagnosis: log.diagnosis }.compact }
         end.reject { |failure| action_succeeded_since?(failure[:app_id], failure[:args][:action_name], failure[:at]) }
       end
 
@@ -147,19 +152,35 @@ module Alerting
         nil
       end
 
-      # An event-type alert ends when the same thing next succeeds on that app (or after
-      # EVENT_LOOKBACK). Not notified: the failure was the news.
+      # An event-type alert ends when the same thing next succeeds on that app, and that is news
+      # worth sending ("deploys work again"). One that just got old (EVENT_LOOKBACK) closes quietly.
       def resolve_recovered(rule)
         AlertEvent.firing.where(alert_rule: rule).where.not(dedupe_key: nil).find_each do |event|
-          recovered =
-            event.started_at < now - EVENT_LOOKBACK ||
-            if rule.condition == "deploy_failed"
-              deploy_succeeded_since?(event.managed_app_id, event.started_at)
-            else
-              action_succeeded_since?(event.managed_app_id, event.message_args["action_name"], event.started_at)
-            end
+          if succeeded_since?(rule, event.managed_app_id, event.message_args["action_name"], event.started_at)
+            next unless event.resolve!(now)
 
-          changed!(event.managed_app_id) if recovered && event.close_silently!(now)
+            Notification.enqueue(event, "resolved")
+            changed!(event.managed_app_id)
+          elsif event.started_at < now - EVENT_LOOKBACK
+            changed!(event.managed_app_id) if event.close_silently!(now)
+          end
+        end
+      end
+
+      # A failure of the same thing on the same app is already firing (for actions: the same
+      # action; a failed restart doesn't hide a failed reboot).
+      def failure_streak_open?(rule, failure)
+        open = AlertEvent.firing.where(alert_rule: rule, managed_app_id: failure[:app_id]).where.not(dedupe_key: nil)
+        return open.exists? if rule.condition == "deploy_failed"
+
+        open.any? { |event| event.message_args["action_name"] == failure[:args][:action_name] }
+      end
+
+      def succeeded_since?(rule, app_id, action_name, time)
+        if rule.condition == "deploy_failed"
+          deploy_succeeded_since?(app_id, time)
+        else
+          action_succeeded_since?(app_id, action_name, time)
         end
       end
 

@@ -3726,3 +3726,34 @@ label.check-row {
   display: inline-block;
   color: var(--ok-ink);
 }
+
+/* ── Action run page: what a failure most likely was (FailureDiagnosis) ── */
+.run-diagnosis {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  color: var(--ink);
+  background: var(--panel);
+  border-bottom: var(--hairline) solid var(--output-rule);
+}
+
+.run-diagnosis p {
+  margin: 0;
+}
+
+.run-diagnosis strong {
+  margin-right: var(--space-xs);
+}
+
+.run-diagnosis-command {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.run-diagnosis-command code {
+  padding: 2px var(--space-xs);
+  font-family: var(--font-mono);
+  background: var(--panel-sunken);
+  border-radius: var(--radius-control);
+}

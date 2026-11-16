@@ -75,4 +75,17 @@ class ActionsControllerTest < ActionDispatch::IntegrationTest
     ManagedApp.create!(name: "shop", config_yaml: file_fixture("accessory_deploy.yml").read,
                        destination: "production")
   end
+
+  test "a failed run's page says what most likely went wrong, with the command to copy" do
+    sign_in("admin")
+    log = AuditLog.start!(user: User.last, managed_app: @managed_app, action_name: "deploy", target_version: "abc", hosts: [])
+    log.finish!(result: "failure", command: "kamal deploy", output_digest: "Deploy lock found", duration_ms: 5,
+                diagnosis: FailureDiagnosis.call("Deploy lock found"))
+
+    get managed_app_action_path(@managed_app, log)
+
+    assert_response :success
+    assert_select ".run-diagnosis", text: /#{Regexp.escape(I18n.t("failure_diagnosis.deploy_lock.cause"))}/
+    assert_select ".run-diagnosis-command code", text: "kamal lock status"
+  end
 end
