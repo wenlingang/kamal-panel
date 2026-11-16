@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_16_130000) do
   create_table "alert_events", force: :cascade do |t|
     t.integer "alert_rule_id", null: false
     t.datetime "created_at", null: false
@@ -221,6 +221,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
     t.index ["managed_app_id"], name: "index_deploy_events_on_managed_app_id"
   end
 
+  create_table "dismissed_issues", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "issue_key", null: false
+    t.string "since", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id"
+    t.index ["issue_key", "since"], name: "index_dismissed_issues_on_issue_key_and_since", unique: true
+    t.index ["user_id"], name: "index_dismissed_issues_on_user_id"
+  end
+
   create_table "git_connections", force: :cascade do |t|
     t.string "api_url", null: false
     t.text "ca_certificate"
@@ -280,6 +290,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
     t.text "last_poll_error"
     t.datetime "last_poll_error_at"
     t.string "name", null: false
+    t.string "public_name"
+    t.boolean "public_status", default: false, null: false
     t.integer "registry_credential_id"
     t.string "repository"
     t.integer "ssh_credential_id"
@@ -303,6 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
     t.text "secret"
     t.text "target", null: false
     t.datetime "updated_at", null: false
+    t.boolean "weekly_summary", default: false, null: false
     t.index ["name"], name: "index_notification_channels_on_name", unique: true
   end
 
@@ -358,6 +371,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "status_samples", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "day", null: false
+    t.integer "degraded", default: 0, null: false
+    t.integer "managed_app_id", null: false
+    t.integer "ok", default: 0, null: false
+    t.integer "total", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["managed_app_id", "day"], name: "index_status_samples_on_managed_app_id_and_day", unique: true
+    t.index ["managed_app_id"], name: "index_status_samples_on_managed_app_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "deactivated_at"
@@ -390,6 +415,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
   add_foreign_key "container_metrics", "managed_apps"
   add_foreign_key "deploy_events", "audit_logs"
   add_foreign_key "deploy_events", "managed_apps"
+  add_foreign_key "dismissed_issues", "users"
   add_foreign_key "host_metrics", "managed_apps"
   add_foreign_key "managed_apps", "credentials", column: "ssh_credential_id"
   add_foreign_key "managed_apps", "git_connections"
@@ -397,4 +423,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_16_120000) do
   add_foreign_key "observations", "managed_apps"
   add_foreign_key "proxy_targets", "managed_apps"
   add_foreign_key "sessions", "users"
+  add_foreign_key "status_samples", "managed_apps"
 end

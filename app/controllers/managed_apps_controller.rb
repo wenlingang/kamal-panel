@@ -44,7 +44,10 @@ class ManagedAppsController < ApplicationController
   end
 
   def update
-    changed = update_params.keys.select { |key| @managed_app.send(key) != update_params[key] }
+    # Compared after casting, so a checkbox's "1" against a stored true isn't counted as a change.
+    changed = update_params.keys.select do |key|
+      @managed_app.send(key) != ManagedApp.type_for_attribute(key).cast(update_params[key])
+    end
 
     if @managed_app.update(update_params)
       clear_poll_error_if_config_changed(changed)
@@ -95,11 +98,12 @@ class ManagedAppsController < ApplicationController
       params.expect(managed_app: [ :name, :config_yaml, :destination, :destination_config_yaml,
                                    :kamal_secrets, :kamal_hooks,
                                    :ssh_credential_id, :registry_credential_id,
-                                   :git_connection_id, *GIT_FIELDS ])
+                                   :git_connection_id, :public_status, :public_name, *GIT_FIELDS ])
     end
 
     def update_params
-      permitted = [ :name, :config_yaml, :destination_config_yaml, :kamal_secrets, :kamal_hooks, *GIT_FIELDS ]
+      permitted = [ :name, :config_yaml, :destination_config_yaml, :kamal_secrets, :kamal_hooks,
+                    :public_status, :public_name, *GIT_FIELDS ]
       permitted += [ :ssh_credential_id, :registry_credential_id, :git_connection_id ] if assign_credentials?
 
       params.expect(managed_app: permitted)

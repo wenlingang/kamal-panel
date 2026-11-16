@@ -38,3 +38,10 @@ class ExecutionLayerTest < ActiveSupport::TestCase
     FakeHost.reset_all!
   end
 end
+
+# Signing in is rate limited (SessionsController) and the counter lives in the cache, which the
+# whole run shares: with enough integration tests signing in, whichever ones run after the tenth
+# login within three minutes would be turned away, depending on test order. Each starts clean.
+ActiveSupport.on_load(:action_dispatch_integration_test) do
+  setup { Rails.cache.clear }
+end

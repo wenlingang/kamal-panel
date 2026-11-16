@@ -17,6 +17,8 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
   # Whether the background work (collection, alerting) is still running; 503 when it stalled.
   get "health" => "health#show", as: :panel_health
+  # The public status page: no sign-in, only the apps listed on it (StatusPagesController).
+  get "status" => "status_pages#show", as: :status_page
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in
   # application.html.erb) get "manifest" => "rails/pwa#manifest", as: :pwa_manifest get
@@ -106,6 +108,8 @@ Rails.application.routes.draw do
   end
 
   resource :overview, only: [ :show ]
+  # "Seen" on an overview needs-attention item (AttentionItems); it returns if the problem restarts.
+  resources :dismissed_issues, only: [ :create ], path: "attention/dismissed"
 
   # Defines the root path route ("/")
   root "overviews#show"

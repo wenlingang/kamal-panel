@@ -3902,3 +3902,151 @@ label.check-row {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Overview: needs attention ─────────────────────────────────────── */
+.attention h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.attention-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--panel);
+  border: var(--hairline) solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
+.attention-item form {
+  margin: 0 0 0 auto;
+}
+
+.attention-mark {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--unknown-edge);
+}
+
+.attention-critical .attention-mark { background: var(--unhealthy-edge); }
+.attention-warning .attention-mark { background: var(--drift-edge); }
+
+.attention-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Public status page (/status) ──────────────────────────────────── */
+.status-body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: var(--font-ui);
+}
+
+.status-page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--space-xl, 2rem) var(--space-md);
+}
+
+.status-head h1 {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-xl);
+}
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  font-weight: 600;
+  border-radius: var(--radius-panel);
+}
+
+.status-banner.status-ok       { color: var(--ok-ink);        background: var(--ok-bg); }
+.status-banner.status-degraded { color: var(--drift-ink);     background: var(--drift-bg); }
+.status-banner.status-down     { color: var(--unhealthy-ink); background: var(--unhealthy-bg); }
+.status-banner.status-unknown  { color: var(--unknown-ink);   background: var(--unknown-bg); }
+
+.status-dot {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-apps {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.status-app {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--panel);
+  border: var(--hairline) solid var(--rule);
+  border-radius: var(--radius-panel);
+}
+
+.status-app-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.status-level {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.status-level.status-ok       { color: var(--ok-ink); }
+.status-level.status-degraded { color: var(--drift-ink); }
+.status-level.status-down     { color: var(--unhealthy-ink); }
+.status-level.status-unknown  { color: var(--unknown-ink); }
+
+.status-days {
+  display: grid;
+  grid-template-columns: repeat(30, 1fr);
+  gap: 2px;
+  height: 2rem;
+}
+
+.status-day {
+  border-radius: 2px;
+  background: var(--hb-empty);
+}
+
+.status-day.status-ok       { background: var(--ok-edge); }
+.status-day.status-degraded { background: var(--drift-edge); }
+.status-day.status-down     { background: var(--unhealthy-edge); }
+
+.status-uptime {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--space-xs) 0 0;
+}
+
+.status-foot {
+  margin-top: var(--space-lg);
+  text-align: center;
+}

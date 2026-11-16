@@ -1,0 +1,31 @@
+<% overall = @page.overall %>
+<header class="status-head">
+  <h1><%= t(".title") %></h1>
+  <p class="status-banner status-<%= overall %>">
+    <span class="status-dot" aria-hidden="true"></span><%= t(".overall.#{overall}") %>
+  </p>
+</header>
+
+<ul class="status-apps">
+  <% @page.rows.each do |row| %>
+    <li class="status-app">
+      <div class="status-app-head">
+        <strong><%= row.name %></strong>
+        <span class="status-level status-<%= row.level %>"><span class="status-dot" aria-hidden="true"></span><%= t(".levels.#{row.level}") %></span>
+      </div>
+      <div class="status-days" role="img" aria-label="<%= t(".days_label", days: StatusPage::DAYS) %>">
+        <% row.days.each do |day, sample| %>
+          <span class="status-day status-<%= sample ? sample.level : :unknown %>"
+                title="<%= l(day, format: :long) %>: <%= sample&.uptime ? number_to_percentage(sample.uptime * 100, precision: 2) : t(".no_data") %>"></span>
+        <% end %>
+      </div>
+      <p class="hint status-uptime">
+        <span><%= t(".days_ago", days: StatusPage::DAYS) %></span>
+        <span><%= row.uptime ? t(".uptime", percent: number_to_percentage(row.uptime * 100, precision: 2)) : t(".no_data") %></span>
+        <span><%= t(".today") %></span>
+      </p>
+    </li>
+  <% end %>
+</ul>
+
+<p class="hint status-foot"><%= t(".updated", time: l(Time.current, format: :short)) %></p>

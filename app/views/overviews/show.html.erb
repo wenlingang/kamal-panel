@@ -16,6 +16,8 @@
     no page refresh, and the filter bar between them is never touched. %>
 <%= turbo_stream_from OverviewSignal::STREAM %>
 
+<%= render "overviews/attention", items: AttentionItems.new(Current.user).items %>
+
 <div id="<%= OverviewSignal::TARGET %>" data-controller="live-refresh">
 
 <% if !@any_managed_apps %>

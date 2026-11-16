@@ -143,6 +143,24 @@
     </div>
   </section>
 
+  <section class="section">
+    <h2><%= t("status_pages.form.title") %></h2>
+    <div class="panel">
+      <div>
+        <label class="check-row">
+          <%= form.check_box :public_status %>
+          <span><%= t("status_pages.form.public_status") %></span>
+        </label>
+        <p class="hint"><%= t("status_pages.form.public_status_hint") %> <%= link_to status_page_url, status_page_path %></p>
+      </div>
+      <div>
+        <%= form.label :public_name, t("status_pages.form.public_name") %>
+        <%= form.text_field :public_name, maxlength: 80, placeholder: managed_app.name.presence %>
+        <p class="hint"><%= t("status_pages.form.public_name_hint") %></p>
+      </div>
+    </div>
+  </section>
+
   <div class="form-actions">
     <%= form.submit submit_label, class: "btn-primary" %>
     <%= link_to t(".cancel"), new_record ? root_path : managed_app, class: "btn" %>

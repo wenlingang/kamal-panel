@@ -72,8 +72,8 @@ class NotificationChannelsController < ApplicationController
   private
     def set_channel = @channel = NotificationChannel.find(params[:id])
 
-    def create_params = params.expect(notification_channel: [ :name, :kind, :target, :secret, :enabled ])
+    def create_params = params.expect(notification_channel: [ :name, :kind, :target, :secret, :enabled, :weekly_summary ])
 
     # The kind stays put: the stored target means something only for its kind.
-    def update_params = params.expect(notification_channel: [ :name, :target, :secret, :enabled, :clear_secret ])
+    def update_params = params.expect(notification_channel: [ :name, :target, :secret, :enabled, :weekly_summary, :clear_secret ])
 end

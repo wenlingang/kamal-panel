@@ -41,6 +41,14 @@ production: &default
     class: CheckCertificatesJob
     schedule: every hour at minute 7
   # Is a newer panel release out (PanelUpdates)? Off for local builds and with PANEL_UPDATE_CHECK=false.
+  # A sample of each app listed on the public status page (StatusSample).
+  status_page_sample:
+    class: StatusPageSampleJob
+    schedule: every 10 minutes
+  # The Monday summary to the notification channels that opted in.
+  weekly_summary:
+    class: WeeklySummaryJob
+    schedule: every monday at 9am
   check_panel_updates:
     class: CheckPanelUpdatesJob
     schedule: every day at 3:17am

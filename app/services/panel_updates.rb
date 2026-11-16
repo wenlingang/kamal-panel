@@ -39,7 +39,7 @@ module PanelUpdates
   def available
     return nil unless enabled? && latest
 
-    version_key(latest) > version_key(current) ? latest : nil
+    (version_key(latest) <=> version_key(current)) == 1 ? latest : nil
   end
 
   def release_url(version) = "https://github.com/#{REPOSITORY}/releases/tag/v#{version}"

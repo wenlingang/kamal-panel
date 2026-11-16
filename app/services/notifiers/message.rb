@@ -39,7 +39,17 @@ module Notifiers
       ].compact.join(" ")
     end
 
+    # The Monday summary (WeeklySummary): a headline and plain lines, no rule or app.
+    def self.summary(headline, lines)
+      I18n.with_locale(I18n.default_locale) do
+        new(kind: "summary", state: "summary", rule_id: nil, rule_name: headline, condition: nil, app_id: nil,
+            app_name: nil, text: lines.join("\n"), hint: nil, started_at: nil, fired_at: nil, resolved_at: nil,
+            url: PanelUrl.for(Rails.application.routes.url_helpers.root_path))
+      end
+    end
+
     def test? = kind == "test"
+    def summary? = kind == "summary"
 
     # "[告警] 应用不健康 · demo-api"
     def title
@@ -55,7 +65,7 @@ module Notifiers
         [
           text,
           hint,
-          (I18n.t("notifiers.started_at", time: format_time(started_at)) if started_at && !test?),
+          (I18n.t("notifiers.started_at", time: format_time(started_at)) if started_at && !test? && !summary?),
           (I18n.t("notifiers.resolved_at", time: format_time(resolved_at)) if resolved_at),
           url
         ].compact
@@ -67,7 +77,7 @@ module Notifiers
     # The webhook's JSON body: stable field names, ISO 8601 times, for whatever is on the other end.
     def as_payload
       {
-        event: test? ? "test" : "alert.#{kind}",
+        event: test? || summary? ? kind : "alert.#{kind}",
         state:,
         rule: rule_id && { id: rule_id, name: rule_name, condition: },
         app: app_id && { id: app_id, name: app_name },

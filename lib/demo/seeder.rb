@@ -26,6 +26,8 @@ module Demo
     # name => [service, hosts, options]
     APPS = {
       "demo-shop"    => [ "shop",    %w[10.1.0.11 10.1.0.12], { worker: true, accessories: true } ],
+      # The same image in staging, a version ahead: the deploy tab of demo-shop offers to promote it.
+      "demo-shop-staging" => [ "shop", %w[10.1.0.13],        { destination: "staging" } ],
       "demo-blog"    => [ "blog",    %w[10.1.0.21 10.1.0.22], {} ],
       "demo-api"     => [ "api",     %w[10.1.0.31],           { destination: "staging" } ],
       "demo-jobs"    => [ "jobs",    %w[10.1.0.41 10.1.0.42], {} ],
@@ -69,6 +71,7 @@ module Demo
       seed_audit_logs
       seed_hook_state
       seed_alerting
+      seed_insights
 
       puts "演示数据就绪：#{self.class.apps.count} 个应用、" \
            "#{DeployEvent.count} 条部署事件、#{AuditLog.count} 条审计"
@@ -97,6 +100,7 @@ module Demo
       apps.fetch("demo-archive").deactivate! if added.key?("demo-archive")
       seed_git
       seed_alerting
+      seed_insights
 
       puts "演示数据已刷新到当前时间（审计记录保持不变）" +
            (added.any? ? "，新增 #{added.keys.join('、')}" : "")
@@ -111,6 +115,7 @@ module Demo
 
       def write_state
         seed_healthy(apps.fetch("demo-shop"))
+        seed_staging(apps.fetch("demo-shop-staging"))
         seed_drift(apps.fetch("demo-blog"))
         seed_unhealthy(apps.fetch("demo-api"))
         seed_unreachable(apps.fetch("demo-jobs"))
@@ -162,6 +167,74 @@ module Demo
           observe(app, host: host, version: "9f3c2a1", health: "healthy")
           observe(app, host: host, version: "9f3c2a1", role: "worker")
           route(app, host: host, container: "shop-web-production-9f3c2a1")
+        end
+      end
+
+      # Staging runs the next version, healthy: ready to promote to demo-shop.
+      def seed_staging(app)
+        observe(app, host: "10.1.0.13", version: "b41e7d2", health: "healthy")
+        route(app, host: "10.1.0.13", container: "shop-web-staging-b41e7d2")
+        DeployEvent.create!(managed_app: app, version: "b41e7d2", source: "hook", performer: "ci-bot", command: "deploy",
+                            started_at: now - 2.hours, succeeded_at: now - 2.hours + 3.minutes,
+                            observed_at: now - 2.hours + 3.minutes, recorded_at: now - 2.hours)
+      end
+
+      # The newer features, rebuilt as of now on every seed and refresh: failure diagnoses on the
+      # failed runs, backups of demo-shop's database (one failure, with its diagnosis), a silence,
+      # certificates (one close to expiry), and a public status page with a month of history.
+      def seed_insights
+        AuditLog.where(managed_app: apps.values, result: "failure", diagnosis: nil).find_each do |log|
+          log.update_columns(diagnosis: FailureDiagnosis.call(log.output_digest))
+        end
+
+        shop, blog, api = apps.values_at("demo-shop", "demo-blog", "demo-api")
+        destination = BackupDestination.find_or_create_by!(name: "demo-r2") do |record|
+          record.assign_attributes(endpoint: "https://demo-account.r2.cloudflarestorage.com", region: "auto",
+                                   bucket: "acme-backups", prefix: "kamal-panel", access_key_id: "demo-key",
+                                   secret_access_key: "demo-secret-not-real")
+        end
+        destination.update_columns(last_checked_at: now - 1.day, last_check_error: nil)
+        plan = shop.backup_plans.find_or_create_by!(accessory: "db") do |record|
+          record.assign_attributes(engine: "postgres", backup_destination: destination, every_hours: 6, keep: 14)
+        end
+        plan.backup_runs.delete_all
+        8.times do |i|
+          at = now - (i * 6 + 2).hours
+          plan.backup_runs.create!(managed_app: shop, state: "succeeded", started_at: at, finished_at: at + 41.seconds,
+                                   size_bytes: 48_000_000 + i * 120_000,
+                                   object_key: "kamal-panel/demo-shop/db/#{at.utc.strftime('%Y%m%dT%H%M%SZ')}.sql.gz")
+        end
+        error = "Error response from daemon: Container 3f1c is not running\nexit status 1"
+        plan.backup_runs.create!(managed_app: shop, state: "failed", started_at: now - 20.minutes, finished_at: now - 19.minutes,
+                                 error:, diagnosis: FailureDiagnosis.call(error))
+        plan.update_columns(next_run_at: now + 4.hours)
+
+        AlertSilence.where(managed_app: apps.values).delete_all
+        AlertSilence.create!(managed_app: blog, user: admin, starts_at: now - 10.minutes, ends_at: now + 50.minutes,
+                             reason: "磁盘扩容")
+        AlertSilence.create!(managed_app: api, user: admin, starts_at: now + 1.day, ends_at: now + 1.day + 2.hours,
+                             reason: "数据库升级（预约）")
+
+        { "api.acme.dev" => 5, "www.api.acme.dev" => 5, "legacy.acme.dev" => 64, "www.legacy.acme.dev" => 64 }.each do |host, days|
+          check = CertificateCheck.find_or_initialize_by(host:)
+          check.update!(not_after: now + days.days, issuer: "Let's Encrypt R11", error: nil, checked_at: now - 20.minutes)
+        end
+
+        seed_status_page(shop, blog, api)
+      end
+
+      def seed_status_page(*listed)
+        names = { "demo-shop" => "Shop", "demo-blog" => "Blog", "demo-api" => "API" }
+        listed.each { |app| app.update_columns(public_status: true, public_name: names[app.name]) }
+        StatusSample.where(managed_app: listed).delete_all
+        today = now.to_date
+        listed.each_with_index do |app, index|
+          (0...StatusPage::DAYS).each do |ago|
+            total = ago.zero? ? (now.hour * 6) + 1 : 144
+            bad = ((ago + index * 7) % 11).zero? ? 9 : 0
+            down = ((ago + index * 5) % 23).zero? ? 18 : 0
+            StatusSample.create!(managed_app: app, day: today - ago, total:, ok: [ total - bad - down, 0 ].max, degraded: bad)
+          end
         end
       end
 

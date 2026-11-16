@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="<%= I18n.locale %>">
+  <head>
+    <title><%= t("status_pages.show.title") %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="refresh" content="60">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+  </head>
+  <body class="status-body">
+    <main class="status-page">
+      <%= yield %>
+    </main>
+  </body>
+</html>

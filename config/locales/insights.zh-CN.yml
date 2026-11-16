@@ -1,0 +1,79 @@
+# Panel updates, the overview's needs-attention list, the weekly summary and the public status page.
+zh-CN:
+  shared:
+    panel_update:
+      available: Kamal Panel %{version} 已发布（当前运行 %{current}）。
+      notes: 更新说明
+
+  notifiers:
+    prefix:
+      summary: 周报
+
+  notification_channels:
+    form:
+      weekly_summary: 同时发送每周摘要
+      weekly_summary_hint: 每周一 9:00 发送：上周的发布、告警和备份情况，以及仍需处理的事项。
+
+  attention:
+    title:
+      other: 有 %{count} 件事需要处理
+    since: "%{time}前开始"
+    dismiss: 知道了
+    dismiss_hint: 隐藏，直到同一问题再次出现
+    severities:
+      critical: 尽快处理
+      warning: 近期处理
+      notice: 待完善
+    items:
+      config_broken: "%{app}：deploy.yml 无法解析，面板看不到也操作不了它"
+      no_ssh_key: "%{app} 没有配置 SSH 私钥：无法执行操作、采集指标、查看日志或备份"
+      backup_failed: "%{app} 的 %{accessory} 备份一直失败"
+      backup_overdue: "%{app} 的 %{accessory} 已超过两个周期没有成功备份"
+      cert_expiring: "%{host} 的证书 %{days} 天后到期"
+      backup_destination_failing: "备份存储 %{name} 最近一次检查失败"
+      channel_failing: "通知渠道 %{name} 最近一次发送失败"
+      no_alert_rules: 还没有告警规则，出了问题没人会知道
+      no_channels: 告警规则没有可用的通知渠道
+      panel_update: Kamal Panel %{version} 已发布
+
+  weekly_summary:
+    headline_attention:
+      other: 上周回顾，有 %{count} 件事需要处理
+    headline_quiet: 平静的一周
+    headline_ok: 上周回顾
+    deploys:
+      other: 发布 %{count} 次（失败 %{failed} 次）
+    alerts:
+      other: 触发告警 %{count} 次，仍有 %{open} 个在告警
+    backups:
+      other: 备份成功 %{count} 次，失败 %{failed} 次
+    app_line: "%{app}：发布 %{deploys} 次，告警 %{alerts} 次"
+    nothing_pending: 没有需要处理的事项。
+    pending:
+      other: 有 %{count} 件事需要处理：
+
+  status_pages:
+    form:
+      title: 公开状态页
+      public_status: 在公开状态页上展示这个应用
+      public_status_hint: 任何人无需登录即可打开，只显示下面的名称和是否正常，不会显示主机、版本或日志：
+      public_name: 状态页上的名称
+      public_name_hint: 留空则使用应用名。
+    show:
+      title: 服务状态
+      overall:
+        ok: 所有服务运行正常
+        degraded: 部分服务性能下降
+        down: 部分服务不可用
+        unknown: 暂无状态数据
+      levels:
+        ok: 正常
+        degraded: 性能下降
+        down: 不可用
+        unknown: 未知
+      days_label: 最近 %{days} 天，每天一格
+      days_ago: "%{days} 天前"
+      today: 今天
+      uptime: 可用率 %{percent}
+      no_data: 暂无数据
+      updated: 更新于 %{time}

@@ -52,6 +52,14 @@
     </label>
   </div>
 
+  <div>
+    <label class="check-row">
+      <%= form.check_box :weekly_summary %>
+      <span><%= t("notification_channels.form.weekly_summary") %></span>
+    </label>
+    <p class="hint"><%= t("notification_channels.form.weekly_summary_hint") %></p>
+  </div>
+
   <div class="form-actions">
     <%= form.submit t("common.save"), class: "btn-primary" %>
     <%= link_to t("notification_channels.form.cancel"), notification_channels_path, class: "btn" %>

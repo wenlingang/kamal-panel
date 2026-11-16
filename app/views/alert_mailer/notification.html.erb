@@ -1,5 +1,8 @@
 <h2 style="font-size: 16px; margin: 0 0 12px;"><%= @message.title %></h2>
 <p style="white-space: pre-wrap; margin: 0 0 12px;"><%= @message.text %></p>
+<% if @message.hint %>
+  <p style="white-space: pre-wrap; margin: 0 0 12px; color: #333;"><%= @message.hint %></p>
+<% end %>
 <% if @message.started_at && !@message.test? %>
   <p style="margin: 0; color: #555;"><%= t("notifiers.started_at", time: @message.started_at.in_time_zone.strftime("%Y-%m-%d %H:%M:%S %Z")) %></p>
 <% end %>

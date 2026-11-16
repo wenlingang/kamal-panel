@@ -101,4 +101,19 @@ class OverviewsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal PollCadence.idle, PollCadence.interval_for(app)
   end
+
+  test "the needs-attention list can be dismissed item by item" do
+    admin = User.create!(email_address: "attention-admin@example.com", password: "secret123456", role: "admin")
+    post session_path, params: { email_address: admin.email_address, password: "secret123456" }
+    ManagedApp.create!(name: "noisy", config_yaml: file_fixture("simple_deploy.yml").read, destination: "production")
+
+    get overview_path
+    assert_select ".attention-item", minimum: 1
+
+    post dismissed_issues_path(key: "no_alert_rules")
+    assert DismissedIssue.exists?(issue_key: "no_alert_rules")
+
+    post dismissed_issues_path(key: "made-up")
+    assert_not DismissedIssue.exists?(issue_key: "made-up")
+  end
 end

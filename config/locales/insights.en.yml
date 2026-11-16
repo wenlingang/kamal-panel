@@ -1,0 +1,85 @@
+# Panel updates, the overview's needs-attention list, the weekly summary and the public status page.
+en:
+  shared:
+    panel_update:
+      available: "Kamal Panel %{version} is out (this panel runs %{current})."
+      notes: Release notes
+
+  notifiers:
+    prefix:
+      summary: Weekly
+
+  notification_channels:
+    form:
+      weekly_summary: Also send the weekly summary here
+      weekly_summary_hint: "Every Monday at 9:00: last week's deploys, alerts and backups, and what still needs attention."
+
+  attention:
+    title:
+      one: 1 thing needs attention
+      other: "%{count} things need attention"
+    since: since %{time} ago
+    dismiss: Seen
+    dismiss_hint: Hide this until the same problem starts again
+    severities:
+      critical: Act now
+      warning: Soon
+      notice: Setup
+    items:
+      config_broken: "%{app}: deploy.yml can't be parsed, so the panel can't see or act on it"
+      no_ssh_key: "%{app} has no SSH key: no actions, metrics, logs or backups"
+      backup_failed: "Backups of %{accessory} (%{app}) are failing"
+      backup_overdue: "Backups of %{accessory} (%{app}) haven't succeeded for over two periods"
+      cert_expiring: "The certificate of %{host} expires in %{days} days"
+      backup_destination_failing: "Backup storage %{name} failed its last check"
+      channel_failing: "Notification channel %{name} failed its last delivery"
+      no_alert_rules: No alert rules yet, so nobody hears about problems
+      no_channels: Alert rules have nowhere to send notifications
+      panel_update: "Kamal Panel %{version} is out"
+
+  weekly_summary:
+    headline_attention:
+      one: Last week, and 1 thing needs attention
+      other: Last week, and %{count} things need attention
+    headline_quiet: A quiet week
+    headline_ok: Last week
+    deploys:
+      one: "1 deploy (%{failed} failed)"
+      other: "%{count} deploys (%{failed} failed)"
+    alerts:
+      one: "1 alert fired, %{open} still firing"
+      other: "%{count} alerts fired, %{open} still firing"
+    backups:
+      one: "1 backup done, %{failed} failed"
+      other: "%{count} backups done, %{failed} failed"
+    app_line: "%{app}: %{deploys} deploys, %{alerts} alerts"
+    nothing_pending: Nothing needs attention.
+    pending:
+      one: "1 thing needs attention:"
+      other: "%{count} things need attention:"
+
+  status_pages:
+    form:
+      title: Public status page
+      public_status: List this app on the public status page
+      public_status_hint: "Anyone can open it without signing in. It shows only the name below and whether the app is up, never hosts, versions or logs:"
+      public_name: Name on the status page
+      public_name_hint: Empty to use the app's name.
+    show:
+      title: Status
+      overall:
+        ok: All systems operational
+        degraded: Some services are degraded
+        down: Some services are down
+        unknown: Status not known yet
+      levels:
+        ok: Operational
+        degraded: Degraded
+        down: Down
+        unknown: Unknown
+      days_label: The last %{days} days, one bar per day
+      days_ago: "%{days} days ago"
+      today: Today
+      uptime: "%{percent} uptime"
+      no_data: No data
+      updated: Updated %{time}

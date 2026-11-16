@@ -1,0 +1,23 @@
+<%# locals: items (AttentionItems::Item). The quieter problems that won't fix themselves; firing alerts
+    are shown elsewhere. Renders nothing when there is nothing to do. %>
+<% if items.any? %>
+  <section class="section attention" aria-labelledby="attention-title">
+    <h2 id="attention-title"><%= icon_tag("triangle-alert", size: :sm) %><%= t("attention.title", count: items.size) %></h2>
+    <ul class="attention-list">
+      <% items.each do |item| %>
+        <li class="attention-item attention-<%= item.severity %>">
+          <span class="attention-mark" aria-hidden="true"></span>
+          <div class="attention-body">
+            <%= link_to item.message, item.path %>
+            <span class="hint">
+              <%= t("attention.severities.#{item.severity}") %>
+              <% if item.since_time %>· <%= t("attention.since", time: time_ago_in_words(item.since_time)) %><% end %>
+            </span>
+          </div>
+          <%= button_to t("attention.dismiss"), dismissed_issues_path(key: item.key), method: :post, class: "btn-quiet",
+                        title: t("attention.dismiss_hint") %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
