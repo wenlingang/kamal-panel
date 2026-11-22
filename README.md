@@ -50,6 +50,23 @@ export AR_ENCRYPTION_PRIMARY_KEY=... AR_ENCRYPTION_DETERMINISTIC_KEY=... AR_ENCR
 bin/kamal setup                # bin/kamal deploy thereafter
 ```
 
+### Deploying from GitHub Actions
+
+`config/deploy.yml` turns on Kamal's GitHub Actions layer cache when the job's runtime token is
+present, so code-only deploys skip the gem install, bootsnap and asset steps. Actions does not
+pass that token to `run` steps by itself; export it before `kamal deploy`:
+
+```yaml
+- uses: docker/setup-buildx-action@v3
+- uses: actions/github-script@v9 # exposes the cache token to the next steps
+  with:
+    script: |
+      for (const k of ["ACTIONS_RUNTIME_TOKEN", "ACTIONS_RUNTIME_URL", "ACTIONS_CACHE_URL", "ACTIONS_RESULTS_URL", "ACTIONS_CACHE_SERVICE_V2"]) {
+        if (process.env[k]) core.exportVariable(k, process.env[k])
+      }
+- run: bin/kamal deploy
+```
+
 Links in alert notifications need the panel's own address: set `PANEL_URL=https://panel.example.com`
 (unset, notifications carry no link). The email channel and password resets need SMTP: `SMTP_ADDRESS`,
 `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `PANEL_MAIL_FROM`.

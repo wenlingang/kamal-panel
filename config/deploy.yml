@@ -83,3 +83,12 @@ asset_path: /rails/public/assets
 
 builder:
   arch: amd64
+  # Layer cache for deploys run from GitHub Actions: with mode=max the gem install, bootsnap and
+  # asset steps are reused, so a code-only deploy skips them. The gha cache needs the job runtime
+  # token (see README "Deploying from GitHub Actions"); without it, as with a local `kamal deploy`,
+  # the block is left out and the build runs uncached.
+<%- if ENV["ACTIONS_RUNTIME_TOKEN"] -%>
+  cache:
+    type: gha
+    options: mode=max
+<%- end -%>

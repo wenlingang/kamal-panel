@@ -44,6 +44,23 @@ export AR_ENCRYPTION_PRIMARY_KEY=... AR_ENCRYPTION_DETERMINISTIC_KEY=... AR_ENCR
 bin/kamal setup                # 之后用 bin/kamal deploy
 ```
 
+### 在 GitHub Actions 里部署
+
+在 job 能拿到运行时 token 时，`config/deploy.yml` 会开启 Kamal 的 GitHub Actions 构建缓存：
+只改代码的部署会跳过 gem 安装、bootsnap 和资源编译。Actions 默认不把这个 token 传给 `run` 步骤，
+需要在 `kamal deploy` 之前导出：
+
+```yaml
+- uses: docker/setup-buildx-action@v3
+- uses: actions/github-script@v9 # 把缓存用的 token 导出给后续步骤
+  with:
+    script: |
+      for (const k of ["ACTIONS_RUNTIME_TOKEN", "ACTIONS_RUNTIME_URL", "ACTIONS_CACHE_URL", "ACTIONS_RESULTS_URL", "ACTIONS_CACHE_SERVICE_V2"]) {
+        if (process.env[k]) core.exportVariable(k, process.env[k])
+      }
+- run: bin/kamal deploy
+```
+
 告警通知里的链接需要面板自己的地址：设置 `PANEL_URL=https://panel.example.com`（不设则通知不带链接）。
 邮件渠道和找回密码需要 SMTP：`SMTP_ADDRESS`、`SMTP_PORT`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`PANEL_MAIL_FROM`。
 
