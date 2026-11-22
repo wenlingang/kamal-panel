@@ -56,3 +56,6 @@
 /.playwright-mcp
 /.ruby-lsp
 /.claude
+
+# Tests are not part of the production image
+/test
